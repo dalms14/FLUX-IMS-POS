@@ -1,12 +1,12 @@
 # Project Overview
 ELI-SYNC is a custom-built, dual-module system designed specifically for the operational needs of Eli Coffee Antipolo. Unlike standard POS systems that only track finished products, ELI-SYNC bridges the gap between sales and raw material management through high-precision ingredient tracking.
 
-## Core Modules
+# Core Modules
 
-# Point-of-Sales System (POS)
+## Point-of-Sales System (POS)
 A user-friendly desktop interface for staff to process orders, handle various payment methods (Cash/GCash), and manage store-specific security via a Store PIN.
 
-# Inventory Management System (IMS)
+## Inventory Management System (IMS)
 A robust backend that tracks raw materials (beans, milk, syrups) in real-time. It automatically calculates wastage and stock levels based on the specific "recipe" of every item sold.
 
 # Technical Stack
