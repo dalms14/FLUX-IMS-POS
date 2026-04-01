@@ -1,5 +1,5 @@
 # Project Overview
-FLUX is a custom-built, dual-module system designed specifically for the operational needs of Eli Coffee Antipolo. Unlike standard POS systems that only track finished products, ELI-SYNC bridges the gap between sales and raw material management through high-precision ingredient tracking.
+FLUX is a custom-built, dual-module system designed specifically for the operational needs of Eli Coffee Antipolo. Unlike standard POS systems that only track finished products, FLUX bridges the gap between sales and raw material management through high-precision ingredient tracking.
 
 # Core Modules
 
@@ -16,5 +16,5 @@ A robust backend that tracks raw materials (beans, milk, syrups) in real-time. I
 * Database: MS SQL Server
 * Architecture: 3-Tier Architecture for scalability and data security.
 
-# Why Eli-Sync?
+# Why FLUX?
 By moving beyond simple "item tracking" to "ingredient tracking," the system provides the owner with accurate Cost of Goods Sold (COGS) reporting and automated low-stock alerts, preventing operational downtime and stock discrepancies.
