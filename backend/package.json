@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "seed:inventory": "node seedInventory.js",
+    "update:salu-salo": "node updateSaluSaloSets.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

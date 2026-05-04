@@ -16,11 +16,12 @@ async function seed() {
     await usersCollection.deleteOne({ email: 'admin@elicoffee.com' });
 
     await usersCollection.insertOne({
-        name: 'Owner',
+        name: 'Staff',
         email: 'admin@elicoffee.com',
         password: hashedPassword,
         pin: '1234',
         role: 'admin',
+        userId: 'ELI001',
         createdAt: new Date(),
         updatedAt: new Date()
     });

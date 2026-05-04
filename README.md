@@ -27,6 +27,7 @@ A robust backend that tracks raw materials (beans, milk, syrups) in real-time. I
 ### **Tools & Environment**
 * **Editor:** ![VS Code](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white)
 * **Version Control:** ![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
+* Architecture: 3-Tier Architecture for scalability and data security.
 
 # Why FLUX?
 By moving beyond simple "item tracking" to "ingredient tracking," the system provides the owner with accurate Cost of Goods Sold (COGS) reporting and automated low-stock alerts, preventing operational downtime and stock discrepancies.

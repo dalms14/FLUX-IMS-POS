@@ -1,0 +1,28 @@
+{
+  "name": "flux-pos",
+  "version": "1.0.0",
+  "description": "FLUX is a custom-built, dual-module system designed specifically for the operational needs of Eli Coffee Antipolo. Unlike standard POS systems that only track finished products, FLUX bridges the gap between sales and raw material management through high-precision ingredient tracking.",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm start --prefix frontend\" \"cd backend && node server.js\""
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dalms14/FLUX-IMS-POS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/dalms14/FLUX-IMS-POS/issues"
+  },
+  "homepage": "https://github.com/dalms14/FLUX-IMS-POS#readme",
+  "dependencies": {
+    "concurrently": "^9.2.1",
+    "react-icons": "^5.6.0"
+  }
+}
