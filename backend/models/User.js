@@ -8,6 +8,11 @@ const UserSchema = new mongoose.Schema({
     role: String,
     pin: String,
     profileImage: String,
+    isOnline: {
+        type: Boolean,
+        default: false
+    },
+    lastSeenAt: Date,
     userId: {
         type: String,
         required: true,

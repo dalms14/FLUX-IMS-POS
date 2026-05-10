@@ -16,6 +16,10 @@ function parseEndDate(value) {
     return end;
 }
 
+function roundMoney(value) {
+    return Math.round(Number(value || 0) * 100) / 100;
+}
+
 async function logRefundAudit(action, refund, details) {
     try {
         await SystemAudit.create({
@@ -39,12 +43,47 @@ async function logRefundAudit(action, refund, details) {
 
 // ========== TRANSACTION ROUTES ==========
 
+const TRANSACTION_HISTORY_STATUSES = ['completed', 'cancelled'];
+
+function annotateRefundedTransactionItems(transaction) {
+    const refundedByIndex = new Map();
+
+    for (const cancelled of transaction.cancelledItems || []) {
+        const index = Number(cancelled.originalIndex);
+        if (!Number.isInteger(index)) continue;
+        const current = refundedByIndex.get(index) || { quantity: 0, refundIds: [], reasons: [] };
+        current.quantity += Number(cancelled.quantity || 0);
+        if (cancelled.refundId) current.refundIds.push(cancelled.refundId);
+        if (cancelled.reason) current.reasons.push(cancelled.reason);
+        refundedByIndex.set(index, current);
+    }
+
+    return {
+        ...transaction,
+        items: (transaction.items || []).map((item, index) => {
+            const refunded = refundedByIndex.get(index);
+            const refundedQuantity = Math.min(Number(item.quantity || 0), Number(refunded?.quantity || 0));
+            return {
+                ...item,
+                refundedQuantity,
+                activeQuantity: Math.max(0, Number(item.quantity || 0) - refundedQuantity),
+                refundStatus: refundedQuantity > 0 ? 'completed' : '',
+                refundIds: refunded?.refundIds || [],
+                refundReasons: refunded?.reasons || [],
+            };
+        }),
+    };
+}
+
 // Get all transactions (with optional filters)
 router.get('/transactions', async (req, res) => {
     try {
-        const { cashier, paymentMethod, startDate, endDate } = req.query;
+        const { cashier, paymentMethod, startDate, endDate, includeActive } = req.query;
         
         let filter = {};
+        if (includeActive !== 'true') {
+            filter.orderStatus = { $in: TRANSACTION_HISTORY_STATUSES };
+        }
         
         if (cashier) filter.cashier = cashier;
         if (paymentMethod) filter.paymentMethod = paymentMethod;
@@ -63,7 +102,7 @@ router.get('/transactions', async (req, res) => {
         res.json({
             success: true,
             count: transactions.length,
-            data: transactions
+            data: transactions.map(annotateRefundedTransactionItems)
         });
     } catch (err) {
         console.error('Error fetching transactions:', err);
@@ -82,7 +121,7 @@ router.get('/transactions/:id', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Transaction not found' });
         }
         
-        res.json({ success: true, data: transaction });
+        res.json({ success: true, data: annotateRefundedTransactionItems(transaction) });
     } catch (err) {
         console.error('Error fetching transaction:', err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -94,31 +133,83 @@ router.get('/sales-history', async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
         
-        let matchStage = {};
+        const filter = { orderStatus: 'completed' };
         if (startDate || endDate) {
-            matchStage.createdAt = {};
-            if (startDate) matchStage.createdAt.$gte = new Date(startDate);
-            if (endDate) matchStage.createdAt.$lte = parseEndDate(endDate);
+            filter.createdAt = {};
+            if (startDate) filter.createdAt.$gte = new Date(startDate);
+            if (endDate) filter.createdAt.$lte = parseEndDate(endDate);
         }
-        
-        const salesData = await Transaction.aggregate([
-            { $match: matchStage },
-            { $unwind: '$items' },
-            {
-                $group: {
-                    _id: '$items.productId',
-                    productName: { $first: '$items.name' },
-                    category: { $first: '$items.category' },
-                    totalQty: { $sum: '$items.quantity' },
-                    totalRevenue: { $sum: '$items.subtotal' },
-                    avgPrice: { $avg: '$items.price' },
-                    transactionCount: { $sum: 1 }
+
+        const transactions = await Transaction.find(filter)
+            .select('items cancelledItems createdAt orderStatus')
+            .lean();
+
+        const products = new Map();
+        const orderIds = new Set();
+        let totalQty = 0;
+        let totalRevenue = 0;
+
+        for (const transaction of transactions) {
+            orderIds.add(String(transaction._id));
+            const annotated = annotateRefundedTransactionItems(transaction);
+
+            for (const item of annotated.items || []) {
+                const originalQty = Number(item.quantity || 0);
+                const activeQty = Math.max(0, Number(item.activeQuantity ?? originalQty));
+                if (!activeQty) continue;
+
+                const unitSubtotal = originalQty > 0
+                    ? Number(item.subtotal || 0) / originalQty
+                    : Number(item.price || 0);
+                const revenue = roundMoney(unitSubtotal * activeQty);
+                const productId = item.productId?._id || item.productId || item.name || 'unknown';
+                const key = String(productId);
+                const current = products.get(key) || {
+                    _id: key,
+                    productName: item.name || 'Unnamed product',
+                    category: item.category || 'Uncategorized',
+                    totalQty: 0,
+                    totalRevenue: 0,
+                    orderIds: new Set(),
+                    lastSoldAt: transaction.createdAt,
+                };
+
+                current.totalQty += activeQty;
+                current.totalRevenue = roundMoney(current.totalRevenue + revenue);
+                current.orderIds.add(String(transaction._id));
+                if (new Date(transaction.createdAt) > new Date(current.lastSoldAt || 0)) {
+                    current.lastSoldAt = transaction.createdAt;
                 }
+
+                products.set(key, current);
+                totalQty += activeQty;
+                totalRevenue = roundMoney(totalRevenue + revenue);
+            }
+        }
+
+        const salesData = Array.from(products.values())
+            .map(product => ({
+                _id: product._id,
+                productName: product.productName,
+                category: product.category,
+                totalQty: product.totalQty,
+                totalRevenue: product.totalRevenue,
+                avgPrice: product.totalQty ? roundMoney(product.totalRevenue / product.totalQty) : 0,
+                transactionCount: product.orderIds.size,
+                lastSoldAt: product.lastSoldAt,
+            }))
+            .sort((a, b) => b.totalRevenue - a.totalRevenue || b.totalQty - a.totalQty);
+
+        res.json({
+            success: true,
+            data: salesData,
+            summary: {
+                productCount: salesData.length,
+                orderCount: orderIds.size,
+                totalQty,
+                totalRevenue,
             },
-            { $sort: { totalQty: -1 } }
-        ]);
-        
-        res.json({ success: true, data: salesData });
+        });
     } catch (err) {
         console.error('Error fetching sales history:', err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -151,8 +242,26 @@ router.get('/inventory-history', async (req, res) => {
             by: w.disposedBy,
             reason: w.reason
         }));
+        const manualStockOut = await SystemAudit.find({
+            ...filter,
+            module: 'Inventory',
+            action: 'Stock Out',
+        }).sort({ createdAt: -1 }).lean();
+
+        const manualStockOutHistory = manualStockOut.map(log => ({
+            date: log.createdAt,
+            item: log.entityName,
+            action: 'Stock Out',
+            quantity: `${log.changes?.quantity || 0}${log.changes?.unit ? ` ${log.changes.unit}` : ''}`,
+            by: log.actor,
+            reason: log.details || log.changes?.reason || '',
+        }));
         
-        res.json({ success: true, data: inventoryHistory });
+        res.json({
+            success: true,
+            data: [...inventoryHistory, ...manualStockOutHistory]
+                .sort((a, b) => new Date(b.date) - new Date(a.date)),
+        });
     } catch (err) {
         console.error('Error fetching inventory history:', err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -223,6 +332,13 @@ router.post('/refunds', async (req, res) => {
         const transaction = await Transaction.findById(transactionId);
         if (!transaction) {
             return res.status(404).json({ success: false, message: 'Transaction not found' });
+        }
+
+        if ((transaction.orderStatus || 'pending') !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Refunds are only allowed while the order is pending. Preparing, ready, completed, and cancelled orders are final.',
+            });
         }
         
         let subtotal = 0;

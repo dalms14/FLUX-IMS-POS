@@ -9,9 +9,13 @@ const loginAttempts = new Map();
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_DURATION = 30 * 1000;
 const ALLOWED_ROLES = ['admin', 'staff'];
+const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
+const EMAIL_DOMAIN = '@elicoffee.com';
 
 function normalizeEmail(email = '') {
-    return email.toLowerCase().trim();
+    const value = String(email).toLowerCase().trim();
+    if (!value) return '';
+    return value.includes('@') ? value : `${value}${EMAIL_DOMAIN}`;
 }
 
 function normalizeRole(role = '') {
@@ -76,10 +80,32 @@ function parseEndDate(value) {
     return end;
 }
 
+function getOnlineCutoff() {
+    return new Date(Date.now() - ONLINE_TIMEOUT_MS);
+}
+
+function serializeUser(user) {
+    const lastSeenAt = user.lastSeenAt || user.updatedAt || null;
+    const isOnline = Boolean(user.isOnline && lastSeenAt && new Date(lastSeenAt) >= getOnlineCutoff());
+
+    return {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        userId: user.userId,
+        profileImage: user.profileImage,
+        isOnline,
+        lastSeenAt,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+    };
+}
+
 async function logAuthAudit({ action, user, details }) {
     try {
         await SystemAudit.create({
-            module: 'Staff',
+            module: 'User Accounts',
             action,
             entityId: user?._id || '',
             entityName: user?.name || '',
@@ -160,11 +186,16 @@ router.post('/login', async (req, res) => {
 
         loginAttempts.delete(attemptKey);
 
+        user.isOnline = true;
+        user.lastSeenAt = new Date();
+        await user.save();
+
         await LoginActivity.create({
             userId: user._id,
             name: user.name || 'Unnamed User',
             email: user.email,
             role: user.role,
+            action: 'login',
             staffId: user.userId || '',
             ipAddress: getClientIp(req),
             userAgent: req.headers['user-agent'] || '',
@@ -175,7 +206,9 @@ router.post('/login', async (req, res) => {
             email: user.email,
             role: user.role,
             userId: user.userId,
-            profileImage: user.profileImage
+            profileImage: user.profileImage,
+            isOnline: true,
+            lastSeenAt: user.lastSeenAt,
         });
 
     } catch (err) {
@@ -186,12 +219,20 @@ router.post('/login', async (req, res) => {
 
 router.get('/login-activity', async (req, res) => {
     try {
-        const { role, startDate, endDate } = req.query;
+        const { role, email, userId, startDate, endDate } = req.query;
         const filter = {};
         const normalizedRole = normalizeRole(role);
 
         if (ALLOWED_ROLES.includes(normalizedRole)) {
             filter.role = normalizedRole;
+        }
+
+        if (email) {
+            filter.email = normalizeEmail(email);
+        }
+
+        if (userId) {
+            filter.staffId = String(userId).trim().toUpperCase();
         }
 
         if (startDate || endDate) {
@@ -236,16 +277,78 @@ router.get('/lockout-status', (req, res) => {
     });
 });
 
+router.post('/heartbeat', async (req, res) => {
+    const normalizedEmail = normalizeEmail(req.body.email);
+
+    if (!normalizedEmail) {
+        return res.status(400).json({ message: 'Email is required' });
+    }
+
+    try {
+        const user = await User.findOneAndUpdate(
+            { email: normalizedEmail },
+            { isOnline: true, lastSeenAt: new Date() },
+            { returnDocument: 'after' }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: 'User account not found' });
+        }
+
+        res.json({ success: true, user: serializeUser(user) });
+    } catch (err) {
+        console.error('Error updating online status:', err);
+        res.status(500).json({ message: 'Failed to update online status' });
+    }
+});
+
+router.post('/logout', async (req, res) => {
+    const normalizedEmail = normalizeEmail(req.body.email);
+
+    if (!normalizedEmail) {
+        return res.status(400).json({ message: 'Email is required' });
+    }
+
+    try {
+        const user = await User.findOneAndUpdate(
+            { email: normalizedEmail },
+            { isOnline: false, lastSeenAt: new Date() },
+            { returnDocument: 'after' }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: 'User account not found' });
+        }
+
+        await LoginActivity.create({
+            userId: user._id,
+            name: user.name || 'Unnamed User',
+            email: user.email,
+            role: user.role,
+            action: 'logout',
+            staffId: user.userId || '',
+            ipAddress: getClientIp(req),
+            userAgent: req.headers['user-agent'] || '',
+        });
+
+        res.json({ success: true, user: serializeUser(user) });
+    } catch (err) {
+        console.error('Error logging out user:', err);
+        res.status(500).json({ message: 'Failed to log out user' });
+    }
+});
+
 router.get('/users', async (req, res) => {
     const role = normalizeRole(req.query.role);
     const query = ALLOWED_ROLES.includes(role) ? { role } : {};
 
     try {
         const users = await User.find(query)
-            .select('name email role userId profileImage createdAt updatedAt')
-            .sort({ role: 1, name: 1 });
+            .select('name email role userId profileImage isOnline lastSeenAt createdAt updatedAt')
+            .sort({ role: 1, name: 1 })
+            .lean();
 
-        res.json({ success: true, data: users });
+        res.json({ success: true, data: users.map(serializeUser) });
     } catch (err) {
         console.error('Error fetching users:', err);
         res.status(500).json({ message: 'Failed to fetch users' });
@@ -321,6 +424,23 @@ router.post('/users', async (req, res) => {
 
 router.delete('/users/:id', async (req, res) => {
     try {
+        const { currentUserEmail, password } = req.body || {};
+        const adminEmail = normalizeEmail(currentUserEmail);
+
+        if (!adminEmail || !password) {
+            return res.status(400).json({ message: 'Admin email and password confirmation are required' });
+        }
+
+        const adminUser = await User.findOne({ email: adminEmail });
+        if (!adminUser || normalizeRole(adminUser.role) !== 'admin') {
+            return res.status(403).json({ message: 'Only admin users can delete staff accounts' });
+        }
+
+        const passwordMatches = await bcrypt.compare(password, adminUser.password);
+        if (!passwordMatches) {
+            return res.status(401).json({ message: 'Password confirmation is incorrect' });
+        }
+
         const user = await User.findById(req.params.id);
 
         if (!user) {
@@ -435,6 +555,40 @@ router.post('/recover-password', async (req, res) => {
     }
 });
 
+router.post('/reset-password', async (req, res) => {
+    const { email, userId, newPassword } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedUserId = String(userId || '').trim().toUpperCase();
+
+    if (!normalizedEmail || !normalizedUserId || !newPassword) {
+        return res.status(400).json({ message: 'Email, user ID, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+
+    try {
+        const user = await User.findOne({ email: normalizedEmail, userId: normalizedUserId });
+        if (!user) {
+            return res.status(404).json({ message: 'Account verification failed' });
+        }
+
+        const isSamePassword = await bcrypt.compare(newPassword, user.password);
+        if (isSamePassword) {
+            return res.status(400).json({ message: 'New password must be different from the current password' });
+        }
+
+        user.password = newPassword;
+        await user.save();
+
+        res.json({ success: true, message: 'Password reset successfully' });
+    } catch (err) {
+        console.error('Error resetting password:', err);
+        res.status(500).json({ message: 'Failed to reset password' });
+    }
+});
+
 router.put('/profile-picture', async (req, res) => {
     const { email, profileImage } = req.body;
     const normalizedEmail = normalizeEmail(email);
@@ -447,7 +601,7 @@ router.put('/profile-picture', async (req, res) => {
         const user = await User.findOneAndUpdate(
             { email: normalizedEmail },
             { profileImage: profileImage || '' },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!user) {
@@ -482,7 +636,7 @@ router.delete('/profile-picture', async (req, res) => {
         const user = await User.findOneAndUpdate(
             { email: normalizedEmail },
             { profileImage: '' },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!user) {
@@ -509,11 +663,13 @@ router.delete('/profile-picture', async (req, res) => {
 // Forgot Password Verification
 router.post('/verify-identity', async (req, res) => {
     const { email, userId } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedUserId = String(userId || '').trim().toUpperCase();
 
     try {
         const user = await User.findOne({
-            email: email.toLowerCase(),
-            userId: userId
+            email: normalizedEmail,
+            userId: normalizedUserId
         });
 
         if (!user) {

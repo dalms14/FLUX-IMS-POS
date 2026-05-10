@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const Category = require('./models/Category');
 
 const categories = [
+  { name: 'ALL' },
   { name: 'Main Dish' },
   { name: 'Pastas' },
   { name: 'Salu-Salo Set' },
