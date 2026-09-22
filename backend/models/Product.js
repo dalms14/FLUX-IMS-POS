@@ -44,6 +44,18 @@ const ProductSchema = new mongoose.Schema(
       default: []
     },
 
+    variantGroups: [{
+      name: {
+        type: String,
+        trim: true,
+        default: 'Variant'
+      },
+      options: {
+        type: [String],
+        default: []
+      }
+    }],
+
     addons: [{
       name: {
         type: String,

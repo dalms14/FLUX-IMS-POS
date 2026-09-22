@@ -6,12 +6,12 @@ import {
   FiArchive,
   FiBarChart2,
   FiDownload,
-  FiDollarSign,
   FiFileText,
   FiLogIn,
   FiRefreshCw,
   FiShoppingBag,
 } from 'react-icons/fi';
+import { LuPhilippinePeso } from 'react-icons/lu';
 
 const today = new Date();
 const toDateInput = (date) => {
@@ -30,7 +30,7 @@ const presets = {
   all: { label: 'All Time', start: '', end: '' },
 };
 
-const money = (value) => `PHP ${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
+const money = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
 const isCancelledTransaction = (transaction) => transaction?.orderStatus === 'cancelled' || transaction?.paymentMethod === 'Cancelled';
 
 const cardStyle = {
@@ -323,6 +323,8 @@ const ReportsPage = () => {
           row.entityName || row.entityId || '-',
           row.details,
           row.changes?.email ? `Email: ${row.changes.email}` : '',
+          row.changes?.jobRole ? `Custom role: ${row.changes.jobRole}` : '',
+          Array.isArray(row.changes?.permissions) ? `Access: ${row.changes.permissions.join(', ') || 'None'}` : '',
           row.changes?.userId ? `User ID: ${row.changes.userId}` : '',
         ].filter(Boolean).join(' - '),
         amount: '',
@@ -387,6 +389,16 @@ const ReportsPage = () => {
         item.unit,
         item.lowStockAt,
         (item.stock || 0) === 0 ? 'Out of Stock' : (item.stock || 0) <= (item.lowStockAt || 0) ? 'Low Stock' : 'In Stock',
+      ]),
+      [],
+      ['Inventory Movement Date', 'Item', 'Action', 'Quantity', 'By', 'Reason'],
+      ...inventoryHistory.map(row => [
+        formatDateTime(row.date),
+        row.item,
+        row.action,
+        row.quantity,
+        row.by,
+        row.reason,
       ]),
       [],
       ['Activity Date', 'Type', 'Reference', 'Actor', 'Detail', 'Amount'],
@@ -486,7 +498,7 @@ const ReportsPage = () => {
         {error && <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '8px', fontSize: '13px', fontWeight: '800' }}>{error}</div>}
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(205px, 1fr))', gap: '14px', marginBottom: '18px' }}>
-          <MetricCard title="Net Sales" value={money(report.netSales)} detail={`${money(report.grossSales)} gross minus ${money(report.refundTotal)} refunds`} icon={<FiDollarSign size={21} />} color="#276749" />
+          <MetricCard title="Net Sales" value={money(report.netSales)} detail={`${money(report.grossSales)} gross minus ${money(report.refundTotal)} refunds`} icon={<LuPhilippinePeso size={21} />} color="#276749" />
           <MetricCard title="Orders" value={report.salesTransactions.length.toLocaleString()} detail={`${report.itemCount.toLocaleString()} total items sold`} icon={<FiShoppingBag size={21} />} color="#8B5E3C" />
           <MetricCard title="Finance Flow" value={money(report.grossSales)} detail={`${money(report.discounts)} discounts, ${money(report.tax)} tax`} icon={<FiBarChart2 size={21} />} color="#2B6CB0" />
           <MetricCard title="Cancelled Checkouts" value={report.cancelledTransactions.length.toLocaleString()} detail="Recorded from checkout summary cancel" icon={<FiFileText size={21} />} color="#C53030" />
@@ -607,6 +619,29 @@ const ReportsPage = () => {
           </Section>
         </section>
 
+        <div style={{ marginBottom: '18px' }}>
+          <Section title="Inventory Movement Report">
+            <DataTable
+              headers={['Date', 'Item', 'Action', 'Quantity', 'By', 'Reason']}
+              rows={inventoryHistory}
+              emptyText="No inventory stock movement for this period."
+              renderRow={(row, index) => {
+                const isStockOut = row.action === 'Stock Out' || row.action?.includes('Deducted');
+                return (
+                  <tr key={`${row.date}-${row.item}-${index}`} style={{ backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
+                    <td style={tdStyle}>{formatDateTime(row.date)}</td>
+                    <td style={{ ...tdStyle, fontWeight: '900', color: '#1a1a1a' }}>{row.item || '-'}</td>
+                    <td style={{ ...tdStyle, color: isStockOut ? '#C53030' : '#276749', fontWeight: '900' }}>{row.action || '-'}</td>
+                    <td style={{ ...tdStyle, fontWeight: '900' }}>{row.quantity || '-'}</td>
+                    <td style={tdStyle}>{row.by || '-'}</td>
+                    <td style={{ ...tdStyle, minWidth: '240px', color: '#666' }}>{row.reason || '-'}</td>
+                  </tr>
+                );
+              }}
+            />
+          </Section>
+        </div>
+
         <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
           <Section title="Customer And Discount Report">
             <DataTable
@@ -697,7 +732,15 @@ const ReportsPage = () => {
                   {[
                     row.details,
                     row.changes?.email ? `Email: ${row.changes.email}` : '',
+                    row.changes?.jobRole ? `Custom role: ${row.changes.jobRole}` : '',
+                    Array.isArray(row.changes?.permissions) ? `Access: ${row.changes.permissions.join(', ') || 'None'}` : '',
                     row.changes?.userId ? `User ID: ${row.changes.userId}` : '',
+                    row.changes?.status ? `Status: ${row.changes.status}` : '',
+                    row.changes?.assignedReceiver ? `Assigned receiver: ${row.changes.assignedReceiver}` : '',
+                    row.changes?.receivedBy ? `Received by: ${row.changes.receivedBy}` : '',
+                    row.changes?.arrivalTime ? `Arrived: ${formatDateTime(row.changes.arrivalTime)}` : '',
+                    row.changes?.approvalTime ? `Approved: ${formatDateTime(row.changes.approvalTime)}` : '',
+                    Array.isArray(row.changes?.items) ? `Items: ${row.changes.items.map(item => `${item.name} × ${item.quantity}${item.expirationDate ? ` (expires ${new Date(item.expirationDate).toLocaleDateString('en-PH')})` : ''}`).join(', ')}` : '',
                   ].filter(Boolean).join(' - ') || '-'}
                 </td>
               </tr>

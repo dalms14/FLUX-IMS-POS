@@ -19,6 +19,11 @@ const DiscountSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    scope: {
+      type: String,
+      enum: ['item', 'order'],
+      default: 'order',
+    },
     active: {
       type: Boolean,
       default: true,

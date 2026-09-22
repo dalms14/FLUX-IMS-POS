@@ -2,10 +2,111 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
+import { DEFAULT_ADMIN_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS, PERMISSIONS, isOwnerAccount } from '../utils/roles';
 
-const STAFF_STATUS_REFRESH_MS = 5000;
+const USER_STATUS_REFRESH_MS = 5000;
 
-const DeleteStaffModal = ({ user, password, error, deleting, onPasswordChange, onConfirm, onClose }) => {
+const getEditablePermissions = (user = {}) => {
+  if (Array.isArray(user.permissions)) return user.permissions;
+  return user.role === 'admin' ? DEFAULT_ADMIN_PERMISSIONS : DEFAULT_STAFF_PERMISSIONS;
+};
+
+const AccessEditModal = ({ user, permissions, saving, error, onToggle, onSave, onClose }) => {
+  const selectedCount = permissions.length;
+
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 18, 8, 0.55)', zIndex: 1800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px', fontFamily: 'Segoe UI, sans-serif' }}
+    >
+      <div
+        onClick={event => event.stopPropagation()}
+        style={{ width: 'min(720px, 100%)', maxHeight: '86vh', overflow: 'auto', backgroundColor: '#fff', borderRadius: '14px', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}
+      >
+        <div style={{ padding: '22px 24px', borderBottom: '1px solid #E8DDD0', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ margin: '0 0 5px', fontSize: '11px', color: '#8B5E3C', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Edit Page Access</p>
+            <h2 style={{ margin: 0, fontSize: '21px', color: '#1a1a1a', fontWeight: '900' }}>{user.name || 'Unnamed User'}</h2>
+            <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#777' }}>{user.email} - {user.role}</p>
+          </div>
+          <button
+            onClick={onClose}
+            title="Close"
+            disabled={saving}
+            style={{ width: '34px', height: '34px', border: '1px solid #E0D5CB', borderRadius: '8px', backgroundColor: '#fff', color: '#7A6A5A', fontSize: '18px', fontWeight: '900', cursor: saving ? 'not-allowed' : 'pointer', flexShrink: 0 }}
+          >
+            x
+          </button>
+        </div>
+
+        <div style={{ padding: '22px 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '9px' }}>
+            {PERMISSIONS.map(permission => {
+              const checked = permissions.includes(permission.key);
+              return (
+                <label
+                  key={permission.key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '9px',
+                    minHeight: '46px',
+                    padding: '10px 12px',
+                    border: `1.5px solid ${checked ? '#8B5E3C' : '#DDD2C7'}`,
+                    borderRadius: '8px',
+                    backgroundColor: checked ? '#FDF5EE' : '#FAFAF8',
+                    color: checked ? '#6F4A2F' : '#4A3A2A',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => onToggle(permission.key)}
+                    style={{ width: '15px', height: '15px', flexShrink: 0 }}
+                  />
+                  {permission.label}
+                </label>
+              );
+            })}
+          </div>
+
+          {error && (
+            <p style={{ margin: '16px 0 0', padding: '11px 12px', borderRadius: '8px', backgroundColor: '#FFF5F5', border: '1px solid #FED7D7', color: '#C53030', fontSize: '12px', fontWeight: '800' }}>
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div style={{ padding: '16px 24px', borderTop: '1px solid #E8DDD0', display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+          <p style={{ margin: 0, fontSize: '12px', color: '#777', fontWeight: '700' }}>{selectedCount} page access option{selectedCount !== 1 ? 's' : ''} selected</p>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              style={{ padding: '11px 16px', border: 'none', borderRadius: '8px', backgroundColor: '#f5f5f5', color: '#555', fontSize: '13px', fontWeight: '800', cursor: saving ? 'not-allowed' : 'pointer' }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              style={{ padding: '11px 18px', border: 'none', borderRadius: '8px', backgroundColor: saving ? '#C4A87A' : '#8B5E3C', color: '#fff', fontSize: '13px', fontWeight: '900', cursor: saving ? 'not-allowed' : 'pointer' }}
+            >
+              {saving ? 'Saving...' : 'Save Access'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DeleteUserModal = ({ user, password, error, deleting, onPasswordChange, onConfirm, onClose }) => {
   const label = user?.name || user?.email || 'this account';
 
   return (
@@ -72,37 +173,48 @@ const DeleteStaffModal = ({ user, password, error, deleting, onPasswordChange, o
 };
 
 const StaffPage = () => {
-  const [staff, setStaff] = useState([]);
+  const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState('');
-  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [activityLogs, setActivityLogs] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState('');
-  const [staffToDelete, setStaffToDelete] = useState(null);
+  const [userToDelete, setUserToDelete] = useState(null);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const [userToEditAccess, setUserToEditAccess] = useState(null);
+  const [accessPermissions, setAccessPermissions] = useState([]);
+  const [accessSaving, setAccessSaving] = useState(false);
+  const [accessError, setAccessError] = useState('');
+
+  const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+  const ownerCanEditAccess = isOwnerAccount(currentUser);
+  const isCurrentUser = (user) => (
+    Boolean(currentUser.email) &&
+    String(user.email || '').trim().toLowerCase() === String(currentUser.email).trim().toLowerCase()
+  );
 
   useEffect(() => {
     let mounted = true;
 
-    const fetchStaff = async (showInitialLoading = false) => {
+    const fetchUsers = async (showInitialLoading = false) => {
       if (showInitialLoading) {
         setLoading(true);
       }
       setError('');
 
       try {
-        const res = await axios.get('http://localhost:5000/api/auth/users?role=staff');
+        const res = await axios.get('http://localhost:5000/api/auth/users');
         if (mounted) {
-          setStaff(res.data.data || []);
+          setUsers(res.data.data || []);
         }
       } catch (err) {
-        console.error('Error fetching staff:', err);
+        console.error('Error fetching users:', err);
         if (mounted) {
-          setError('Failed to load staff accounts.');
+          setError('Failed to load user accounts.');
         }
       } finally {
         if (mounted) {
@@ -113,12 +225,12 @@ const StaffPage = () => {
 
     const refreshWhenVisible = () => {
       if (!document.hidden) {
-        fetchStaff();
+        fetchUsers();
       }
     };
 
-    fetchStaff(true);
-    const refreshTimer = setInterval(refreshWhenVisible, STAFF_STATUS_REFRESH_MS);
+    fetchUsers(true);
+    const refreshTimer = setInterval(refreshWhenVisible, USER_STATUS_REFRESH_MS);
     document.addEventListener('visibilitychange', refreshWhenVisible);
     window.addEventListener('focus', refreshWhenVisible);
 
@@ -130,16 +242,17 @@ const StaffPage = () => {
     };
   }, []);
 
-  const filteredStaff = useMemo(() => {
+  const filteredUsers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return staff;
+    if (!query) return users;
 
-    return staff.filter(user => (
+    return users.filter(user => (
       (user.name || '').toLowerCase().includes(query) ||
       (user.email || '').toLowerCase().includes(query) ||
-      (user.userId || '').toLowerCase().includes(query)
+      (user.userId || '').toLowerCase().includes(query) ||
+      (user.role || '').toLowerCase().includes(query)
     ));
-  }, [searchQuery, staff]);
+  }, [searchQuery, users]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -172,50 +285,103 @@ const StaffPage = () => {
     });
   };
 
-  const onlineCount = useMemo(() => staff.filter(user => user.isOnline).length, [staff]);
+  const onlineCount = useMemo(() => users.filter(user => user.isOnline).length, [users]);
 
-  const openDeleteStaffModal = (user) => {
-    setStaffToDelete(user);
+  const openAccessEditModal = (user) => {
+    setUserToEditAccess(user);
+    setAccessPermissions(getEditablePermissions(user));
+    setAccessError('');
+  };
+
+  const closeAccessEditModal = () => {
+    if (accessSaving) return;
+    setUserToEditAccess(null);
+    setAccessPermissions([]);
+    setAccessError('');
+  };
+
+  const toggleAccessPermission = (permission) => {
+    setAccessPermissions(prev => (
+      prev.includes(permission)
+        ? prev.filter(item => item !== permission)
+        : [...prev, permission]
+    ));
+    setAccessError('');
+  };
+
+  const handleSaveAccess = async () => {
+    if (!userToEditAccess) return;
+
+    setAccessSaving(true);
+    setAccessError('');
+
+    try {
+      const res = await axios.put(`http://localhost:5000/api/auth/users/${userToEditAccess._id}/access`, {
+        currentUserEmail: currentUser.email,
+        currentUserId: currentUser.userId,
+        permissions: accessPermissions,
+      });
+      const updatedUser = res.data.user;
+
+      setUsers(prev => prev.map(user => (
+        user._id === updatedUser._id ? updatedUser : user
+      )));
+      setSelectedUser(prev => (
+        prev?._id === updatedUser._id ? { ...prev, ...updatedUser } : prev
+      ));
+      setUserToEditAccess(null);
+      setAccessPermissions([]);
+      setAccessError('');
+    } catch (err) {
+      console.error('Error updating user access:', err);
+      setAccessError(err.response?.data?.message || 'Failed to update user access.');
+    } finally {
+      setAccessSaving(false);
+    }
+  };
+
+  const openDeleteUserModal = (user) => {
+    setUserToDelete(user);
     setDeletePassword('');
     setDeleteError('');
   };
 
-  const closeDeleteStaffModal = () => {
+  const closeDeleteUserModal = () => {
     if (deletingId) return;
-    setStaffToDelete(null);
+    setUserToDelete(null);
     setDeletePassword('');
     setDeleteError('');
   };
 
-  const handleDeleteStaff = async (event) => {
+  const handleDeleteUser = async (event) => {
     event.preventDefault();
-    if (!staffToDelete || !deletePassword.trim()) return;
+    if (!userToDelete || !deletePassword.trim()) return;
 
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
-    setDeletingId(staffToDelete._id);
+    setDeletingId(userToDelete._id);
     setError('');
     setDeleteError('');
 
     try {
-      await axios.delete(`http://localhost:5000/api/auth/users/${staffToDelete._id}`, {
+      await axios.delete(`http://localhost:5000/api/auth/users/${userToDelete._id}`, {
         data: {
           currentUserEmail: currentUser.email,
           password: deletePassword,
         },
       });
-      setStaff(prev => prev.filter(staffUser => staffUser._id !== staffToDelete._id));
-      closeDeleteStaffModal();
+      setUsers(prev => prev.filter(existingUser => existingUser._id !== userToDelete._id));
+      closeDeleteUserModal();
     } catch (err) {
-      console.error('Error deleting staff:', err);
-      setDeleteError(err.response?.data?.message || 'Failed to delete staff account.');
+      console.error('Error deleting user:', err);
+      setDeleteError(err.response?.data?.message || 'Failed to delete user account.');
     } finally {
       setDeletingId('');
     }
   };
 
-  const openStaffDetails = async (user) => {
-    setSelectedStaff(user);
+  const openUserDetails = async (user) => {
+    setSelectedUser(user);
     setActivityLogs([]);
     setActivityError('');
     setActivityLoading(true);
@@ -226,7 +392,7 @@ const StaffPage = () => {
       const res = await axios.get(`http://localhost:5000/api/auth/login-activity?${params}`);
       setActivityLogs(res.data.data || []);
     } catch (err) {
-      console.error('Error fetching staff activity:', err);
+      console.error('Error fetching user activity:', err);
       setActivityError('Failed to load login activity.');
     } finally {
       setActivityLoading(false);
@@ -239,13 +405,13 @@ const StaffPage = () => {
 
       <div className="mobile-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
         <PageHeader
-          title="Staff"
-          description="View all staff accounts registered in FLUX."
+          title="Users"
+          description="View all owner, admin, and staff accounts registered in FLUX."
           actions={
             <>
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '8px', padding: '12px 16px', minWidth: '130px' }}>
-              <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Total Staff</p>
-              <p style={{ margin: 0, fontSize: '24px', color: '#1a1a1a', fontWeight: '900' }}>{staff.length}</p>
+              <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Total Users</p>
+              <p style={{ margin: 0, fontSize: '24px', color: '#1a1a1a', fontWeight: '900' }}>{users.length}</p>
             </div>
             <div style={{ backgroundColor: '#fff', border: '1px solid #BFE8CF', borderRadius: '8px', padding: '12px 16px', minWidth: '130px' }}>
               <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#1F7A3A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Online Now</p>
@@ -260,53 +426,53 @@ const StaffPage = () => {
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search staff..."
+            placeholder="Search users..."
             style={{ width: '280px', padding: '11px 14px', border: '1.5px solid #D8CABB', borderRadius: '8px', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}
           />
           <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>
-            Showing {filteredStaff.length} of {staff.length}
+            Showing {filteredUsers.length} of {users.length}
           </p>
         </div>
 
         <div className="staff-table-card" style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <div className="staff-list-head" style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1.15fr 1fr 110px', gap: '12px', padding: '14px 18px', backgroundColor: '#1A1208' }}>
-            {['Staff', 'Email', 'User ID', 'Status', 'Created', 'Action'].map(header => (
+          <div className="staff-list-head" style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1.15fr 1fr 190px', gap: '12px', padding: '14px 18px', backgroundColor: '#1A1208' }}>
+            {['User', 'Email', 'User ID', 'Status', 'Created', 'Action'].map(header => (
               <p key={header} style={{ margin: 0, fontSize: '11px', color: '#C4894A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
             ))}
           </div>
 
           {loading ? (
-            <div style={{ padding: '42px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>Loading staff accounts...</div>
+            <div style={{ padding: '42px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>Loading user accounts...</div>
           ) : error ? (
             <div style={{ padding: '42px', textAlign: 'center', color: '#C53030', fontSize: '14px', fontWeight: '700' }}>{error}</div>
-          ) : filteredStaff.length === 0 ? (
-            <div style={{ padding: '42px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No staff accounts found.</div>
+          ) : filteredUsers.length === 0 ? (
+            <div style={{ padding: '42px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No user accounts found.</div>
           ) : (
-            filteredStaff.map((user, index) => (
+            filteredUsers.map((user, index) => (
               <div
                 key={user._id || user.email}
                 className="staff-list-row"
-                onClick={() => openStaffDetails(user)}
+                onClick={() => openUserDetails(user)}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '2fr 2fr 1fr 1.15fr 1fr 110px',
+                  gridTemplateColumns: '2fr 2fr 1fr 1.15fr 1fr 190px',
                   gap: '12px',
                   padding: '14px 18px',
                   alignItems: 'center',
                   backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8',
-                  borderBottom: index === filteredStaff.length - 1 ? 'none' : '1px solid #F0E8E0',
+                  borderBottom: index === filteredUsers.length - 1 ? 'none' : '1px solid #F0E8E0',
                   cursor: 'pointer',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #8B5E3C, #6F4A2F)', color: '#fff', fontSize: '14px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                     {user.profileImage
-                      ? <img src={user.profileImage} alt={user.name || 'Staff'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ? <img src={user.profileImage} alt={user.name || 'User'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       : (user.name ? user.name.charAt(0).toUpperCase() : 'S')
                     }
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#1a1a1a', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name || 'Unnamed Staff'}</p>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#1a1a1a', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name || 'Unnamed User'}</p>
                     <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{user.role}</p>
                   </div>
                 </div>
@@ -335,43 +501,78 @@ const StaffPage = () => {
                   </p>
                 </div>
                 <p style={{ margin: 0, fontSize: '13px', color: '#777' }}>{formatDate(user.createdAt)}</p>
-                <button
-                  onClick={event => {
-                    event.stopPropagation();
-                    openDeleteStaffModal(user);
-                  }}
-                  disabled={deletingId === user._id}
-                  style={{
-                    padding: '8px 10px',
-                    border: '1px solid #FED7D7',
-                    borderRadius: '7px',
-                    backgroundColor: deletingId === user._id ? '#F3F4F6' : '#FFF5F5',
-                    color: deletingId === user._id ? '#999' : '#C53030',
-                    fontSize: '12px',
-                    fontWeight: '800',
-                    cursor: deletingId === user._id ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {deletingId === user._id ? 'Deleting...' : 'Delete'}
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {ownerCanEditAccess && user.role !== 'owner' && (
+                    <button
+                      onClick={event => {
+                        event.stopPropagation();
+                        openAccessEditModal(user);
+                      }}
+                      style={{
+                        padding: '8px 10px',
+                        border: '1px solid #BEE3F8',
+                        borderRadius: '7px',
+                        backgroundColor: '#EBF8FF',
+                        color: '#2B6CB0',
+                        fontSize: '12px',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Edit Access
+                    </button>
+                  )}
+                  {!isCurrentUser(user) && !isOwnerAccount(user) && (
+                  <button
+                    onClick={event => {
+                      event.stopPropagation();
+                      openDeleteUserModal(user);
+                    }}
+                    disabled={deletingId === user._id}
+                    style={{
+                      padding: '8px 10px',
+                      border: '1px solid #FED7D7',
+                      borderRadius: '7px',
+                      backgroundColor: deletingId === user._id ? '#F3F4F6' : '#FFF5F5',
+                      color: deletingId === user._id ? '#999' : '#C53030',
+                      fontSize: '12px',
+                      fontWeight: '800',
+                      cursor: deletingId === user._id ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {deletingId === user._id ? 'Deleting...' : 'Delete'}
+                  </button>
+                  )}
+                </div>
               </div>
             ))
           )}
         </div>
-        {staffToDelete && (
-          <DeleteStaffModal
-            user={staffToDelete}
-            password={deletePassword}
-            error={deleteError}
-            deleting={deletingId === staffToDelete._id}
-            onPasswordChange={setDeletePassword}
-            onConfirm={handleDeleteStaff}
-            onClose={closeDeleteStaffModal}
+        {userToEditAccess && (
+          <AccessEditModal
+            user={userToEditAccess}
+            permissions={accessPermissions}
+            saving={accessSaving}
+            error={accessError}
+            onToggle={toggleAccessPermission}
+            onSave={handleSaveAccess}
+            onClose={closeAccessEditModal}
           />
         )}
-        {selectedStaff && (
+        {userToDelete && (
+          <DeleteUserModal
+            user={userToDelete}
+            password={deletePassword}
+            error={deleteError}
+            deleting={deletingId === userToDelete._id}
+            onPasswordChange={setDeletePassword}
+            onConfirm={handleDeleteUser}
+            onClose={closeDeleteUserModal}
+          />
+        )}
+        {selectedUser && (
           <div
-            onClick={() => setSelectedStaff(null)}
+            onClick={() => setSelectedUser(null)}
             style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 18, 8, 0.55)', zIndex: 1400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}
           >
             <div
@@ -380,12 +581,12 @@ const StaffPage = () => {
             >
               <div style={{ padding: '20px 22px', borderBottom: '1px solid #E8DDD0', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start' }}>
                 <div>
-                  <p style={{ margin: '0 0 5px', fontSize: '11px', color: '#8B5E3C', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Staff Activity</p>
-                  <h2 style={{ margin: 0, fontSize: '21px', color: '#1a1a1a', fontWeight: '900' }}>{selectedStaff.name || 'Unnamed Staff'}</h2>
-                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#777' }}>{selectedStaff.email} · {selectedStaff.userId || '-'}</p>
+                  <p style={{ margin: '0 0 5px', fontSize: '11px', color: '#8B5E3C', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.8px' }}>User Activity</p>
+                  <h2 style={{ margin: 0, fontSize: '21px', color: '#1a1a1a', fontWeight: '900' }}>{selectedUser.name || 'Unnamed User'}</h2>
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#777' }}>{selectedUser.email} · {selectedUser.userId || '-'}</p>
                 </div>
                 <button
-                  onClick={() => setSelectedStaff(null)}
+                  onClick={() => setSelectedUser(null)}
                   title="Close"
                   style={{ width: '34px', height: '34px', border: '1px solid #E0D5CB', borderRadius: '8px', backgroundColor: '#fff', color: '#7A6A5A', fontSize: '18px', fontWeight: '900', cursor: 'pointer', flexShrink: 0 }}
                 >
@@ -395,9 +596,9 @@ const StaffPage = () => {
 
               <div style={{ padding: '18px 22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', borderBottom: '1px solid #F0E8E0' }}>
                 {[
-                  ['Status', selectedStaff.isOnline ? 'Online' : 'Offline'],
-                  ['Last Seen', formatFullDateTime(selectedStaff.lastSeenAt)],
-                  ['Created', formatFullDateTime(selectedStaff.createdAt)],
+                  ['Status', selectedUser.isOnline ? 'Online' : 'Offline'],
+                  ['Last Seen', formatFullDateTime(selectedUser.lastSeenAt)],
+                  ['Created', formatFullDateTime(selectedUser.createdAt)],
                 ].map(([label, value]) => (
                   <div key={label} style={{ backgroundColor: '#FAFAF8', border: '1px solid #E8DDD0', borderRadius: '8px', padding: '10px 12px' }}>
                     <p style={{ margin: '0 0 4px', fontSize: '10px', color: '#8B5E3C', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{label}</p>

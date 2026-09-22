@@ -11,12 +11,12 @@ const ORDER_REFRESH_MS = 5000;
 const VALID_CUSTOMER_TYPES = new Set(['customer', 'elite', 'pagibig', 'pwd_senior', 'custom_discount']);
 const SERVICE_TYPES = ['Dine In', 'Dine Out'];
 const SYSTEM_DISCOUNTS = [
-  { name: 'Elite Member', percentage: 20 },
+  { name: 'Elite Member', percentage: 20, scope: 'order' },
 ];
 const DEFAULT_DISCOUNTS = [
   ...SYSTEM_DISCOUNTS,
-  { name: 'Pag-IBIG', percentage: 20 },
-  { name: 'PWD/Senior Citizen', percentage: 20 },
+  { name: 'Pag-IBIG', percentage: 20, scope: 'item' },
+  { name: 'PWD/Senior Citizen', percentage: 20, scope: 'item' },
 ];
 
 const normalizeDiscount = (discount) => {
@@ -32,12 +32,17 @@ const normalizeDiscount = (discount) => {
   if (key.includes('elite')) code = 'elite';
   else if (key.includes('pwd') || key.includes('senior')) code = 'pwd_senior';
   else if (key.includes('pag') || key.includes('ibig')) code = 'pagibig';
+  let scope = String(discount.scope || '').trim().toLowerCase();
+  if (!['item', 'order'].includes(scope)) {
+    scope = code === 'pagibig' || code === 'pwd_senior' ? 'item' : 'order';
+  }
 
   return {
     _id: discount._id || '',
     name,
     percentage,
     code,
+    scope,
   };
 };
 
@@ -50,13 +55,24 @@ const findDiscountByCode = (discounts, code) => (
 );
 
 const isSystemDiscount = (discount) => normalizeDiscount(discount)?.code === 'elite';
+const ITEM_SCOPED_DISCOUNT_CODES = new Set(['pagibig', 'pwd_senior']);
+const isItemScopedDiscount = (discount, type) => (
+  discount?.scope ? discount.scope === 'item' : ITEM_SCOPED_DISCOUNT_CODES.has(discount?.code) || ITEM_SCOPED_DISCOUNT_CODES.has(type)
+);
+
+const getItemScopedDiscountName = (discount, type) => {
+  if (discount?.name) return discount.name;
+  if (type === 'pagibig') return 'Pag-IBIG';
+  if (type === 'pwd_senior') return 'PWD/Senior';
+  return 'Discount';
+};
 
 const toMoneyNumber = (value) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
 };
 
-const orderMoney = (value) => `PHP ${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
+const orderMoney = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
 
 const orderStatusMeta = {
   pending: { label: 'Pending', color: '#975A16', bg: '#FFFAF0', border: '#FEEBC8' },
@@ -82,6 +98,32 @@ const formatOrderTime = (value) => {
 };
 
 const getCartItemUnitPrice = (item) => toMoneyNumber(item?.price);
+
+const normalizeProductVariantGroups = (product = {}) => {
+  const groups = Array.isArray(product.variantGroups) ? product.variantGroups : [];
+  const normalizedGroups = groups
+    .map(group => ({
+      name: String(group?.name || 'Variant').trim() || 'Variant',
+      options: Array.isArray(group?.options)
+        ? group.options.map(option => String(option || '').trim()).filter(Boolean)
+        : [],
+    }))
+    .filter(group => group.options.length > 0);
+
+  if (normalizedGroups.length > 0) return normalizedGroups;
+
+  const legacyVariants = Array.isArray(product.variants)
+    ? product.variants.map(variant => String(variant || '').trim()).filter(Boolean)
+    : [];
+
+  return legacyVariants.length > 0 ? [{ name: 'Flavor', options: legacyVariants }] : [];
+};
+
+const formatVariantSelections = (selectedVariantGroups = {}) =>
+  Object.entries(selectedVariantGroups)
+    .filter(([, value]) => value)
+    .map(([name, value]) => `${name}: ${value}`)
+    .join(', ');
 
 const getCartItemLineTotal = (item) => (
   getCartItemUnitPrice(item) * (Number(item?.quantity) || 0)
@@ -257,7 +299,8 @@ const ProductCard = ({ product, onAdd }) => {
   const [hovered, setHovered] = useState(false);
   const [imageUrl, setImageUrl] = useState(product.image || '');
   const [imageLoaded, setImageLoaded] = useState(!!product.image);
-  const hasOptions = Boolean(product.platterPrice || product.addons?.length > 0 || product.variants?.length > 0);
+  const variantGroups = normalizeProductVariantGroups(product);
+  const hasOptions = Boolean(product.platterPrice || product.addons?.length > 0 || variantGroups.length > 0);
   const stockLevel = product.stockStatus?.level || 'ok';
   const isLowStock = stockLevel === 'low';
   const isUnavailable = stockLevel === 'out';
@@ -358,9 +401,9 @@ const ProductCard = ({ product, onAdd }) => {
         <div>
           <p style={{ fontSize: '15px', fontWeight: '900', color: '#111827', margin: '0 0 5px', lineHeight: 1.2, minHeight: '36px' }}>{product.name}</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', minHeight: '22px' }}>
-            {product.variants?.length > 0 && (
+            {variantGroups.length > 0 && (
               <span style={{ padding: '4px 7px', borderRadius: '999px', backgroundColor: '#F3F4F6', color: '#6B7280', fontSize: '10px', fontWeight: '800' }}>
-                {product.variants.length} variant{product.variants.length > 1 ? 's' : ''}
+                {variantGroups.length} variant type{variantGroups.length > 1 ? 's' : ''}
               </span>
             )}
             {product.addons?.length > 0 && (
@@ -376,14 +419,14 @@ const ProductCard = ({ product, onAdd }) => {
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: '10px', color: '#9B8A7A', fontWeight: '900', textTransform: 'uppercase' }}>Solo</p>
               <p style={{ fontSize: '18px', fontWeight: '950', color: '#8B5E3C', margin: 0, lineHeight: 1 }}>
-                PHP {soloPrice.toLocaleString()}
+                ₱{soloPrice.toLocaleString()}
               </p>
             </div>
             {product.platterPrice && (
               <div style={{ textAlign: 'right', minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: '10px', color: '#9B8A7A', fontWeight: '900', textTransform: 'uppercase' }}>Platter</p>
                 <p style={{ fontSize: '12px', fontWeight: '900', color: '#7A6A5A', margin: 0, lineHeight: 1.1 }}>
-                  PHP {product.platterPrice.toLocaleString()}
+                  ₱{product.platterPrice.toLocaleString()}
                 </p>
               </div>
             )}
@@ -452,7 +495,10 @@ const ProductCard = ({ product, onAdd }) => {
   );
 };
 const ProductModal = ({ product, onConfirm, onClose }) => {
-  const [selectedVariant, setSelectedVariant] = useState(product.variants?.[0] ?? null);
+  const variantGroups = normalizeProductVariantGroups(product);
+  const [selectedVariantGroups, setSelectedVariantGroups] = useState(() => (
+    Object.fromEntries(variantGroups.map(group => [group.name, group.options[0] || '']))
+  ));
   const [size, setSize] = useState('solo');
   const [selectedUpgrades, setSelectedUpgrades] = useState([]);
 
@@ -461,6 +507,7 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
   const basePrice = size === 'solo' ? (product.soloPrice ?? product.price) : product.platterPrice;
   const upgradesPrice = canUseUpgrades ? selectedUpgrades.reduce((sum, u) => sum + toMoneyNumber(u.price), 0) : 0;
   const finalPrice = toMoneyNumber(basePrice) + upgradesPrice;
+  const selectedVariant = formatVariantSelections(selectedVariantGroups);
 
   const toggleUpgrade = (upgrade) => {
     setSelectedUpgrades(prev =>
@@ -481,23 +528,23 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
           {['solo', ...(product.platterPrice ? ['platter'] : [])].map(s => (
             <button key={s} onClick={() => setSize(s)} style={{ flex: 1, padding: '12px', border: `2px solid ${size === s ? '#8B5E3C' : '#eee'}`, borderRadius: '10px', backgroundColor: size === s ? '#FDF5EE' : '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: '600', color: size === s ? '#8B5E3C' : '#999' }}>
               {s.charAt(0).toUpperCase() + s.slice(1)}<br />
-              <span style={{ fontSize: '15px', fontWeight: '800' }}>PHP {s === 'solo' ? (product.soloPrice ?? product.price) : product.platterPrice}</span>
+              <span style={{ fontSize: '15px', fontWeight: '800' }}>₱{s === 'solo' ? (product.soloPrice ?? product.price) : product.platterPrice}</span>
             </button>
           ))}
         </div>
 
-        {product.variants?.length > 0 && (
-          <>
-            <p style={{ fontSize: '11px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>Flavor</p>
+        {variantGroups.map(group => (
+          <React.Fragment key={group.name}>
+            <p style={{ fontSize: '11px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>{group.name}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '24px' }}>
-              {product.variants.map(v => (
-                <button key={v} onClick={() => setSelectedVariant(v)} style={{ padding: '9px 16px', border: `2px solid ${selectedVariant === v ? '#8B5E3C' : '#eee'}`, borderRadius: '20px', backgroundColor: selectedVariant === v ? '#FDF5EE' : '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: selectedVariant === v ? '#8B5E3C' : '#999' }}>
+              {group.options.map(v => (
+                <button key={`${group.name}-${v}`} onClick={() => setSelectedVariantGroups(prev => ({ ...prev, [group.name]: v }))} style={{ padding: '9px 16px', border: `2px solid ${selectedVariantGroups[group.name] === v ? '#8B5E3C' : '#eee'}`, borderRadius: '20px', backgroundColor: selectedVariantGroups[group.name] === v ? '#FDF5EE' : '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: selectedVariantGroups[group.name] === v ? '#8B5E3C' : '#999' }}>
                   {v}
                 </button>
               ))}
             </div>
-          </>
-        )}
+          </React.Fragment>
+        ))}
 
         {canUseUpgrades && (
           <>
@@ -507,7 +554,7 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
                 const isSelected = selectedUpgrades.some(su => su.name === u.name);
                 return (
                   <button key={u.name} onClick={() => toggleUpgrade(u)} style={{ padding: '9px 16px', border: `2px solid ${isSelected ? '#8B5E3C' : '#eee'}`, borderRadius: '20px', backgroundColor: isSelected ? '#FDF5EE' : '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: isSelected ? '#8B5E3C' : '#999', transition: 'all 0.15s' }}>
-                    {u.name} (+PHP {toMoneyNumber(u.price).toLocaleString()})
+                    {u.name} (+₱{toMoneyNumber(u.price).toLocaleString()})
                   </button>
                 );
               })}
@@ -516,7 +563,7 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
         )}
 
         <button onClick={() => onConfirm({ ...product, selectedVariant, size, price: finalPrice, upgrades: canUseUpgrades ? selectedUpgrades : [] })} style={{ width: '100%', padding: '14px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}>
-          Add to Order - PHP {finalPrice?.toLocaleString()}
+          Add to Order - ₱{finalPrice?.toLocaleString()}
         </button>
       </div>
     </div>
@@ -569,7 +616,8 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
   
   const filteredDiscounts = discounts.filter(discount =>
     discount.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    String(discount.percentage).includes(searchQuery)
+    String(discount.percentage).includes(searchQuery) ||
+    (isItemScopedDiscount(discount) ? 'selected item person' : 'whole order').includes(searchQuery.toLowerCase())
   );
 
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
@@ -638,40 +686,52 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
               {searchQuery ? 'No matching discounts found.' : 'No discounts available.'}
             </div>
           ) : (
-            filteredDiscounts.map(discount => (
+            filteredDiscounts.map(discount => {
+              const scopeLabel = isItemScopedDiscount(discount) ? 'Selected item/person' : 'Whole order';
+              return (
               <button
                 key={discount._id || discount.name}
                 onClick={() => onSelect(discount)}
                 style={{
+                  width: '100%',
                   padding: '14px 16px',
                   backgroundColor: '#FDF5EE',
                   color: '#8B5E3C',
                   border: '2px solid #8B5E3C',
                   borderRadius: '10px',
-                  fontSize: '14px',
-                  fontWeight: '700',
                   cursor: 'pointer',
                   textAlign: 'left',
                   transition: 'all 0.15s ease',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '12px',
-                  minHeight: '48px',
+                  alignItems: 'stretch',
+                  gap: '14px',
+                  minHeight: '78px',
+                  boxSizing: 'border-box',
+                  lineHeight: 1.2,
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#F7EDE1';
-                  e.target.style.transform = 'translateX(4px)';
+                  e.currentTarget.style.backgroundColor = '#F7EDE1';
+                  e.currentTarget.style.transform = 'translateX(4px)';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#FDF5EE';
-                  e.target.style.transform = 'translateX(0)';
+                  e.currentTarget.style.backgroundColor = '#FDF5EE';
+                  e.currentTarget.style.transform = 'translateX(0)';
                 }}
               >
-                <div>
-                  <div style={{ fontWeight: '800', marginBottom: '3px' }}>{discount.name}</div>
-                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#A06B43' }}>
+                <div style={{
+                  minWidth: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  gap: '4px',
+                }}>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#5F3A22', lineHeight: 1.15 }}>{discount.name}</div>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#A06B43', lineHeight: 1.15 }}>
                     {Number(discount.percentage || 0).toLocaleString()}% discount
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: '800', color: '#6F4A2F', lineHeight: 1.15 }}>
+                    {scopeLabel}
                   </div>
                 </div>
                 <div style={{
@@ -683,11 +743,13 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
                   fontWeight: '800',
                   flexShrink: 0,
                   whiteSpace: 'nowrap',
+                  alignSelf: 'center',
                 }}>
                   {Number(discount.percentage || 0)}%
                 </div>
               </button>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -766,18 +828,22 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
   const [gcashProofImage, setGcashProofImage] = useState('');
   const [gcashProofName, setGcashProofName] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const change = paymentMethod === 'Cash' ? (parseFloat(amountTendered) || 0) - total : 0;
   const eligibleDiscountSubtotal = cart.reduce((sum, item) => (
     sum + (getCartItemUnitPrice(item) * Math.min(item.discountEligibleQuantity || 0, item.quantity || 0))
   ), 0);
   const discountLabel = formatDiscountLabel(selectedDiscount);
-  const isPwdSeniorDiscount = selectedDiscount?.code === 'pwd_senior' || customerType === 'pwd_senior';
+  const isScopedDiscount = isItemScopedDiscount(selectedDiscount, customerType);
+  const scopedDiscountName = getItemScopedDiscountName(selectedDiscount, customerType);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (submitting) return;
+
     if (paymentMethod === 'Cash') {
       if (!amountTendered || parseFloat(amountTendered) < total) {
-        setError(`Amount tendered must be at least PHP ${total.toLocaleString()}`);
+        setError(`Amount tendered must be at least ₱${total.toLocaleString()}`);
         return;
       }
     }
@@ -798,14 +864,21 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
         return;
       }
     }
-    onConfirm({
-      serviceType,
-      paymentMethod,
-      amountTendered: paymentMethod === 'Cash' ? parseFloat(amountTendered) : total,
-      change: paymentMethod === 'Cash' ? Math.max(0, change) : 0,
-      gcashReference: paymentMethod === 'GCash' ? amountTendered.trim() : null,
-      gcashProofImage: paymentMethod === 'GCash' ? gcashProofImage || null : null,
-    });
+
+    setSubmitting(true);
+    setError('');
+    try {
+      await onConfirm({
+        serviceType,
+        paymentMethod,
+        amountTendered: paymentMethod === 'Cash' ? parseFloat(amountTendered) : total,
+        change: paymentMethod === 'Cash' ? Math.max(0, change) : 0,
+        gcashReference: paymentMethod === 'GCash' ? amountTendered.trim() : null,
+        gcashProofImage: paymentMethod === 'GCash' ? gcashProofImage || null : null,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleGcashProofChange = async (event) => {
@@ -851,25 +924,25 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
                 {item.selectedVariant ? ` (${item.selectedVariant})` : ''}
                 {' '} - {item.size === 'platter' ? 'Platter' : 'Solo'}
                 {item.upgrades?.length > 0 ? <><br /><span style={{ fontSize: '11px', color: '#888' }}>+ {item.upgrades.map(u => u.name).join(', ')}</span></> : ''}
-                {isPwdSeniorDiscount && item.discountEligibleQuantity > 0 ? <><br /><span style={{ fontSize: '11px', color: '#975A16', fontWeight: '700' }}>PWD/Senior discount qty: {item.discountEligibleQuantity}</span></> : ''}
+                {isScopedDiscount && item.discountEligibleQuantity > 0 ? <><br /><span style={{ fontSize: '11px', color: '#975A16', fontWeight: '700' }}>{scopedDiscountName} discount qty: {item.discountEligibleQuantity}</span></> : ''}
               </span>
-              <span style={{ fontWeight: '700', color: '#1a1a1a', flexShrink: 0 }}>PHP {getCartItemLineTotal(item).toLocaleString()}</span>
+              <span style={{ fontWeight: '700', color: '#1a1a1a', flexShrink: 0 }}>₱{getCartItemLineTotal(item).toLocaleString()}</span>
             </div>
           ))}
         </div>
 
         <div style={{ borderTop: '1px dashed #eee', paddingTop: '12px', marginBottom: '20px' }}>
           {[
-            ['Subtotal', `PHP ${subtotal.toLocaleString()}`],
-            ...(isPwdSeniorDiscount ? [['PWD/Senior eligible', `PHP ${eligibleDiscountSubtotal.toLocaleString()}`]] : []),
-            [`Discount${discountLabel ? ` (${discountLabel})` : ''}`, discount > 0 ? `-PHP ${discount.toLocaleString()}` : 'PHP 0'],
+            ['Subtotal', `₱${subtotal.toLocaleString()}`],
+            ...(isScopedDiscount ? [[`${scopedDiscountName} eligible`, `₱${eligibleDiscountSubtotal.toLocaleString()}`]] : []),
+            [`Discount${discountLabel ? ` (${discountLabel})` : ''}`, discount > 0 ? `-₱${discount.toLocaleString()}` : '₱0'],
           ].map(([label, value]) => (
             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#666', marginBottom: '4px' }}>
               <span>{label}</span><span>{value}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '17px', fontWeight: '900', color: '#1a1a1a', marginTop: '8px' }}>
-            <span>TOTAL</span><span>PHP {total.toLocaleString()}</span>
+            <span>TOTAL</span><span>₱{total.toLocaleString()}</span>
           </div>
         </div>
 
@@ -907,11 +980,11 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
             <input
               type="number" value={amountTendered}
               onChange={e => { setAmountTendered(e.target.value); setError(''); }}
-              placeholder={`Minimum PHP ${total.toLocaleString()}`}
+              placeholder={`Minimum ₱${total.toLocaleString()}`}
               style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '15px', outline: 'none', boxSizing: 'border-box', fontWeight: '600' }}
             />
             {amountTendered && parseFloat(amountTendered) >= total && (
-              <p style={{ fontSize: '13px', color: '#276749', fontWeight: '700', margin: '8px 0 0' }}>Change: PHP {Math.max(0, change).toLocaleString()}</p>
+              <p style={{ fontSize: '13px', color: '#276749', fontWeight: '700', margin: '8px 0 0' }}>Change: ₱{Math.max(0, change).toLocaleString()}</p>
             )}
           </div>
         )}
@@ -952,11 +1025,19 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
         {error && <p style={{ fontSize: '12px', color: '#E53E3E', margin: '0 0 12px' }}>{error}</p>}
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => onCancel(serviceType)} style={{ flex: 1, padding: '13px', backgroundColor: '#f5f5f5', color: '#555', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+          <button
+            onClick={() => onCancel(serviceType)}
+            disabled={submitting}
+            style={{ flex: 1, padding: '13px', backgroundColor: '#f5f5f5', color: '#555', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.65 : 1 }}
+          >
             Cancel
           </button>
-          <button onClick={handleConfirm} style={{ flex: 2, padding: '13px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>
-            Confirm Order
+          <button
+            onClick={handleConfirm}
+            disabled={submitting}
+            style={{ flex: 2, padding: '13px', backgroundColor: submitting ? '#B9A897' : '#8B5E3C', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: submitting ? 'not-allowed' : 'pointer' }}
+          >
+            {submitting ? 'Saving...' : 'Confirm Order'}
           </button>
         </div>
       </div>
@@ -1234,9 +1315,10 @@ const Items = () => {
     ? (selectedDiscount || findDiscountByCode(normalizedDiscounts, customerType))
     : null;
   const activeDiscountLabel = formatDiscountLabel(activeDiscount);
-  const isPwdSeniorDiscount = activeDiscount?.code === 'pwd_senior' || customerType === 'pwd_senior';
-  const pwdSeniorDiscount = findDiscountByCode(normalizedDiscounts, 'pwd_senior');
-  const canUseItemDiscount = customerType !== 'elite' && ((!discountApplied && Boolean(pwdSeniorDiscount)) || isPwdSeniorDiscount);
+  const isScopedDiscount = isItemScopedDiscount(activeDiscount, customerType);
+  const scopedDiscountName = getItemScopedDiscountName(activeDiscount, customerType);
+  const defaultItemScopedDiscount = normalizedDiscounts.find(discount => discount.code !== 'elite' && isItemScopedDiscount(discount));
+  const canUseItemDiscount = customerType !== 'elite' && ((!discountApplied && Boolean(defaultItemScopedDiscount)) || isScopedDiscount);
 
   const fetchActiveOrders = useCallback(async () => {
     try {
@@ -1513,7 +1595,7 @@ const Items = () => {
       return;
     }
 
-    if (latestProduct.addons?.length > 0 || latestProduct.variants?.length > 0 || latestProduct.platterPrice) {
+    if (latestProduct.addons?.length > 0 || normalizeProductVariantGroups(latestProduct).length > 0 || latestProduct.platterPrice) {
       setSelectedProduct(latestProduct);
       return;
     }
@@ -1602,7 +1684,7 @@ const Items = () => {
     setCustomerType(discountChoice.code);
     setSelectedDiscount(discountChoice);
     setEliteMember(null);
-    if (discountChoice.code !== 'pwd_senior') setDiscountEligibility({});
+    if (!isItemScopedDiscount(discountChoice, discountChoice.code)) setDiscountEligibility({});
     setDiscountApplied(true);
     setShowDiscountTypeModal(false);
   };
@@ -1610,24 +1692,27 @@ const Items = () => {
     const item = cart.find(c => c.cartKey === cartKey);
     if (!item) return;
 
-    setDiscountEligibility(prev => {
-      const next = isPwdSeniorDiscount ? { ...prev } : {};
-      if (next[cartKey]) delete next[cartKey];
-      else next[cartKey] = item.quantity;
-      return next;
-    });
-    const pwdDiscount = findDiscountByCode(normalizedDiscounts, 'pwd_senior');
-    if (!pwdDiscount) {
+    const itemScopedDiscount = isScopedDiscount
+      ? activeDiscount
+      : defaultItemScopedDiscount;
+    if (!itemScopedDiscount) {
       addNotification({
-        title: 'PWD/Senior discount unavailable',
-        message: 'Add a PWD/Senior discount in Products > Discounts before applying it to an item.',
+        title: 'Item discount unavailable',
+        message: 'Add a PWD/Senior or Pag-IBIG discount in Products > Discounts before applying it to an item.',
         details: [],
       });
       return;
     }
 
-    setCustomerType('pwd_senior');
-    setSelectedDiscount(pwdDiscount);
+    setDiscountEligibility(prev => {
+      const next = isScopedDiscount ? { ...prev } : {};
+      if (next[cartKey]) delete next[cartKey];
+      else next[cartKey] = item.quantity;
+      return next;
+    });
+
+    setCustomerType(itemScopedDiscount.code);
+    setSelectedDiscount(itemScopedDiscount);
     setEliteMember(null);
     setDiscountApplied(true);
     setShowDiscountTypeModal(false);
@@ -1638,7 +1723,7 @@ const Items = () => {
     return acc + getCartItemUnitPrice(item) * eligibleQuantity;
   }, 0);
   const tax = 0; // VAT already included in product prices
-  const discountBase = isPwdSeniorDiscount ? eligibleDiscountSubtotal : subtotal;
+  const discountBase = isScopedDiscount ? eligibleDiscountSubtotal : subtotal;
   const discountRate = discountApplied ? (Number(activeDiscount?.percentage) || 0) / 100 : 0;
   const discount = Math.round(discountBase * discountRate);
   const total = subtotal - discount;
@@ -1650,10 +1735,10 @@ const Items = () => {
   });
   const handleProceedToCheckout = () => {
     if (cart.length === 0) return;
-    if (isPwdSeniorDiscount && discountApplied && eligibleDiscountSubtotal <= 0) {
+    if (isScopedDiscount && discountApplied && eligibleDiscountSubtotal <= 0) {
       addNotification({
         title: 'Select discounted items',
-        message: 'Set the PWD/Senior discount quantity for the eligible person before checkout.',
+        message: `Set the ${scopedDiscountName} discount quantity for the eligible person before checkout.`,
         details: [],
       });
       return;
@@ -1671,7 +1756,7 @@ const Items = () => {
     price: getCartItemUnitPrice(item),
     quantity: item.quantity,
     subtotal: getCartItemLineTotal(item),
-    discountEligibleQuantity: isPwdSeniorDiscount ? Math.min(discountEligibility[item.cartKey] || 0, item.quantity) : item.quantity,
+    discountEligibleQuantity: isScopedDiscount ? Math.min(discountEligibility[item.cartKey] || 0, item.quantity) : item.quantity,
   }));
 
   const handleCancelCheckout = async (serviceType = 'Dine In') => {
@@ -1697,6 +1782,7 @@ const Items = () => {
           name: activeDiscount.name,
           percentage: activeDiscount.percentage,
           code: activeDiscount.code,
+          scope: activeDiscount.scope,
         } : null,
         reason: 'Checkout cancelled from transaction summary',
       });
@@ -1716,7 +1802,7 @@ const Items = () => {
     const handleConfirmOrder = async ({ serviceType, paymentMethod, amountTendered, change, gcashReference, gcashProofImage }) => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     try {
-        await axios.post('http://localhost:5000/api/transactions', {
+        const response = await axios.post('http://localhost:5000/api/transactions', {
             cashier: user.name || 'Staff',
             cashierEmail: user.email || '',
             customerType, serviceType, eliteMember,
@@ -1726,15 +1812,26 @@ const Items = () => {
               name: activeDiscount.name,
               percentage: activeDiscount.percentage,
               code: activeDiscount.code,
+              scope: activeDiscount.scope,
             } : null,
             paymentMethod, amountTendered, change,
             gcashReference: gcashReference || null,
             gcashProofImage: gcashProofImage || null,
         });
-        fetchActiveOrders();
+
+        const savedOrder = response.data?.success === true
+            || Boolean(response.data?.transactionId)
+            || Boolean(response.data?.receiptNo);
+
+        if (!savedOrder) {
+            throw new Error(response.data?.message || 'Order was not saved.');
+        }
+
+        await fetchActiveOrders();
         setShowReceipt(false);
         clearCart();
         setPosView('orders');
+        return response.data;
     } catch (err) {
         if (err.response?.data?.code === 'INSUFFICIENT_STOCK') {
             const shortages = err.response.data.shortages || [];
@@ -1753,9 +1850,10 @@ const Items = () => {
 
         addNotification({
             title: 'Order failed',
-            message: err.response?.data?.message || 'Failed to save order. Please try again.',
+            message: err.response?.data?.message || err.message || 'Failed to save order. Please try again.',
             details: [],
         });
+        throw err;
     }
 };
 
@@ -1959,7 +2057,7 @@ const Items = () => {
         onClick={() => setMobileCartOpen(true)}
       >
         <span>{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
-        <strong>Cart - PHP {total.toLocaleString()}</strong>
+        <strong>Cart - ₱{total.toLocaleString()}</strong>
       </button>
 
       <div
@@ -2025,7 +2123,7 @@ const Items = () => {
                     {canUseItemDiscount && (
                     <button
                       onClick={() => toggleDiscountEligibility(item.cartKey)}
-                      title={discountEligibility[item.cartKey] ? 'Remove PWD/Senior discount from this item' : 'Apply PWD/Senior discount to this item'}
+                      title={discountEligibility[item.cartKey] ? `Remove ${scopedDiscountName} discount from this item` : `Apply ${scopedDiscountName} discount to this item`}
                       style={{
                         width: '24px',
                         height: '24px',
@@ -2053,7 +2151,7 @@ const Items = () => {
         {/* Totals */}
         <div style={{ borderTop: '1px solid #eee', padding: '14px', backgroundColor: '#FAFAFA' }}>
           {[['Subtotal:', `₱${subtotal.toLocaleString()}`],
-          ...(isPwdSeniorDiscount && discountApplied ? [['PWD/Senior eligible:', `₱${eligibleDiscountSubtotal.toLocaleString()}`]] : []),
+          ...(isScopedDiscount && discountApplied ? [[`${scopedDiscountName} eligible:`, `₱${eligibleDiscountSubtotal.toLocaleString()}`]] : []),
           [`Discount${activeDiscountLabel ? ` (${activeDiscountLabel})` : ''}:`, discount > 0 ? `-₱${discount.toLocaleString()}` : '₱0.00']]
           .map(([label, value]) => (
             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#666', marginBottom: '5px' }}>
@@ -2094,7 +2192,7 @@ const Items = () => {
       {showReceipt && (
     <ReceiptModal cart={cart.map(item => ({
           ...item,
-          discountEligibleQuantity: isPwdSeniorDiscount ? Math.min(discountEligibility[item.cartKey] || 0, item.quantity) : item.quantity,
+          discountEligibleQuantity: isScopedDiscount ? Math.min(discountEligibility[item.cartKey] || 0, item.quantity) : item.quantity,
         }))} subtotal={subtotal} tax={tax} discount={discount} total={total}
         customerType={customerType} eliteMember={eliteMember} selectedDiscount={activeDiscount}
         onConfirm={handleConfirmOrder} onCancel={handleCancelCheckout} />

@@ -12,14 +12,26 @@ const STORE_NAME = 'Eli Coffee Antipolo - Events + Cafe';
 const TERMINAL = 'POS-01';
 
 const LEGACY_DISCOUNTS = {
-    elite: { name: 'Elite Member', percentage: 20, code: 'elite' },
-    pagibig: { name: 'Pag-IBIG', percentage: 20, code: 'pagibig' },
-    pwd_senior: { name: 'PWD/Senior Citizen', percentage: 20, code: 'pwd_senior' },
+    elite: { name: 'Elite Member', percentage: 20, code: 'elite', scope: 'order' },
+    pagibig: { name: 'Pag-IBIG', percentage: 20, code: 'pagibig', scope: 'item' },
+    pwd_senior: { name: 'PWD/Senior Citizen', percentage: 20, code: 'pwd_senior', scope: 'item' },
 };
 
 const formatDiscountLabel = (discount) => (
     discount ? `${discount.name} ${Number(discount.percentage || 0).toLocaleString()}%` : ''
 );
+
+const ITEM_SCOPED_DISCOUNT_CODES = new Set(['pagibig', 'pwd_senior']);
+const isItemScopedDiscount = (discount, type) => (
+    discount?.scope ? discount.scope === 'item' : ITEM_SCOPED_DISCOUNT_CODES.has(discount?.code) || ITEM_SCOPED_DISCOUNT_CODES.has(type)
+);
+
+const getItemScopedDiscountName = (discount, type) => {
+    if (discount?.name) return discount.name;
+    if (type === 'pagibig') return 'Pag-IBIG';
+    if (type === 'pwd_senior') return 'PWD/Senior';
+    return 'Discount';
+};
 
 const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, discount, total, paymentMethod, amountTendered, change, gcashReference, cashier, customerType, eliteMember, selectedDiscount, discountInfo, createdAt, closeLabel = 'New Order', onClose }) => {
     const now = createdAt ? new Date(createdAt) : new Date();
@@ -34,7 +46,8 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
     ), 0);
     const discountMeta = selectedDiscount || discountInfo || LEGACY_DISCOUNTS[customerType] || null;
     const discountLabel = formatDiscountLabel(discountMeta);
-    const isPwdSeniorDiscount = discountMeta?.code === 'pwd_senior' || customerType === 'pwd_senior';
+    const isScopedDiscount = isItemScopedDiscount(discountMeta, customerType);
+    const scopedDiscountName = getItemScopedDiscountName(discountMeta, customerType);
 
     const divider = (dashed = false) => (
         <div style={{
@@ -119,10 +132,10 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                                     </div>
                                     <div style={{ fontSize: '11px', color: '#888', paddingLeft: '8px' }}>
                                         {item.quantity}x ₱{item.price.toLocaleString()}
-                                        {isPwdSeniorDiscount && item.discountEligibleQuantity > 0 && (
+                                        {isScopedDiscount && item.discountEligibleQuantity > 0 && (
                                             <>
                                                 <br />
-                                                PWD/Senior discount qty: {item.discountEligibleQuantity}
+                                                {scopedDiscountName} discount qty: {item.discountEligibleQuantity}
                                             </>
                                         )}
                                         {refundedQuantity > 0 && (
@@ -148,7 +161,7 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                     {/* Totals */}
                     {row('Subtotal:', `₱${subtotalBeforeVat.toLocaleString()}`)}
                     {row(`VAT (12%):`, `₱${vatAmount.toLocaleString()}`)}
-                    {isPwdSeniorDiscount && row('PWD/Senior eligible:', `₱${eligibleDiscountSubtotal.toLocaleString()}`)}
+                    {isScopedDiscount && row(`${scopedDiscountName} eligible:`, `₱${eligibleDiscountSubtotal.toLocaleString()}`)}
                     {row(`Discount${discountLabel ? ` (${discountLabel})` : ' (None)'}:`, discount > 0 ? `-₱${discount.toLocaleString()}` : '₱0.00')}
 
                     {divider()}

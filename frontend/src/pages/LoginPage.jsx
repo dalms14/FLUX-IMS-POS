@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
+import { getLandingPath } from '../utils/roles';
 import './LoginPage.module.css';
 
 const normalizeLoginEmail = (value = '') => value.toLowerCase().trim();
@@ -81,19 +82,22 @@ const LoginPage = () => {
             email: loginEmail, password,
         });
         if (response.data) {
-            localStorage.setItem('user', JSON.stringify({
+            const user = {
                 name: response.data.name,
                 email: response.data.email,
                 role: response.data.role,
+                jobRole: response.data.jobRole,
+                permissions: response.data.permissions,
                 userId: response.data.userId,
                 profileImage: response.data.profileImage,
                 isOnline: response.data.isOnline,
                 lastSeenAt: response.data.lastSeenAt,
-            }));
+            };
+            localStorage.setItem('user', JSON.stringify(user));
             // Clear lockout on success
             setLocked(false);
             setAttemptsRemaining(3);
-            navigate('/dashboard');
+            navigate(getLandingPath(user));
         }
     } catch (err) {
         const status = err.response?.status;

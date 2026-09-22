@@ -31,6 +31,7 @@ const TransactionSchema = new mongoose.Schema({
         name:       String,
         percentage: Number,
         code:       String,
+        scope:      String,
     },
     items: [{
         productId:       { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },

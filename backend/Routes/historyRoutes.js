@@ -16,8 +16,25 @@ function parseEndDate(value) {
     return end;
 }
 
+function escapeRegex(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function roundMoney(value) {
     return Math.round(Number(value || 0) * 100) / 100;
+}
+
+function roundStockAmount(value) {
+    return Math.round(Number(value || 0) * 1000) / 1000;
+}
+
+function getNearestExpirationDate(batches = []) {
+    const dates = batches
+        .map(batch => batch.expirationDate ? new Date(batch.expirationDate) : null)
+        .filter(date => date && !Number.isNaN(date.getTime()))
+        .sort((a, b) => a - b);
+
+    return dates[0] || null;
 }
 
 async function logRefundAudit(action, refund, details) {
@@ -80,12 +97,20 @@ router.get('/transactions', async (req, res) => {
     try {
         const { cashier, paymentMethod, startDate, endDate, includeActive } = req.query;
         
+        console.log('Transaction query params:', { cashier, paymentMethod, startDate, endDate, includeActive });
+        
         let filter = {};
         if (includeActive !== 'true') {
             filter.orderStatus = { $in: TRANSACTION_HISTORY_STATUSES };
+            console.log('Filtering by completed/cancelled only');
+        } else {
+            console.log('Including ALL order statuses');
         }
         
-        if (cashier) filter.cashier = cashier;
+        const cashierSearch = String(cashier || '').trim();
+        if (cashierSearch) {
+            filter.cashier = { $regex: escapeRegex(cashierSearch), $options: 'i' };
+        }
         if (paymentMethod) filter.paymentMethod = paymentMethod;
         
         if (startDate || endDate) {
@@ -98,6 +123,8 @@ router.get('/transactions', async (req, res) => {
             .populate('items.productId', 'name category')
             .sort({ createdAt: -1 })
             .lean();
+        
+        console.log(`Found ${transactions.length} transactions with filter:`, filter);
             
         res.json({
             success: true,
@@ -242,16 +269,16 @@ router.get('/inventory-history', async (req, res) => {
             by: w.disposedBy,
             reason: w.reason
         }));
-        const manualStockOut = await SystemAudit.find({
+        const manualInventoryMovements = await SystemAudit.find({
             ...filter,
             module: 'Inventory',
-            action: 'Stock Out',
+            action: { $in: ['Stock In', 'Stock Out', 'Expired Stock Auto Deducted'] },
         }).sort({ createdAt: -1 }).lean();
 
-        const manualStockOutHistory = manualStockOut.map(log => ({
+        const manualInventoryHistory = manualInventoryMovements.map(log => ({
             date: log.createdAt,
             item: log.entityName,
-            action: 'Stock Out',
+            action: log.action,
             quantity: `${log.changes?.quantity || 0}${log.changes?.unit ? ` ${log.changes.unit}` : ''}`,
             by: log.actor,
             reason: log.details || log.changes?.reason || '',
@@ -259,7 +286,7 @@ router.get('/inventory-history', async (req, res) => {
         
         res.json({
             success: true,
-            data: [...inventoryHistory, ...manualStockOutHistory]
+            data: [...inventoryHistory, ...manualInventoryHistory]
                 .sort((a, b) => new Date(b.date) - new Date(a.date)),
         });
     } catch (err) {
@@ -411,7 +438,18 @@ router.post('/refunds', async (req, res) => {
                 // For non-made items, add back to inventory
                 const inventory = await Inventory.findOne({ name: item.name });
                 if (inventory) {
-                    inventory.stock += item.quantity;
+                    const quantity = roundStockAmount(item.quantity);
+                    inventory.stock = roundStockAmount(Number(inventory.stock || 0) + quantity);
+                    inventory.expirationBatches = [
+                        ...(inventory.expirationBatches || []),
+                        {
+                            quantity,
+                            expirationDate: null,
+                            receivedAt: new Date(),
+                            note: 'Returned purchased product from refund',
+                        },
+                    ];
+                    inventory.expirationDate = getNearestExpirationDate(inventory.expirationBatches);
                     await inventory.save();
                 }
             }

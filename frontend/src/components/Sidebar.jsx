@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { isAdminRole } from '../utils/roles';
+import { hasPermission } from '../utils/roles';
 import './Sidebar.css';
 
 const navItems = [
   { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
   { key: 'items', label: 'Items and POS', path: '/items', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg> },
   { key: 'products', label: 'Products', path: '/products', adminOnly: true, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> },
-  { key: 'sales', label: 'Sales', path: '/sales', adminOnly: true, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
+  { key: 'sales', label: 'Sales', path: '/sales', adminOnly: true, icon: <span aria-hidden="true" style={{ fontSize: '22px', fontWeight: '700', lineHeight: 1 }}>₱</span> },
+  { key: 'purchase_orders', label: 'Purchase Orders', path: '/purchase-orders', adminOnly: true, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v5h5"/><path d="M9 12h6M9 16h6"/></svg> },
   { key: 'inventory', label: 'Inventory', path: '/inventory', adminOnly: true, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> },
   { key: 'transactions', label: 'Transactions', path: '/transactions', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> },
-  { key: 'staff', label: 'Staff', path: '/staff', adminOnly: true, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+  { key: 'staff', label: 'Users', path: '/staff', adminOnly: true, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
   { key: 'history', label: 'History', path: '/history', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"/></svg> },
   { key: 'reports', label: 'Reports', path: '/reports', adminOnly: true, icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> },
   { key: 'settings', label: 'Settings', path: '/settings', icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
@@ -22,12 +23,36 @@ export default function Sidebar() {
   const [hoveredKey, setHoveredKey] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin = isAdminRole(user.role);
-  const visibleItems = navItems.filter(item => isAdmin || !item.adminOnly);
+  const visibleItems = navItems.filter(item => hasPermission(user, item.key));
+
+  useEffect(() => {
+    if (!user.email) return undefined;
+    const loadNotifications = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/notifications?email=${encodeURIComponent(user.email)}`);
+        setNotifications(response.data.data || []);
+      } catch (err) {
+        console.error('Error loading notifications:', err);
+      }
+    };
+    loadNotifications();
+    const timer = window.setInterval(loadNotifications, 30000);
+    return () => window.clearInterval(timer);
+  }, [user.email]);
+
+  const openNotifications = async () => {
+    try {
+      await Promise.all(notifications.map(notification => axios.post(`http://localhost:5000/api/notifications/${notification._id}/read`, { email: user.email })));
+    } catch (err) {
+      console.error('Error marking notifications as read:', err);
+    }
+    navigate('/purchase-orders');
+  };
 
   const confirmLogout = async () => {
     try {
@@ -102,6 +127,16 @@ export default function Sidebar() {
             <div style={{ fontSize: '18px', fontWeight: '800', color: '#F5EDE3', letterSpacing: '-0.3px' }}>FLUX</div>
             <div style={{ fontSize: '9px', color: '#8B5E3C', letterSpacing: '2.5px', fontWeight: '600', marginTop: '2px' }}>ELI COFFEE</div>
           </div>
+        {notifications.length > 0 && (
+          <button
+            onClick={openNotifications}
+            title={`${notifications.length} purchase order delivery approval${notifications.length === 1 ? '' : 's'} awaiting review`}
+            style={{ position: 'relative', width: '30px', height: '30px', borderRadius: '7px', border: '1px solid rgba(212,184,154,0.2)', backgroundColor: 'rgba(128,90,213,0.18)', color: '#D6BCFA', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="15" height="15"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span style={{ position: 'absolute', top: '-5px', right: '-5px', minWidth: '15px', height: '15px', padding: '0 3px', borderRadius: '8px', backgroundColor: '#C53030', color: '#fff', fontSize: '9px', fontWeight: '900', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{notifications.length}</span>
+          </button>
+        )}
         <button
           onClick={toggleCollapsed}
           title={collapsed ? 'Expand' : 'Collapse'}

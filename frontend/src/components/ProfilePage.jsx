@@ -102,7 +102,7 @@ const ProfilePage = () => {
     const transactionActivities = transactions.map(t => ({
       id: t._id || t.receiptNo,
       type: 'transaction',
-      text: `Processed transaction ${t.receiptNo || ''} - PHP ${(t.total || 0).toLocaleString()}`,
+      text: `Processed transaction ${t.receiptNo || ''} - ₱${(t.total || 0).toLocaleString()}`,
       actor: t.cashier || t.cashierEmail || 'Unknown cashier',
       actorEmail: t.cashierEmail || '',
       date: t.createdAt,
@@ -111,7 +111,7 @@ const ProfilePage = () => {
     const refundActivities = refunds.map(r => ({
       id: r._id || r.receiptNo,
       type: 'refund',
-      text: `Processed refund for ${r.receiptNo || 'transaction'} - PHP ${(r.totalRefunded || 0).toLocaleString()}`,
+      text: `Processed refund for ${r.receiptNo || 'transaction'} - ₱${(r.totalRefunded || 0).toLocaleString()}`,
       actor: r.refundedBy || r.refundedByEmail || 'Unknown user',
       actorEmail: r.refundedByEmail || '',
       date: r.createdAt,

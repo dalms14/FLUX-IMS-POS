@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
-import { isAdminRole } from '../utils/roles';
+import { PERMISSIONS, hasPermission, isOwnerRole } from '../utils/roles';
 import { FiEdit2, FiSearch, FiTrash2 } from 'react-icons/fi';
 
 const EMAIL_DOMAIN = '@elicoffee.com';
@@ -38,6 +38,45 @@ const normalizeAddons = (addons = []) =>
             price: Number(addon.price) || 0,
         }));
 
+const normalizeVariants = (variants = []) =>
+    (Array.isArray(variants) ? variants : String(variants || '').split(','))
+        .map(variant => String(variant || '').trim())
+        .filter(Boolean);
+
+const buildVariantRows = (variants = []) => {
+    const normalized = normalizeVariants(variants);
+    return normalized.length > 0 ? normalized : [''];
+};
+
+const normalizeVariantGroups = (product = {}) => {
+    const groups = Array.isArray(product.variantGroups) ? product.variantGroups : [];
+    const normalizedGroups = groups
+        .map(group => ({
+            name: String(group?.name || 'Variant').trim() || 'Variant',
+            options: buildVariantRows(group?.options),
+        }))
+        .filter(group => normalizeVariants(group.options).length > 0);
+
+    if (normalizedGroups.length > 0) return normalizedGroups;
+
+    const legacyVariants = normalizeVariants(product.variants);
+    return [{
+        name: 'Flavor',
+        options: legacyVariants.length > 0 ? legacyVariants : [''],
+    }];
+};
+
+const flattenVariantGroups = (groups = []) =>
+    groups.flatMap(group => normalizeVariants(group.options));
+
+const prepareVariantGroups = (groups = []) =>
+    groups
+        .map(group => ({
+            name: String(group.name || 'Variant').trim() || 'Variant',
+            options: normalizeVariants(group.options),
+        }))
+        .filter(group => group.options.length > 0);
+
 const mergeAddonOptions = (availableAddons = [], productAddons = []) => {
     const map = new Map();
 
@@ -73,7 +112,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
         soloPrice: product?.soloPrice ?? product?.price ?? '',
         platterPrice: product?.platterPrice ?? '',
         description: product?.description || '',
-        variants: product?.variants?.join(', ') || '',
+        variantGroups: normalizeVariantGroups(product || {}),
         addons: normalizeAddons(product?.addons),
         recipeIngredients: [],
         image: product?.image || '',
@@ -177,6 +216,65 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
         }));
     };
 
+    const updateVariantGroupName = (groupIndex, value) => {
+        setForm(f => ({
+            ...f,
+            variantGroups: f.variantGroups.map((group, index) =>
+                index === groupIndex ? { ...group, name: value } : group
+            ),
+        }));
+    };
+
+    const updateVariant = (groupIndex, optionIndex, value) => {
+        setForm(f => ({
+            ...f,
+            variantGroups: f.variantGroups.map((group, index) =>
+                index === groupIndex
+                    ? {
+                        ...group,
+                        options: group.options.map((option, currentOptionIndex) =>
+                            currentOptionIndex === optionIndex ? value : option
+                        ),
+                    }
+                    : group
+            ),
+        }));
+    };
+
+    const addVariantGroup = () => {
+        setForm(f => ({
+            ...f,
+            variantGroups: [...f.variantGroups, { name: 'Variant Type', options: [''] }],
+        }));
+    };
+
+    const removeVariantGroup = (groupIndex) => {
+        setForm(f => {
+            const nextGroups = f.variantGroups.filter((_, index) => index !== groupIndex);
+            return { ...f, variantGroups: nextGroups.length > 0 ? nextGroups : [{ name: 'Flavor', options: [''] }] };
+        });
+    };
+
+    const addVariant = (groupIndex) => {
+        setForm(f => ({
+            ...f,
+            variantGroups: f.variantGroups.map((group, index) =>
+                index === groupIndex ? { ...group, options: [...group.options, ''] } : group
+            ),
+        }));
+    };
+
+    const removeVariant = (groupIndex, optionIndex) => {
+        setForm(f => ({
+            ...f,
+            variantGroups: f.variantGroups.map((group, index) => {
+                if (index !== groupIndex) return group;
+                const nextOptions = group.options.filter((_, currentOptionIndex) => currentOptionIndex !== optionIndex);
+                return { ...group, options: nextOptions.length > 0 ? nextOptions : [''] };
+            }),
+        }));
+    };
+
     const handleSave = async () => {
         if (!form.name.trim() || !form.category || !form.soloPrice) {
             alert('Please fill in Name, Category and Solo Price.');
@@ -202,7 +300,8 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                 soloPrice: parseFloat(form.soloPrice),
                 platterPrice: form.platterPrice ? parseFloat(form.platterPrice) : null,
                 description: form.description.trim(),
-                variants: form.variants ? form.variants.split(',').map(v => v.trim()).filter(Boolean) : [],
+                variants: flattenVariantGroups(form.variantGroups),
+                variantGroups: prepareVariantGroups(form.variantGroups),
                 addons: normalizeAddons(form.addons),
                 image: imageUrl,
                 available: true,
@@ -347,10 +446,72 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                     </div>
 
                     <div style={{ gridColumn: '1/-1' }}>
-                        <label style={labelStyle}>Variants (comma separated)</label>
-                        <input style={inputStyle} value={form.variants}
-                            onChange={e => setForm(f => ({ ...f, variants: e.target.value }))}
-                            placeholder="e.g. Garlic Parmesan, Honey Glaze" />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                            <label style={{ ...labelStyle, marginBottom: 0 }}>Variant Breakdown</label>
+                            <button
+                                type="button"
+                                onClick={addVariantGroup}
+                                style={{ padding: '7px 10px', backgroundColor: '#FDF5EE', color: '#8B5E3C', border: '1px solid #D8CABB', borderRadius: '7px', fontSize: '12px', fontWeight: '800', cursor: 'pointer' }}
+                            >
+                                + Add Type
+                            </button>
+                        </div>
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                            {form.variantGroups.map((group, groupIndex) => (
+                                <div key={`variant-group-${groupIndex}`} style={{ border: '1px solid #E8DDD0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#fff' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '10px', padding: '10px 12px', backgroundColor: '#F5F0EB', alignItems: 'center' }}>
+                                        <input
+                                            style={{ ...inputStyle, fontWeight: '800', color: '#8B5E3C', backgroundColor: '#fff' }}
+                                            value={group.name}
+                                            onChange={e => updateVariantGroupName(groupIndex, e.target.value)}
+                                            placeholder="e.g. Flavor, Chicken Part"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => addVariant(groupIndex)}
+                                            style={{ padding: '8px 10px', backgroundColor: '#fff', color: '#8B5E3C', border: '1px solid #D8CABB', borderRadius: '7px', fontSize: '12px', fontWeight: '800', cursor: 'pointer' }}
+                                        >
+                                            + Option
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeVariantGroup(groupIndex)}
+                                            title="Remove variant type"
+                                            style={{ width: '34px', height: '34px', border: 'none', borderRadius: '7px', backgroundColor: '#FFF5F5', color: '#C53030', cursor: 'pointer', fontWeight: '900' }}
+                                        >
+                                            x
+                                        </button>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '48px 1fr 40px', gap: '10px', padding: '9px 12px', backgroundColor: '#FBF8F5', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
+                                        {['No.', 'Option Name', ''].map(header => (
+                                            <p key={header || 'action'} style={{ margin: 0, fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
+                                        ))}
+                                    </div>
+                                    {group.options.map((variant, optionIndex) => (
+                                        <div key={`variant-${groupIndex}-${optionIndex}`} style={{ display: 'grid', gridTemplateColumns: '48px 1fr 40px', gap: '10px', padding: '10px 12px', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
+                                            <p style={{ margin: 0, fontSize: '12px', color: '#8A7A6B', fontWeight: '800' }}>{optionIndex + 1}</p>
+                                            <input
+                                                style={inputStyle}
+                                                value={variant}
+                                                onChange={e => updateVariant(groupIndex, optionIndex, e.target.value)}
+                                                placeholder={groupIndex === 0 ? 'e.g. Garlic Parmesan' : 'e.g. Breast'}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeVariant(groupIndex, optionIndex)}
+                                                title="Remove option"
+                                                style={{ width: '30px', height: '30px', border: 'none', borderRadius: '6px', backgroundColor: '#FFF5F5', color: '#C53030', cursor: 'pointer', fontWeight: '900' }}
+                                            >
+                                                x
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                        <p style={{ margin: '7px 0 0', color: '#999', fontSize: '11px', lineHeight: 1.4 }}>
+                            Use separate types for choices like Flavor and Chicken Part. Leave option rows blank if the product has no variants.
+                        </p>
                     </div>
 
                     <div style={{ gridColumn: '1/-1' }}>
@@ -619,6 +780,17 @@ const DiscountDeleteModal = ({ discount, onConfirm, onClose }) => (
 
 const SYSTEM_DISCOUNT_NAMES = new Set(['elite member']);
 const isSystemDiscountName = (name = '') => SYSTEM_DISCOUNT_NAMES.has(String(name).trim().toLowerCase());
+const ITEM_SCOPED_DISCOUNT_NAMES = ['pag-ibig', 'pwd/senior citizen', 'pwd/senior', 'senior citizen'];
+const normalizeDiscountScope = (discount = {}) => {
+    const scope = String(discount.scope || '').trim().toLowerCase();
+    if (scope === 'item' || scope === 'order') return scope;
+
+    const name = String(discount.name || '').trim().toLowerCase();
+    return ITEM_SCOPED_DISCOUNT_NAMES.some(keyword => name.includes(keyword)) ? 'item' : 'order';
+};
+const discountScopeLabel = (scope) => (
+    scope === 'item' ? 'Selected item/person' : 'Whole order'
+);
 
 const CategoryFormModal = ({ onSave, onClose }) => {
     const [name, setName] = useState('');
@@ -786,8 +958,13 @@ const InventorySettings = () => {
                             <div key={product._id} style={{ display: 'grid', gridTemplateColumns: productTableGrid, padding: '12px 20px', gap: '12px', backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAF8', borderBottom: '1px solid #f0f0f0', alignItems: 'center' }}>
                             <div>
                                 <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', margin: 0 }}>{product.name}</p>
-                                {product.variants?.length > 0 && (
-                                    <p style={{ fontSize: '10px', color: '#aaa', margin: '2px 0 0', fontStyle: 'italic' }}>{product.variants.join(', ')}</p>
+                                {normalizeVariantGroups(product).some(group => normalizeVariants(group.options).length > 0) && (
+                                    <p style={{ fontSize: '10px', color: '#aaa', margin: '2px 0 0', fontStyle: 'italic' }}>
+                                        {normalizeVariantGroups(product)
+                                            .filter(group => normalizeVariants(group.options).length > 0)
+                                            .map(group => `${group.name}: ${normalizeVariants(group.options).join(', ')}`)
+                                            .join(' | ')}
+                                    </p>
                                 )}
                                 {product.addons?.length > 0 && (
                                     <p style={{ fontSize: '10px', color: '#8B5E3C', margin: '2px 0 0', fontStyle: 'italic' }}>
@@ -1026,7 +1203,7 @@ const AddonSettings = () => {
                     filteredAddons.map((addon, index) => (
                         <div key={addon._id || addon.name} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 92px 92px', gap: '12px', alignItems: 'center', padding: '12px 18px', borderBottom: index === filteredAddons.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
                             <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#1a1a1a' }}>{addon.name}</p>
-                            <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#8B5E3C' }}>PHP {Number(addon.price || 0).toLocaleString()}</p>
+                            <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#8B5E3C' }}>₱{Number(addon.price || 0).toLocaleString()}</p>
                             <button onClick={() => handleEdit(addon)} style={{ padding: '7px 10px', backgroundColor: '#EBF8FF', color: '#2B6CB0', border: '1px solid #BEE3F8', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiEdit2 size={13} /> Edit</button>
                             <button onClick={() => setDeleteAddon(addon)} style={{ padding: '7px 10px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiTrash2 size={13} /> Del</button>
                         </div>
@@ -1046,7 +1223,7 @@ const AddonSettings = () => {
 
 const DiscountSettings = () => {
     const [discounts, setDiscounts] = useState([]);
-    const [form, setForm] = useState({ name: '', percentage: '' });
+    const [form, setForm] = useState({ name: '', percentage: '', scope: 'item' });
     const [editing, setEditing] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -1076,12 +1253,13 @@ const DiscountSettings = () => {
 
         return editableDiscounts.filter(discount => (
             discount.name?.toLowerCase().includes(query) ||
-            String(discount.percentage ?? '').includes(query)
+            String(discount.percentage ?? '').includes(query) ||
+            discountScopeLabel(normalizeDiscountScope(discount)).toLowerCase().includes(query)
         ));
     }, [discounts, searchQuery]);
 
     const resetForm = () => {
-        setForm({ name: '', percentage: '' });
+        setForm({ name: '', percentage: '', scope: 'item' });
         setEditing(null);
     };
 
@@ -1091,7 +1269,7 @@ const DiscountSettings = () => {
         setMessage(null);
 
         try {
-            const payload = { name: form.name.trim(), percentage: Number(form.percentage) };
+            const payload = { name: form.name.trim(), percentage: Number(form.percentage), scope: form.scope };
             if (isSystemDiscountName(payload.name)) {
                 setMessage({ type: 'error', text: 'Elite Member is a system discount and is not editable here.' });
                 return;
@@ -1117,7 +1295,7 @@ const DiscountSettings = () => {
     const handleEdit = (discount) => {
         if (isSystemDiscountName(discount.name)) return;
         setEditing(discount);
-        setForm({ name: discount.name, percentage: discount.percentage });
+        setForm({ name: discount.name, percentage: discount.percentage, scope: normalizeDiscountScope(discount) });
         setMessage(null);
     };
 
@@ -1163,6 +1341,16 @@ const DiscountSettings = () => {
                     <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Discount %</label>
                     <input type="number" min="0" max="100" step="0.01" value={form.percentage} onChange={e => setForm(prev => ({ ...prev, percentage: e.target.value }))} placeholder="e.g. 20" style={inputStyle} />
                 </div>
+                <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Applies To</label>
+                    <select value={form.scope} onChange={e => setForm(prev => ({ ...prev, scope: e.target.value }))} style={inputStyle}>
+                        <option value="item">Selected Item / Person Only</option>
+                        <option value="order">Whole Order</option>
+                    </select>
+                    <p style={{ margin: '7px 0 0', fontSize: '11px', color: '#999', lineHeight: 1.4 }}>
+                        Selected item/person works like PWD, Senior, or Pag-IBIG. Whole order works like Elite Member.
+                    </p>
+                </div>
                 {message && (
                     <div style={{ padding: '10px 12px', borderRadius: '8px', marginBottom: '14px', fontSize: '12px', fontWeight: '700', color: message.type === 'success' ? '#276749' : '#C53030', backgroundColor: message.type === 'success' ? '#F0FFF4' : '#FFF5F5', border: `1px solid ${message.type === 'success' ? '#C6F6D5' : '#FED7D7'}` }}>
                         {message.text}
@@ -1202,8 +1390,8 @@ const DiscountSettings = () => {
                         {filteredDiscounts.length} discount{filteredDiscounts.length !== 1 ? 's' : ''}
                     </p>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 92px 92px', gap: '12px', padding: '12px 18px', backgroundColor: '#1A1208' }}>
-                    {['Discount', 'Discount %', 'Edit', 'Delete'].map(header => (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 150px 92px 92px', gap: '12px', padding: '12px 18px', backgroundColor: '#1A1208' }}>
+                    {['Discount', 'Discount %', 'Applies To', 'Edit', 'Delete'].map(header => (
                         <p key={header} style={{ margin: 0, fontSize: '11px', color: '#C4894A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
                     ))}
                 </div>
@@ -1215,9 +1403,12 @@ const DiscountSettings = () => {
                     <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No discounts match your search.</div>
                 ) : (
                     filteredDiscounts.map((discount, index) => (
-                        <div key={discount._id || discount.name} style={{ display: 'grid', gridTemplateColumns: '1fr 110px 92px 92px', gap: '12px', alignItems: 'center', padding: '12px 18px', borderBottom: index === filteredDiscounts.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
+                        <div key={discount._id || discount.name} style={{ display: 'grid', gridTemplateColumns: '1fr 110px 150px 92px 92px', gap: '12px', alignItems: 'center', padding: '12px 18px', borderBottom: index === filteredDiscounts.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
                             <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#1a1a1a' }}>{discount.name}</p>
                             <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#8B5E3C' }}>{Number(discount.percentage || 0).toLocaleString()}%</p>
+                            <p style={{ margin: 0, fontSize: '12px', fontWeight: '800', color: normalizeDiscountScope(discount) === 'item' ? '#975A16' : '#276749' }}>
+                                {discountScopeLabel(normalizeDiscountScope(discount))}
+                            </p>
                             <button onClick={() => handleEdit(discount)} style={{ padding: '7px 10px', backgroundColor: '#EBF8FF', color: '#2B6CB0', border: '1px solid #BEE3F8', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiEdit2 size={13} /> Edit</button>
                             <button onClick={() => setDeleteDiscount(discount)} style={{ padding: '7px 10px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiTrash2 size={13} /> Del</button>
                         </div>
@@ -1235,9 +1426,15 @@ const DiscountSettings = () => {
     );
 };
 
+const CUSTOM_ROLE_PRESETS = {
+    finance: { label: 'Finance', permissions: ['dashboard', 'sales', 'transactions', 'reports', 'purchase_orders'] },
+    operations: { label: 'Operations', permissions: ['dashboard', 'items', 'products', 'inventory', 'transactions', 'history'] },
+    hr: { label: 'HR', permissions: ['dashboard', 'staff', 'history', 'reports', 'purchase_orders'] },
+};
+
 const UserAccountSettings = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const canCreateUsers = isAdminRole(currentUser.role);
+    const canCreateUsers = isOwnerRole(currentUser.role) || hasPermission(currentUser, 'users');
     const [form, setForm] = useState({
         name: '',
         email: '',
@@ -1245,6 +1442,8 @@ const UserAccountSettings = () => {
         userId: '',
         pin: '',
         role: 'staff',
+        jobRole: 'finance',
+        permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'],
     });
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
@@ -1272,7 +1471,41 @@ const UserAccountSettings = () => {
     };
 
     const updateField = (field, value) => {
-        setForm(prev => ({ ...prev, [field]: value }));
+        setForm(prev => {
+            if (field === 'role') {
+                return {
+                    ...prev,
+                    role: value,
+                    permissions: value === 'custom'
+                        ? CUSTOM_ROLE_PRESETS.finance.permissions
+                        : ['dashboard', 'items', 'transactions', 'history', 'settings'],
+                };
+            }
+
+            return { ...prev, [field]: value };
+        });
+        setMessage(null);
+    };
+
+    const updateCustomRole = (jobRole) => {
+        setForm(prev => ({
+            ...prev,
+            jobRole,
+            permissions: CUSTOM_ROLE_PRESETS[jobRole].permissions,
+        }));
+        setMessage(null);
+    };
+
+    const togglePermission = (permission) => {
+        setForm(prev => {
+            const exists = prev.permissions.includes(permission);
+            return {
+                ...prev,
+                permissions: exists
+                    ? prev.permissions.filter(item => item !== permission)
+                    : [...prev.permissions, permission],
+            };
+        });
         setMessage(null);
     };
 
@@ -1299,15 +1532,17 @@ const UserAccountSettings = () => {
                 email: accountEmail,
                 password: form.password,
                 role: form.role,
+                jobRole: form.role === 'custom' ? form.jobRole : undefined,
+                permissions: form.role === 'custom' ? form.permissions : undefined,
                 userId: form.userId.trim(),
                 pin: form.pin.trim(),
             });
 
             setMessage({
                 type: 'success',
-                text: `Created ${res.data.user.name} as ${res.data.user.role}. User ID: ${res.data.user.userId}`,
+                text: `Created ${res.data.user.name} as ${res.data.user.jobRole || res.data.user.role}. User ID: ${res.data.user.userId}`,
             });
-            setForm({ name: '', email: '', password: '', userId: '', pin: '', role: 'staff' });
+            setForm({ name: '', email: '', password: '', userId: '', pin: '', role: 'staff', jobRole: 'finance', permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'] });
         } catch (err) {
             const serverMessage = err.response?.data?.message;
             const fallbackMessage = err.response?.status === 404
@@ -1326,7 +1561,7 @@ const UserAccountSettings = () => {
     if (!canCreateUsers) {
         return (
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', color: '#7A6A5D', fontSize: '14px' }}>
-                Only admin users can create new staff or admin accounts.
+                Only the owner or an authorized admin can create new accounts.
             </div>
         );
     }
@@ -1388,7 +1623,7 @@ const UserAccountSettings = () => {
                     <div>
                         <label style={labelStyle}>Role *</label>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                            {['staff', 'admin'].map(role => (
+                            {['staff', 'custom'].map(role => (
                                 <button key={role} type="button" onClick={() => updateField('role', role)}
                                     style={{
                                         padding: '11px 10px',
@@ -1406,6 +1641,47 @@ const UserAccountSettings = () => {
                             ))}
                         </div>
                     </div>
+                    {form.role === 'custom' && (
+                        <div style={{ gridColumn: '1/-1' }}>
+                            <label style={labelStyle}>Custom Role</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
+                                {Object.entries(CUSTOM_ROLE_PRESETS).map(([jobRole, preset]) => (
+                                    <button key={jobRole} type="button" onClick={() => updateCustomRole(jobRole)}
+                                        style={{ padding: '11px 10px', border: `1.5px solid ${form.jobRole === jobRole ? '#8B5E3C' : '#ddd'}`, borderRadius: '8px', backgroundColor: form.jobRole === jobRole ? '#FDF5EE' : '#fff', color: form.jobRole === jobRole ? '#8B5E3C' : '#555', cursor: 'pointer', fontSize: '12px', fontWeight: '800' }}>
+                                        {preset.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <label style={labelStyle}>{CUSTOM_ROLE_PRESETS[form.jobRole].label} Access</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
+                                {PERMISSIONS.map(permission => (
+                                    <label
+                                        key={permission.key}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            padding: '10px 12px',
+                                            border: `1.5px solid ${form.permissions.includes(permission.key) ? '#8B5E3C' : '#ddd'}`,
+                                            borderRadius: '8px',
+                                            backgroundColor: form.permissions.includes(permission.key) ? '#FDF5EE' : '#fff',
+                                            cursor: 'pointer',
+                                            fontSize: '12px',
+                                            fontWeight: '700',
+                                            color: form.permissions.includes(permission.key) ? '#8B5E3C' : '#555',
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={form.permissions.includes(permission.key)}
+                                            onChange={() => togglePermission(permission.key)}
+                                        />
+                                        {permission.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {message && (
@@ -1443,7 +1719,7 @@ const UserAccountSettings = () => {
             <aside style={{ backgroundColor: '#F0E8E0', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '18px' }}>
                 <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: '900', color: '#3D1F0D' }}>New account setup</h3>
                 <p style={{ margin: '0 0 10px', fontSize: '12px', lineHeight: 1.5, color: '#6B5A4C' }}>
-                    Staff accounts can use POS workflows. Admin accounts can access management pages such as sales, inventory, and settings.
+                    Staff accounts use daily POS workflows. Custom accounts use Finance, Operations, or HR access presets; you can fine-tune the listed page access before creating the account.
                 </p>
                 <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: '#8B5E3C', fontWeight: '700' }}>
                     Leave User ID blank to assign the next ELI number automatically.
@@ -1783,31 +2059,31 @@ const SystemBackupSettings = () => {
 };
 
 const MENU_ITEMS = [
-    { key: 'inventory', label: 'PRODUCTS', adminOnly: true, group: 'products' },
-    { key: 'addons', label: 'ADD-ONS', adminOnly: true, group: 'products' },
-    { key: 'discounts', label: 'DISCOUNTS', adminOnly: true, group: 'products' },
-    { key: 'users', label: 'CREATE ACCOUNT', adminOnly: true },
+    { key: 'inventory', label: 'PRODUCTS', permission: 'products', group: 'products' },
+    { key: 'addons', label: 'ADD-ONS', permission: 'products', group: 'products' },
+    { key: 'discounts', label: 'DISCOUNTS', permission: 'products', group: 'products' },
+    { key: 'users', label: 'CREATE ACCOUNT', permission: 'users' },
     { key: 'password', label: 'CHANGE PASSWORD' },
     { key: 'system', label: 'SYSTEM & BACKUP' },
     { key: 'about', label: 'ABOUT FLUX' },
 ];
 
 const SettingsPage = ({ initialSection, mode = 'settings' }) => {
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    const isAdmin = isAdminRole(currentUser.role);
+    const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+    const canAccess = useCallback((item) => !item.permission || hasPermission(currentUser, item.permission), [currentUser]);
     const pageMenuItems = useMemo(() => MENU_ITEMS.filter(item => (
         mode === 'products'
             ? item.group === 'products'
             : item.group !== 'products'
     )), [mode]);
     const visibleMenuItems = useMemo(() => (
-        pageMenuItems.filter(item => isAdmin || !item.adminOnly)
-    ), [pageMenuItems, isAdmin]);
+        pageMenuItems.filter(canAccess)
+    ), [pageMenuItems, canAccess]);
     const getDefaultSection = useCallback(() => {
         const requestedSection = initialSection || visibleMenuItems[0]?.key || 'password';
         const requestedItem = pageMenuItems.find(item => item.key === requestedSection);
-        return requestedItem && (isAdmin || !requestedItem.adminOnly) ? requestedSection : 'password';
-    }, [initialSection, isAdmin, pageMenuItems, visibleMenuItems]);
+        return requestedItem && canAccess(requestedItem) ? requestedSection : visibleMenuItems[0]?.key || 'password';
+    }, [initialSection, canAccess, pageMenuItems, visibleMenuItems]);
     const [activeSection, setActiveSection] = useState(getDefaultSection);
 
     useEffect(() => {
@@ -1815,17 +2091,18 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
     }, [getDefaultSection]);
 
     useEffect(() => {
-        if (!isAdmin && MENU_ITEMS.find(item => item.key === activeSection)?.adminOnly) {
-            setActiveSection('password');
+        const activeItem = MENU_ITEMS.find(item => item.key === activeSection);
+        if (activeItem && !canAccess(activeItem)) {
+            setActiveSection(visibleMenuItems[0]?.key || 'password');
         }
-    }, [activeSection, isAdmin]);
+    }, [activeSection, canAccess, visibleMenuItems]);
 
     const renderContent = () => {
         switch (activeSection) {
-            case 'inventory': return isAdmin ? <InventorySettings /> : null;
-            case 'addons': return isAdmin ? <AddonSettings /> : null;
-            case 'discounts': return isAdmin ? <DiscountSettings /> : null;
-            case 'users': return isAdmin ? <UserAccountSettings /> : null;
+            case 'inventory': return hasPermission(currentUser, 'products') ? <InventorySettings /> : null;
+            case 'addons': return hasPermission(currentUser, 'products') ? <AddonSettings /> : null;
+            case 'discounts': return hasPermission(currentUser, 'products') ? <DiscountSettings /> : null;
+            case 'users': return hasPermission(currentUser, 'users') ? <UserAccountSettings /> : null;
             case 'password': return <ChangePasswordSettings />;
             case 'system': return <SystemBackupSettings />;
             case 'about': return (

@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
-import { FiBarChart2, FiCreditCard, FiDollarSign, FiDownload, FiRefreshCw, FiShoppingBag } from 'react-icons/fi';
+import { FiBarChart2, FiCreditCard, FiDownload, FiRefreshCw, FiShoppingBag } from 'react-icons/fi';
+import { LuPhilippinePeso } from 'react-icons/lu';
 
 const salesAnimationStyleId = 'sales-page-animations';
 if (typeof document !== 'undefined') {
@@ -67,7 +68,7 @@ const presets = {
   all: { label: 'All Time', start: '', end: '' },
 };
 
-const money = (value) => `PHP ${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
+const money = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
 const isCancelledTransaction = (transaction) => transaction?.orderStatus === 'cancelled' || transaction?.paymentMethod === 'Cancelled';
 
 const formatHourRange = (hour) => {
@@ -164,12 +165,33 @@ const SalesTrendChart = ({ data }) => {
     row.refunds,
   ].join(':')).join('|');
   const xFor = (index) => padding.left + (safeData.length === 1 ? chartWidth / 2 : (index / (safeData.length - 1)) * chartWidth);
-  const yFor = (value, max) => padding.top + chartHeight - ((max > 0 ? value / max : 0) * chartHeight);
+  const yInset = 18;
+  const getMetricDomain = (key) => {
+    const values = safeData.map(row => Number(row[key]) || 0);
+    const rawMin = Math.min(0, ...values);
+    const rawMax = Math.max(0, ...values);
+
+    if (rawMin === rawMax) {
+      return { min: rawMin, max: rawMax + 1 };
+    }
+
+    const buffer = (rawMax - rawMin) * 0.08;
+    return {
+      min: rawMin - buffer,
+      max: rawMax + buffer,
+    };
+  };
+  const yFor = (value, domain) => {
+    const usableHeight = chartHeight - (yInset * 2);
+    const range = domain.max - domain.min || 1;
+    const ratio = (value - domain.min) / range;
+    return padding.top + yInset + usableHeight - (ratio * usableHeight);
+  };
 
   const buildPath = (key) => {
-    const max = Math.max(...safeData.map(row => Number(row[key]) || 0), 1);
+    const domain = getMetricDomain(key);
     return safeData
-      .map((row, index) => `${index === 0 ? 'M' : 'L'} ${xFor(index)} ${yFor(Number(row[key]) || 0, max)}`)
+      .map((row, index) => `${index === 0 ? 'M' : 'L'} ${xFor(index)} ${yFor(Number(row[key]) || 0, domain)}`)
       .join(' ');
   };
 
@@ -239,20 +261,20 @@ const SalesTrendChart = ({ data }) => {
           ))}
 
           {series.map((item, seriesIndex) => {
-            const max = Math.max(...safeData.map(row => Number(row[item.key]) || 0), 1);
+            const domain = getMetricDomain(item.key);
             return safeData.map((row, index) => (
               <circle
                 key={`${item.key}-${row.date}-${index}`}
                 className="sales-trend-point"
                 cx={xFor(index)}
-                cy={yFor(Number(row[item.key]) || 0, max)}
+                cy={yFor(Number(row[item.key]) || 0, domain)}
                 r="3.5"
                 fill="#fff"
                 stroke={item.color}
                 strokeWidth="2"
                 onMouseEnter={() => setTooltip({
                   x: xFor(index),
-                  y: yFor(Number(row[item.key]) || 0, max),
+                  y: yFor(Number(row[item.key]) || 0, domain),
                   color: item.color,
                   label: item.label,
                   date: formatTrendLabel(row.date),
@@ -260,7 +282,7 @@ const SalesTrendChart = ({ data }) => {
                 })}
                 onMouseMove={() => setTooltip({
                   x: xFor(index),
-                  y: yFor(Number(row[item.key]) || 0, max),
+                  y: yFor(Number(row[item.key]) || 0, domain),
                   color: item.color,
                   label: item.label,
                   date: formatTrendLabel(row.date),
@@ -573,7 +595,7 @@ const SalesPage = () => {
 
         <section style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 390px) minmax(0, 1fr)', gap: '18px', alignItems: 'stretch', marginBottom: '20px' }}>
           <div style={{ display: 'grid', gap: '14px' }}>
-            <MetricCard title="Net Sales" value={money(sales.netSales)} detail={`${money(sales.grossSales)} gross minus refunds`} icon={<FiDollarSign size={22} />} color={metricColors.netSales} />
+            <MetricCard title="Net Sales" value={money(sales.netSales)} detail={`${money(sales.grossSales)} gross minus refunds`} icon={<LuPhilippinePeso size={22} />} color={metricColors.netSales} />
             <MetricCard title="Orders" value={sales.orders.toLocaleString()} detail={`${sales.itemCount.toLocaleString()} items sold`} icon={<FiShoppingBag size={22} />} color={metricColors.orders} />
             <MetricCard title="Average Order" value={money(sales.avgOrder)} detail="Gross sales per order" icon={<FiBarChart2 size={22} />} color={metricColors.avgOrder} />
             <MetricCard title="Refunds" value={money(sales.refundTotal)} detail={`${activeRefunds.length} approved or completed`} icon={<FiCreditCard size={22} />} color={metricColors.refunds} />

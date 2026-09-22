@@ -8,7 +8,21 @@ const bcrypt = require('bcryptjs');
 const loginAttempts = new Map();
 const MAX_ATTEMPTS = 3;
 const LOCKOUT_DURATION = 30 * 1000;
-const ALLOWED_ROLES = ['admin', 'staff'];
+const ALLOWED_ROLES = ['owner', 'admin', 'custom', 'staff'];
+const VALID_PERMISSIONS = new Set([
+    'dashboard',
+    'items',
+    'products',
+    'sales',
+    'inventory',
+    'purchase_orders',
+    'transactions',
+    'staff',
+    'history',
+    'reports',
+    'settings',
+    'users',
+]);
 const ONLINE_TIMEOUT_MS = 2 * 60 * 1000;
 const EMAIL_DOMAIN = '@elicoffee.com';
 
@@ -20,6 +34,21 @@ function normalizeEmail(email = '') {
 
 function normalizeRole(role = '') {
     return role.toLowerCase().trim();
+}
+
+function isOwnerAccount(user) {
+    return normalizeRole(user?.role) === 'owner' ||
+        String(user?.userId || '').trim().toUpperCase() === 'ELI001' ||
+        normalizeEmail(user?.email) === 'admin@elicoffee.com';
+}
+
+function normalizePermissions(permissions = []) {
+    if (!Array.isArray(permissions)) return [];
+    return [...new Set(
+        permissions
+            .map(permission => String(permission || '').trim())
+            .filter(permission => VALID_PERMISSIONS.has(permission))
+    )];
 }
 
 async function generateUserId() {
@@ -93,6 +122,8 @@ function serializeUser(user) {
         name: user.name,
         email: user.email,
         role: user.role,
+        jobRole: user.jobRole,
+        permissions: user.permissions,
         userId: user.userId,
         profileImage: user.profileImage,
         isOnline,
@@ -114,6 +145,8 @@ async function logAuthAudit({ action, user, details }) {
             changes: {
                 email: user?.email || '',
                 role: user?.role || '',
+                jobRole: user?.jobRole || '',
+                permissions: Array.isArray(user?.permissions) ? user.permissions : [],
                 userId: user?.userId || '',
             },
         });
@@ -205,6 +238,8 @@ router.post('/login', async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            jobRole: user.jobRole,
+            permissions: user.permissions,
             userId: user.userId,
             profileImage: user.profileImage,
             isOnline: true,
@@ -344,7 +379,7 @@ router.get('/users', async (req, res) => {
 
     try {
         const users = await User.find(query)
-            .select('name email role userId profileImage isOnline lastSeenAt createdAt updatedAt')
+            .select('name email role jobRole permissions userId profileImage isOnline lastSeenAt createdAt updatedAt')
             .sort({ role: 1, name: 1 })
             .lean();
 
@@ -356,17 +391,22 @@ router.get('/users', async (req, res) => {
 });
 
 router.post('/users', async (req, res) => {
-    const { name, email, password, role, userId, pin } = req.body;
+    const { name, email, password, role, jobRole, userId, pin, permissions } = req.body;
     const normalizedEmail = normalizeEmail(email);
     const normalizedRole = normalizeRole(role);
     const normalizedUserId = String(userId || '').trim().toUpperCase();
+    const normalizedJobRole = String(jobRole || '').trim().toLowerCase();
 
     if (!name?.trim() || !normalizedEmail || !password || !normalizedRole) {
         return res.status(400).json({ message: 'Name, email, password, and role are required' });
     }
 
     if (!ALLOWED_ROLES.includes(normalizedRole)) {
-        return res.status(400).json({ message: 'Role must be admin or staff' });
+        return res.status(400).json({ message: 'Role must be custom or staff' });
+    }
+
+    if (normalizedRole === 'custom' && !['finance', 'operations', 'hr'].includes(normalizedJobRole)) {
+        return res.status(400).json({ message: 'Custom role must be Finance, Operations, or HR' });
     }
 
     if (password.length < 6) {
@@ -394,6 +434,8 @@ router.post('/users', async (req, res) => {
             email: normalizedEmail,
             password,
             role: normalizedRole,
+            jobRole: normalizedRole === 'custom' ? normalizedJobRole : undefined,
+            permissions: ['admin', 'custom'].includes(normalizedRole) ? normalizePermissions(permissions) : undefined,
             userId: finalUserId,
             pin: pin ? String(pin).trim() : undefined,
         });
@@ -410,6 +452,8 @@ router.post('/users', async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                jobRole: user.jobRole,
+                permissions: user.permissions,
                 userId: user.userId,
             },
         });
@@ -419,6 +463,53 @@ router.post('/users', async (req, res) => {
             return res.status(409).json({ message: 'Email or user ID already exists' });
         }
         res.status(500).json({ message: 'Failed to create user' });
+    }
+});
+
+router.put('/users/:id/access', async (req, res) => {
+    try {
+        const ownerEmail = normalizeEmail(req.body.currentUserEmail);
+        const ownerUserId = String(req.body.currentUserId || '').trim().toUpperCase();
+
+        if (!ownerEmail && !ownerUserId) {
+            return res.status(400).json({ message: 'Owner account is required' });
+        }
+
+        const ownerUser = await User.findOne({
+            $or: [
+                ...(ownerEmail ? [{ email: ownerEmail }] : []),
+                ...(ownerUserId ? [{ userId: ownerUserId }] : []),
+            ],
+        });
+        if (!ownerUser || !isOwnerAccount(ownerUser)) {
+            return res.status(403).json({ message: 'Only the owner can edit user access' });
+        }
+
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User account not found' });
+        }
+
+        if (isOwnerAccount(user)) {
+            return res.status(400).json({ message: 'Owner access cannot be changed' });
+        }
+
+        user.permissions = normalizePermissions(req.body.permissions);
+        await user.save();
+
+        await logAuthAudit({
+            action: 'Updated Access',
+            user,
+            details: `${user.role} account access updated`,
+        });
+
+        res.json({
+            success: true,
+            user: serializeUser(user),
+        });
+    } catch (err) {
+        console.error('Error updating user access:', err);
+        res.status(500).json({ message: 'Failed to update user access' });
     }
 });
 
@@ -432,8 +523,18 @@ router.delete('/users/:id', async (req, res) => {
         }
 
         const adminUser = await User.findOne({ email: adminEmail });
-        if (!adminUser || normalizeRole(adminUser.role) !== 'admin') {
-            return res.status(403).json({ message: 'Only admin users can delete staff accounts' });
+        const adminRole = normalizeRole(adminUser?.role);
+        const canDeleteUsers = adminRole === 'owner' || (
+            adminRole === 'admin' &&
+            Array.isArray(adminUser.permissions) &&
+            adminUser.permissions.includes('users')
+        ) || (
+            adminRole === 'admin' &&
+            !Array.isArray(adminUser.permissions)
+        );
+
+        if (!adminUser || !canDeleteUsers) {
+            return res.status(403).json({ message: 'Only authorized users can delete accounts' });
         }
 
         const passwordMatches = await bcrypt.compare(password, adminUser.password);
@@ -445,6 +546,14 @@ router.delete('/users/:id', async (req, res) => {
 
         if (!user) {
             return res.status(404).json({ message: 'User account not found' });
+        }
+
+        if (String(user._id) === String(adminUser._id)) {
+            return res.status(400).json({ message: 'You cannot delete your own account' });
+        }
+
+        if (isOwnerAccount(user)) {
+            return res.status(400).json({ message: 'Owner account cannot be deleted' });
         }
 
         if (normalizeRole(user.role) === 'admin') {

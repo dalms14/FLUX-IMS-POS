@@ -1,0 +1,154 @@
+@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #CFE8FF
+  BorderColor #1F2933
+  ArrowColor #4B5563
+}
+
+actor Owner
+actor "Admin\n(permission-based)" as Admin
+actor Staff
+
+rectangle "FLUX Point-of-Sale and Inventory Management System\nfor Eli Coffee and Tea Cafe" {
+  package "Authentication and Account Access" {
+    usecase "Log In" as UC_Login
+    usecase "Recover Password" as UC_Recover
+    usecase "Manage Profile and Settings" as UC_Profile
+    usecase "Log Out" as UC_Logout
+  }
+
+  package "POS and Order Processing" {
+    usecase "View Products" as UC_ViewProducts
+    usecase "Create Active Order" as UC_CreateOrder
+    usecase "Apply Discounts" as UC_ApplyDiscounts
+    usecase "Handle Payment" as UC_Payment
+    usecase "Generate / View / Print Receipt" as UC_Receipt
+    usecase "Update Active Order Status" as UC_OrderStatus
+    usecase "Cancel Pending Order" as UC_CancelOrder
+    usecase "Remove Pending Item" as UC_RemoveItem
+    usecase "Process Refunds and Waste Records" as UC_Refunds
+  }
+
+  package "Product and Menu Management" {
+    usecase "Manage Products" as UC_Products
+    usecase "Manage Categories" as UC_Categories
+    usecase "Manage Add-ons" as UC_Addons
+    usecase "Manage Discounts" as UC_Discounts
+    usecase "Manage Product Variants" as UC_Variants
+    usecase "Configure Recipe / Ingredient Mapping" as UC_Recipes
+  }
+
+  package "Inventory and Restocking" {
+    usecase "Manage Inventory Items" as UC_Inventory
+    usecase "Record Stock In / Stock Out" as UC_StockMovement
+    usecase "Monitor Low-Stock Alerts" as UC_LowStock
+    usecase "Monitor Expiration Batches" as UC_Expiration
+    usecase "Record Purchase Orders" as UC_PurchaseOrders
+  }
+
+  package "Reports, History, and Monitoring" {
+    usecase "View Dashboard" as UC_Dashboard
+    usecase "View Sales Reports" as UC_SalesReports
+    usecase "View Inventory Reports" as UC_InventoryReports
+    usecase "View Finance Reports" as UC_FinanceReports
+    usecase "View Refund History" as UC_RefundHistory
+    usecase "View Transactions / History" as UC_Transactions
+    usecase "View Login Activity" as UC_LoginActivity
+    usecase "View Audit / System Activity" as UC_Audit
+  }
+
+  package "User and Permission Management" {
+    usecase "Manage Staff and Admin Accounts" as UC_Users
+    usecase "Assign Admin Permissions" as UC_Permissions
+  }
+}
+
+Owner -- UC_Login
+Owner -- UC_Recover
+Owner -- UC_Profile
+Owner -- UC_Logout
+Owner -- UC_ViewProducts
+Owner -- UC_CreateOrder
+Owner -- UC_ApplyDiscounts
+Owner -- UC_Payment
+Owner -- UC_Receipt
+Owner -- UC_OrderStatus
+Owner -- UC_CancelOrder
+Owner -- UC_RemoveItem
+Owner -- UC_Refunds
+Owner -- UC_Products
+Owner -- UC_Categories
+Owner -- UC_Addons
+Owner -- UC_Discounts
+Owner -- UC_Variants
+Owner -- UC_Recipes
+Owner -- UC_Inventory
+Owner -- UC_StockMovement
+Owner -- UC_LowStock
+Owner -- UC_Expiration
+Owner -- UC_PurchaseOrders
+Owner -- UC_Dashboard
+Owner -- UC_SalesReports
+Owner -- UC_InventoryReports
+Owner -- UC_FinanceReports
+Owner -- UC_RefundHistory
+Owner -- UC_Transactions
+Owner -- UC_LoginActivity
+Owner -- UC_Audit
+Owner -- UC_Users
+Owner -- UC_Permissions
+
+Admin -- UC_Login
+Admin -- UC_Recover
+Admin -- UC_Profile
+Admin -- UC_Logout
+Admin .. UC_Dashboard : if permitted
+Admin .. UC_ViewProducts : if permitted
+Admin .. UC_CreateOrder : if permitted
+Admin .. UC_Payment : if permitted
+Admin .. UC_Receipt : if permitted
+Admin .. UC_Products : if permitted
+Admin .. UC_Inventory : if permitted
+Admin .. UC_PurchaseOrders : if permitted
+Admin .. UC_SalesReports : if permitted
+Admin .. UC_InventoryReports : if permitted
+Admin .. UC_FinanceReports : if permitted
+Admin .. UC_Transactions : if permitted
+Admin .. UC_Audit : if permitted
+Admin .. UC_Users : if permitted
+
+Staff -- UC_Login
+Staff -- UC_Recover
+Staff -- UC_Profile
+Staff -- UC_Logout
+Staff -- UC_Dashboard
+Staff -- UC_ViewProducts
+Staff -- UC_CreateOrder
+Staff -- UC_ApplyDiscounts
+Staff -- UC_Payment
+Staff -- UC_Receipt
+Staff -- UC_OrderStatus
+Staff -- UC_CancelOrder
+Staff -- UC_RemoveItem
+Staff -- UC_Transactions
+
+UC_CreateOrder ..> UC_ViewProducts : <<include>>
+UC_Payment ..> UC_Receipt : <<include>>
+UC_CreateOrder ..> UC_ApplyDiscounts : <<extend>>
+UC_CancelOrder ..> UC_Refunds : <<include>>
+UC_RemoveItem ..> UC_Refunds : <<include>>
+UC_Products ..> UC_Categories : <<include>>
+UC_Products ..> UC_Addons : <<include>>
+UC_Products ..> UC_Discounts : <<include>>
+UC_Products ..> UC_Variants : <<include>>
+UC_Products ..> UC_Recipes : <<include>>
+UC_Inventory ..> UC_StockMovement : <<include>>
+UC_Inventory ..> UC_LowStock : <<include>>
+UC_Inventory ..> UC_Expiration : <<include>>
+UC_Users ..> UC_Permissions : <<include>>
+@enduml

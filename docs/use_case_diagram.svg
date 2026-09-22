@@ -1,0 +1,221 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1450" viewBox="0 0 1800 1450">
+  <defs>
+    <style>
+      .bg { fill: #ffffff; }
+      .system { fill: #eef6ff; stroke: #1f2933; stroke-width: 3; rx: 14; }
+      .group { fill: #f8fbff; stroke: #9db9d6; stroke-width: 2; rx: 10; }
+      .group-title { font: 700 24px Arial, sans-serif; fill: #1f2933; }
+      .title { font: 800 42px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 600 24px Arial, sans-serif; fill: #334155; }
+      .actor-label { font: 800 25px Arial, sans-serif; fill: #0f172a; text-anchor: middle; }
+      .actor-note { font: 600 16px Arial, sans-serif; fill: #475569; text-anchor: middle; }
+      .usecase { fill: #6fb2f5; stroke: #0f172a; stroke-width: 3; }
+      .usecase-text { font: 700 20px Arial, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: middle; }
+      .assoc { stroke-width: 2.3; fill: none; opacity: 0.74; }
+      .owner-line { stroke: #334155; }
+      .staff-line { stroke: #2563eb; }
+      .admin-line { stroke: #d97706; stroke-dasharray: 10 8; }
+      .connector-label { font: 700 15px Arial, sans-serif; fill: #334155; text-anchor: middle; }
+      .include { stroke: #64748b; stroke-width: 2; fill: none; marker-end: url(#arrow); stroke-dasharray: 7 6; }
+      .include-label { font: 700 14px Arial, sans-serif; fill: #475569; text-anchor: middle; }
+      .note-box { fill: #fff7ed; stroke: #d97706; stroke-width: 2; rx: 8; }
+      .note-text { font: 700 18px Arial, sans-serif; fill: #7c2d12; text-anchor: middle; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1800" height="1450"/>
+
+  <rect class="system" x="300" y="45" width="1200" height="1360"/>
+  <text class="title" x="900" y="95" text-anchor="middle">FLUX Point-of-Sale and Inventory Management System</text>
+  <text class="subtitle" x="900" y="130" text-anchor="middle">Use Case Diagram for Eli Coffee and Tea Cafe</text>
+
+  <!-- Actors -->
+  <g id="owner">
+    <circle cx="125" cy="205" r="32" fill="#ffffff" stroke="#1f2933" stroke-width="7"/>
+    <line x1="125" y1="237" x2="125" y2="325" stroke="#1f2933" stroke-width="7"/>
+    <line x1="60" y1="265" x2="190" y2="265" stroke="#1f2933" stroke-width="7"/>
+    <line x1="125" y1="325" x2="65" y2="420" stroke="#1f2933" stroke-width="7"/>
+    <line x1="125" y1="325" x2="185" y2="420" stroke="#1f2933" stroke-width="7"/>
+    <text class="actor-label" x="125" y="465">Owner</text>
+    <text class="actor-note" x="125" y="490">Full access</text>
+  </g>
+
+  <g id="admin">
+    <circle cx="1675" cy="205" r="32" fill="#ffffff" stroke="#1f2933" stroke-width="7"/>
+    <line x1="1675" y1="237" x2="1675" y2="325" stroke="#1f2933" stroke-width="7"/>
+    <line x1="1610" y1="265" x2="1740" y2="265" stroke="#1f2933" stroke-width="7"/>
+    <line x1="1675" y1="325" x2="1615" y2="420" stroke="#1f2933" stroke-width="7"/>
+    <line x1="1675" y1="325" x2="1735" y2="420" stroke="#1f2933" stroke-width="7"/>
+    <text class="actor-label" x="1675" y="465">Admin</text>
+    <text class="actor-note" x="1675" y="490">Permission-based</text>
+  </g>
+
+  <g id="staff">
+    <circle cx="125" cy="990" r="32" fill="#ffffff" stroke="#1f2933" stroke-width="7"/>
+    <line x1="125" y1="1022" x2="125" y2="1110" stroke="#1f2933" stroke-width="7"/>
+    <line x1="60" y1="1050" x2="190" y2="1050" stroke="#1f2933" stroke-width="7"/>
+    <line x1="125" y1="1110" x2="65" y2="1205" stroke="#1f2933" stroke-width="7"/>
+    <line x1="125" y1="1110" x2="185" y2="1205" stroke="#1f2933" stroke-width="7"/>
+    <text class="actor-label" x="125" y="1250">Staff</text>
+    <text class="actor-note" x="125" y="1275">Cashier workflow</text>
+  </g>
+
+  <!-- Group containers -->
+  <rect class="group" x="350" y="170" width="480" height="245"/>
+  <text class="group-title" x="590" y="205" text-anchor="middle">Authentication and Account Access</text>
+
+  <rect class="group" x="350" y="445" width="480" height="430"/>
+  <text class="group-title" x="590" y="480" text-anchor="middle">POS and Order Processing</text>
+
+  <rect class="group" x="910" y="170" width="520" height="355"/>
+  <text class="group-title" x="1170" y="205" text-anchor="middle">Product and Menu Management</text>
+
+  <rect class="group" x="910" y="555" width="520" height="325"/>
+  <text class="group-title" x="1170" y="590" text-anchor="middle">Inventory and Restocking</text>
+
+  <rect class="group" x="350" y="910" width="520" height="430"/>
+  <text class="group-title" x="610" y="945" text-anchor="middle">Reports, History, and Monitoring</text>
+
+  <rect class="group" x="945" y="935" width="455" height="250"/>
+  <text class="group-title" x="1172" y="970" text-anchor="middle">User and Permission Management</text>
+
+  <!-- Actor associations are drawn above panels but below use cases so the diagram stays readable. -->
+  <g id="actor-associations">
+    <!-- Owner: full access to the major management areas. -->
+    <path class="assoc owner-line" d="M190 235 L350 255"/>
+    <path class="assoc owner-line" d="M190 255 L350 535"/>
+    <path class="assoc owner-line" d="M190 275 C360 260 760 250 940 255"/>
+    <path class="assoc owner-line" d="M190 295 C360 370 760 610 930 640"/>
+    <path class="assoc owner-line" d="M190 315 C300 540 325 870 390 1010"/>
+    <path class="assoc owner-line" d="M190 335 C430 610 735 930 1012 1035"/>
+
+    <!-- Staff: daily cashier and transaction workflow. -->
+    <path class="assoc staff-line" d="M190 1005 C250 850 320 620 395 535"/>
+    <path class="assoc staff-line" d="M190 1035 C300 875 440 705 555 625"/>
+    <path class="assoc staff-line" d="M190 1065 C330 940 480 760 545 715"/>
+    <path class="assoc staff-line" d="M190 1095 C340 1015 450 840 575 805"/>
+    <path class="assoc staff-line" d="M190 1125 C330 1140 480 1170 570 1190"/>
+    <path class="assoc staff-line" d="M190 985 C260 690 320 360 390 255"/>
+
+    <!-- Admin: permission-based access to selected modules only. -->
+    <path class="assoc admin-line" d="M1610 230 C1320 195 930 215 630 255"/>
+    <path class="assoc admin-line" d="M1610 250 L1390 255"/>
+    <path class="assoc admin-line" d="M1610 270 C1510 345 1460 535 1195 640"/>
+    <path class="assoc admin-line" d="M1610 290 C1465 520 1160 900 825 1010"/>
+    <path class="assoc admin-line" d="M1610 310 C1490 720 1465 1010 1332 1035"/>
+  </g>
+
+  <!-- Use case ellipses -->
+  <ellipse class="usecase" cx="510" cy="255" rx="120" ry="42"/>
+  <text class="usecase-text" x="510" y="255">Log In</text>
+  <ellipse class="usecase" cx="680" cy="255" rx="120" ry="42"/>
+  <text class="usecase-text" x="680" y="255">Recover Password</text>
+  <ellipse class="usecase" cx="510" cy="350" rx="135" ry="42"/>
+  <text class="usecase-text" x="510" y="350">Manage Profile</text>
+  <ellipse class="usecase" cx="700" cy="350" rx="95" ry="42"/>
+  <text class="usecase-text" x="700" y="350">Log Out</text>
+
+  <ellipse class="usecase" cx="510" cy="535" rx="115" ry="42"/>
+  <text class="usecase-text" x="510" y="535">View Products</text>
+  <ellipse class="usecase" cx="670" cy="535" rx="125" ry="42"/>
+  <text class="usecase-text" x="670" y="535">Create Order</text>
+  <ellipse class="usecase" cx="510" cy="625" rx="125" ry="42"/>
+  <text class="usecase-text" x="510" y="625">Apply Discounts</text>
+  <ellipse class="usecase" cx="680" cy="625" rx="125" ry="42"/>
+  <text class="usecase-text" x="680" y="625">Handle Payment</text>
+  <ellipse class="usecase" cx="510" cy="715" rx="135" ry="42"/>
+  <text class="usecase-text" x="510" y="715">View / Print Receipt</text>
+  <ellipse class="usecase" cx="680" cy="715" rx="125" ry="42"/>
+  <text class="usecase-text" x="680" y="707">Update Active</text>
+  <text class="usecase-text" x="680" y="731">Order Status</text>
+  <ellipse class="usecase" cx="510" cy="805" rx="135" ry="42"/>
+  <text class="usecase-text" x="510" y="797">Cancel Pending</text>
+  <text class="usecase-text" x="510" y="821">Order</text>
+  <ellipse class="usecase" cx="690" cy="805" rx="125" ry="42"/>
+  <text class="usecase-text" x="690" y="797">Remove Pending</text>
+  <text class="usecase-text" x="690" y="821">Item</text>
+
+  <ellipse class="usecase" cx="1065" cy="255" rx="125" ry="42"/>
+  <text class="usecase-text" x="1065" y="255">Manage Products</text>
+  <ellipse class="usecase" cx="1265" cy="255" rx="125" ry="42"/>
+  <text class="usecase-text" x="1265" y="255">Manage Categories</text>
+  <ellipse class="usecase" cx="1065" cy="345" rx="115" ry="42"/>
+  <text class="usecase-text" x="1065" y="345">Manage Add-ons</text>
+  <ellipse class="usecase" cx="1265" cy="345" rx="125" ry="42"/>
+  <text class="usecase-text" x="1265" y="345">Manage Discounts</text>
+  <ellipse class="usecase" cx="1065" cy="435" rx="125" ry="42"/>
+  <text class="usecase-text" x="1065" y="427">Manage Product</text>
+  <text class="usecase-text" x="1065" y="451">Variants</text>
+  <ellipse class="usecase" cx="1270" cy="435" rx="140" ry="42"/>
+  <text class="usecase-text" x="1270" y="427">Recipe / Ingredient</text>
+  <text class="usecase-text" x="1270" y="451">Mapping</text>
+
+  <ellipse class="usecase" cx="1065" cy="640" rx="135" ry="42"/>
+  <text class="usecase-text" x="1065" y="640">Manage Inventory</text>
+  <ellipse class="usecase" cx="1275" cy="640" rx="135" ry="42"/>
+  <text class="usecase-text" x="1275" y="632">Record Stock In</text>
+  <text class="usecase-text" x="1275" y="656">/ Stock Out</text>
+  <ellipse class="usecase" cx="1065" cy="735" rx="135" ry="42"/>
+  <text class="usecase-text" x="1065" y="727">Low-Stock</text>
+  <text class="usecase-text" x="1065" y="751">Alerts</text>
+  <ellipse class="usecase" cx="1275" cy="735" rx="145" ry="42"/>
+  <text class="usecase-text" x="1275" y="727">Expiration</text>
+  <text class="usecase-text" x="1275" y="751">Batches</text>
+  <ellipse class="usecase" cx="1170" cy="825" rx="145" ry="42"/>
+  <text class="usecase-text" x="1170" y="817">Record Purchase</text>
+  <text class="usecase-text" x="1170" y="841">Orders</text>
+
+  <ellipse class="usecase" cx="510" cy="1010" rx="120" ry="42"/>
+  <text class="usecase-text" x="510" y="1010">View Dashboard</text>
+  <ellipse class="usecase" cx="700" cy="1010" rx="125" ry="42"/>
+  <text class="usecase-text" x="700" y="1010">Sales Reports</text>
+  <ellipse class="usecase" cx="510" cy="1100" rx="135" ry="42"/>
+  <text class="usecase-text" x="510" y="1100">Inventory Reports</text>
+  <ellipse class="usecase" cx="700" cy="1100" rx="125" ry="42"/>
+  <text class="usecase-text" x="700" y="1100">Finance Reports</text>
+  <ellipse class="usecase" cx="510" cy="1190" rx="125" ry="42"/>
+  <text class="usecase-text" x="510" y="1190">Refund History</text>
+  <ellipse class="usecase" cx="700" cy="1190" rx="135" ry="42"/>
+  <text class="usecase-text" x="700" y="1182">Transactions</text>
+  <text class="usecase-text" x="700" y="1206">/ History</text>
+  <ellipse class="usecase" cx="510" cy="1280" rx="125" ry="42"/>
+  <text class="usecase-text" x="510" y="1280">Login Activity</text>
+  <ellipse class="usecase" cx="700" cy="1280" rx="135" ry="42"/>
+  <text class="usecase-text" x="700" y="1272">Audit / System</text>
+  <text class="usecase-text" x="700" y="1296">Activity</text>
+
+  <ellipse class="usecase" cx="1172" cy="1035" rx="160" ry="45"/>
+  <text class="usecase-text" x="1172" y="1027">Manage Staff and</text>
+  <text class="usecase-text" x="1172" y="1051">Admin Accounts</text>
+  <ellipse class="usecase" cx="1172" cy="1130" rx="155" ry="45"/>
+  <text class="usecase-text" x="1172" y="1122">Assign Admin</text>
+  <text class="usecase-text" x="1172" y="1146">Permissions</text>
+
+  <ellipse class="usecase" cx="900" cy="835" rx="150" ry="42"/>
+  <text class="usecase-text" x="900" y="827">Process Refunds</text>
+  <text class="usecase-text" x="900" y="851">and Waste Records</text>
+
+  <!-- Include / extend relationships -->
+  <line class="include" x1="650" y1="555" x2="610" y2="555"/>
+  <text class="include-label" x="630" y="545">&lt;&lt;include&gt;&gt;</text>
+  <line class="include" x1="655" y1="652" x2="555" y2="690"/>
+  <text class="include-label" x="610" y="680">&lt;&lt;include&gt;&gt;</text>
+  <line class="include" x1="610" y1="796" x2="780" y2="830"/>
+  <text class="include-label" x="700" y="805">&lt;&lt;include&gt;&gt;</text>
+  <line class="include" x1="760" y1="796" x2="790" y2="818"/>
+  <text class="include-label" x="785" y="785">&lt;&lt;include&gt;&gt;</text>
+  <line class="include" x1="1188" y1="258" x2="1140" y2="258"/>
+  <text class="include-label" x="1165" y="245">&lt;&lt;include&gt;&gt;</text>
+  <line class="include" x1="1185" y1="642" x2="1140" y2="642"/>
+  <text class="include-label" x="1165" y="628">&lt;&lt;include&gt;&gt;</text>
+  <line class="include" x1="1172" y1="1080" x2="1172" y2="1085"/>
+  <text class="include-label" x="1248" y="1089">&lt;&lt;include&gt;&gt;</text>
+
+  <rect class="note-box" x="1530" y="555" width="245" height="110"/>
+  <text class="note-text" x="1652" y="590">Admin can only access</text>
+  <text class="note-text" x="1652" y="618">modules selected by</text>
+  <text class="note-text" x="1652" y="646">the Owner.</text>
+</svg>

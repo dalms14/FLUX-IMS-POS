@@ -10,11 +10,12 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import Items from './pages/Items'; 
 import InventoryPage from './pages/InventoryPage';
+import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import SettingsPage from './pages/SettingsPage';
 import SalesPage from './pages/SalesPage';
 import StaffPage from './pages/StaffPage';
 import ReportsPage from './pages/ReportsPage';
-import { isAdminRole } from './utils/roles';
+import { getLandingPath, hasPermission } from './utils/roles';
 import './App.css';
 
 // Protect routes that require login
@@ -23,10 +24,10 @@ const PrivateRoute = ({ children }) => {
   return user ? children : <Navigate to="/login" />;
 };
 
-const AdminRoute = ({ children }) => {
+const PermissionRoute = ({ children, permission }) => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   if (!user?.email && !user?.role) return <Navigate to="/login" />;
-  return isAdminRole(user.role) ? children : <Navigate to="/dashboard" />;
+  return hasPermission(user, permission) ? children : <Navigate to={getLandingPath(user)} />;
 };
 
 function App() {
@@ -48,52 +49,6 @@ function App() {
     return () => clearInterval(heartbeatTimer);
   }, []);
 
-  // Disable developer tools and inspect element
-  useEffect(() => {
-    // Disable F12
-    const handleKeyDown = (e) => {
-      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || 
-          (e.ctrlKey && e.shiftKey && e.key === 'J') || (e.ctrlKey && e.shiftKey && e.key === 'C')) {
-        e.preventDefault();
-        return false;
-      }
-    };
-
-    // Disable right-click context menu
-    const handleContextMenu = (e) => {
-      e.preventDefault();
-      return false;
-    };
-
-    // Add event listeners
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('contextmenu', handleContextMenu);
-
-    // Detect developer tools opening (DevTools detection)
-    const detectDevTools = setInterval(() => {
-      const start = performance.now();
-      debugger; // eslint-disable-line no-debugger
-      const end = performance.now();
-      
-      // If debugger statement takes too long, DevTools is open
-      if (end - start > 100) {
-        console.clear();
-        document.body.innerHTML = '<h1 style="text-align:center; margin-top: 50px; color: #8B5E3C;">🔒 Developer Tools Disabled</h1>';
-        // Prevent further access
-        while (true) {
-          debugger; // eslint-disable-line no-debugger
-        }
-      }
-    }, 1000);
-
-    // Cleanup
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('contextmenu', handleContextMenu);
-      clearInterval(detectDevTools);
-    };
-  }, []);
-
   return (
     <Router>
       <div className="App">
@@ -103,9 +58,9 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <PrivateRoute>
+              <PermissionRoute permission="dashboard">
                 <Dashboard />
-              </PrivateRoute>
+              </PermissionRoute>
             }
           />
 
@@ -121,52 +76,52 @@ function App() {
           <Route
             path="/history"
             element={
-              <PrivateRoute>
+              <PermissionRoute permission="history">
                 <HistoryPage />
-              </PrivateRoute>
+              </PermissionRoute>
             }
           />
 
           <Route
             path="/transactions"
             element={
-              <PrivateRoute>
+              <PermissionRoute permission="transactions">
                 <TransactionPage />
-              </PrivateRoute>
+              </PermissionRoute>
             }
           />
 
           <Route
             path="/sales"
             element={
-              <AdminRoute>
+              <PermissionRoute permission="sales">
                 <SalesPage />
-              </AdminRoute>
+              </PermissionRoute>
             }
           />
 
           <Route
             path="/staff"
             element={
-              <AdminRoute>
+              <PermissionRoute permission="staff">
                 <StaffPage />
-              </AdminRoute>
+              </PermissionRoute>
             }
           />
 
           <Route
             path="/reports"
             element={
-              <AdminRoute>
+              <PermissionRoute permission="reports">
                 <ReportsPage />
-              </AdminRoute>
+              </PermissionRoute>
             }
           />
 
           <Route path="/items"
           element={
-          <PrivateRoute>
-            <Items /></PrivateRoute>
+          <PermissionRoute permission="items">
+            <Items /></PermissionRoute>
           } />
 
           <Route path="/orders" element={<Navigate to="/items" />} />
@@ -180,12 +135,13 @@ function App() {
 
           <Route path="*" element={<Navigate to="/login" />} />
 
-          <Route path="/inventory" element={<AdminRoute><InventoryPage /></AdminRoute>}
+          <Route path="/inventory" element={<PermissionRoute permission="inventory"><InventoryPage /></PermissionRoute>}
           
           />
-          <Route path="/products" element={<AdminRoute><SettingsPage initialSection="inventory" mode="products" /></AdminRoute>} />
+          <Route path="/purchase-orders" element={<PermissionRoute permission="purchase_orders"><PurchaseOrdersPage /></PermissionRoute>} />
+          <Route path="/products" element={<PermissionRoute permission="products"><SettingsPage initialSection="inventory" mode="products" /></PermissionRoute>} />
           <Route path="/product-settings" element={<Navigate to="/products" />} />
-          <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+          <Route path="/settings" element={<PermissionRoute permission="settings"><SettingsPage /></PermissionRoute>} />
         </Routes>
       </div>
     </Router>

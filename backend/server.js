@@ -15,6 +15,8 @@ const Recipe = require('./models/Recipe');
 const SystemAudit = require('./models/SystemAudit');
 const Addon = require('./models/Addon');
 const Discount = require('./models/Discount');
+const purchaseOrderRoutes = require('./Routes/purchaseOrderRoutes');
+const notificationRoutes = require('./Routes/notificationRoutes');
 
 dotenv.config();
 
@@ -33,9 +35,9 @@ const DEFAULT_ADDONS = [
   { name: 'Nata', price: 20 },
 ];
 const DEFAULT_DISCOUNTS = [
-  { name: 'Elite Member', percentage: 20 },
-  { name: 'Pag-IBIG', percentage: 20 },
-  { name: 'PWD/Senior Citizen', percentage: 20 },
+  { name: 'Elite Member', percentage: 20, scope: 'order' },
+  { name: 'Pag-IBIG', percentage: 20, scope: 'item' },
+  { name: 'PWD/Senior Citizen', percentage: 20, scope: 'item' },
 ];
 const SYSTEM_DISCOUNT_KEYS = new Set(['elite member']);
 
@@ -45,6 +47,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api', historyRoutes);
+app.use('/api/purchase-orders', purchaseOrderRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // --- Connect to MongoDB Atlas ---
 console.log("Connecting to Database...");
@@ -230,6 +234,20 @@ function isSystemDiscountName(name = '') {
   return SYSTEM_DISCOUNT_KEYS.has(normalizeDiscountKey(name));
 }
 
+function inferDiscountScope(name = '') {
+  const key = normalizeDiscountKey(name);
+  return key.includes('pwd') || key.includes('senior') || key.includes('pag') || key.includes('ibig')
+    ? 'item'
+    : 'order';
+}
+
+function normalizeDiscountScope(scope, name = '') {
+  const value = String(scope || '').trim().toLowerCase();
+  if (['item', 'selected', 'separate', 'separated'].includes(value)) return 'item';
+  if (['order', 'all', 'whole', 'full'].includes(value)) return 'order';
+  return inferDiscountScope(name);
+}
+
 function parseDiscountPayload(body = {}) {
   const name = normalizeDiscountName(body.name);
   const percentage = Number(body.percentage);
@@ -242,7 +260,14 @@ function parseDiscountPayload(body = {}) {
     return { error: 'Discount % must be between 0 and 100' };
   }
 
-  return { discount: { name, nameKey: normalizeDiscountKey(name), percentage } };
+  return {
+    discount: {
+      name,
+      nameKey: normalizeDiscountKey(name),
+      percentage,
+      scope: normalizeDiscountScope(body.scope, name),
+    }
+  };
 }
 
 async function seedDefaultDiscounts() {
@@ -416,7 +441,13 @@ app.get('/api/discounts', async (req, res) => {
   try {
     await seedDefaultDiscounts();
     const discounts = await Discount.find({ active: true }).sort({ name: 1 }).lean();
-    res.json({ success: true, data: discounts });
+    res.json({
+      success: true,
+      data: discounts.map(discount => ({
+        ...discount,
+        scope: normalizeDiscountScope(discount.scope, discount.name),
+      })),
+    });
   } catch (err) {
     console.error('Error fetching discounts:', err);
     res.status(500).json({ message: err.message || 'Failed to fetch discounts' });
@@ -449,7 +480,7 @@ app.post('/api/discounts', async (req, res) => {
       entityId: discount._id,
       entityName: discount.name,
       details: `Discount ${existing ? 'restored' : 'created'}`,
-      changes: { name: discount.name, percentage: discount.percentage },
+      changes: { name: discount.name, percentage: discount.percentage, scope: discount.scope },
     });
 
     res.status(existing ? 200 : 201).json({ success: true, discount });
@@ -505,7 +536,7 @@ app.put('/api/discounts/:id', async (req, res) => {
       entityId: discount._id,
       entityName: discount.name,
       details: 'Discount details updated',
-      changes: { name: discount.name, percentage: discount.percentage },
+      changes: { name: discount.name, percentage: discount.percentage, scope: discount.scope },
     });
 
     res.json({ success: true, discount });
@@ -678,7 +709,7 @@ app.put('/api/products/:id/recipe', async (req, res) => {
 // Create Product
 app.post('/api/products', async (req, res) => {
   try {
-    const { name, category, description, soloPrice, platterPrice, variants, addons, image } = req.body;
+    const { name, category, description, soloPrice, platterPrice, variants, variantGroups, addons, image } = req.body;
     const productCategory = String(category || '').trim();
     const parsedSoloPrice = soloPrice === '' || soloPrice === undefined ? undefined : Number(soloPrice);
     const normalizedAddons = Array.isArray(addons)
@@ -689,6 +720,19 @@ app.post('/api/products', async (req, res) => {
             price: Number(addon.price) || 0,
           }))
       : [];
+    const normalizedVariantGroups = Array.isArray(variantGroups)
+      ? variantGroups
+          .map(group => ({
+            name: String(group?.name || 'Variant').trim() || 'Variant',
+            options: Array.isArray(group?.options)
+              ? group.options.map(option => String(option || '').trim()).filter(Boolean)
+              : [],
+          }))
+          .filter(group => group.options.length > 0)
+      : [];
+    const normalizedVariants = normalizedVariantGroups.length > 0
+      ? normalizedVariantGroups.flatMap(group => group.options)
+      : Array.isArray(variants) ? variants : [];
 
     if (!name || !productCategory) {
       return res.status(400).json({ message: 'Name and category are required' });
@@ -710,7 +754,8 @@ app.post('/api/products', async (req, res) => {
       soloPrice: parsedSoloPrice ?? null,
       price: parsedSoloPrice,
       platterPrice: platterPrice || null,
-      variants: variants || [],
+      variants: normalizedVariants,
+      variantGroups: normalizedVariantGroups,
       addons: normalizedAddons,
       image: image || null,
       available: true,
@@ -735,7 +780,7 @@ app.post('/api/products', async (req, res) => {
 // Update Product
 app.put('/api/products/:id', async (req, res) => {
   try {
-    const { name, category, description, soloPrice, platterPrice, variants, addons, image, available } = req.body;
+    const { name, category, description, soloPrice, platterPrice, variants, variantGroups, addons, image, available } = req.body;
     const productCategory = category === undefined ? undefined : String(category || '').trim();
     const parsedSoloPrice = soloPrice === '' || soloPrice === undefined ? undefined : Number(soloPrice);
     const parsedPlatterPrice = platterPrice === '' || platterPrice === undefined ? null : platterPrice;
@@ -747,6 +792,19 @@ app.put('/api/products/:id', async (req, res) => {
             price: Number(addon.price) || 0,
           }))
       : undefined;
+    const normalizedVariantGroups = Array.isArray(variantGroups)
+      ? variantGroups
+          .map(group => ({
+            name: String(group?.name || 'Variant').trim() || 'Variant',
+            options: Array.isArray(group?.options)
+              ? group.options.map(option => String(option || '').trim()).filter(Boolean)
+              : [],
+          }))
+          .filter(group => group.options.length > 0)
+      : undefined;
+    const normalizedVariants = normalizedVariantGroups
+      ? normalizedVariantGroups.flatMap(group => group.options)
+      : Array.isArray(variants) ? variants : [];
 
     if (productCategory && productCategory.toUpperCase() === ALL_CATEGORY_NAME) {
       return res.status(400).json({ message: 'ALL is automatic. Please choose the product category.' });
@@ -764,7 +822,8 @@ app.put('/api/products/:id', async (req, res) => {
       soloPrice: parsedSoloPrice,
       price: parsedSoloPrice,
       platterPrice: parsedPlatterPrice,
-      variants: Array.isArray(variants) ? variants : [],
+      variants: normalizedVariants,
+      variantGroups: normalizedVariantGroups,
       addons: normalizedAddons,
       image,
       available,
@@ -933,15 +992,28 @@ async function generateReceiptNo() {
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
 
-    let sequence = await Transaction.countDocuments({
-        createdAt: {
-            $gte: startOfDay,
-            $lte: endOfDay,
-        }
-    }) + 1;
+    // Find the HIGHEST existing sequence for today instead of counting
+    const todayReceipts = await Transaction.find({
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        receiptNo: { $regex: `^FLX-${datePrefix}-` },
+    })
+    .select('receiptNo')
+    .lean();
 
+    // Extract the highest sequence number used today
+    let maxSequence = 0;
+    for (const t of todayReceipts) {
+        const parts = t.receiptNo.split('-');
+        const seq = parseInt(parts[parts.length - 1], 10);
+        if (!isNaN(seq) && seq > maxSequence) {
+            maxSequence = seq;
+        }
+    }
+
+    let sequence = maxSequence + 1;
     let receiptNo = `FLX-${datePrefix}-${String(sequence).padStart(4, '0')}`;
 
+    // Safety check for any remaining collisions
     while (await Transaction.exists({ receiptNo })) {
         sequence += 1;
         receiptNo = `FLX-${datePrefix}-${String(sequence).padStart(4, '0')}`;
@@ -954,25 +1026,30 @@ async function generateOrderNo() {
     const now = new Date();
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
-
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
 
-    let sequence = await Transaction.countDocuments({
-        createdAt: {
-            $gte: startOfDay,
-            $lte: endOfDay,
-        }
-    }) + 1;
+    const todayOrders = await Transaction.find({
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        orderNo: { $exists: true, $ne: '' },
+    })
+    .select('orderNo')
+    .lean();
 
+    let maxSequence = 0;
+    for (const t of todayOrders) {
+        const seq = parseInt(t.orderNo, 10);
+        if (!isNaN(seq) && seq > maxSequence) {
+            maxSequence = seq;
+        }
+    }
+
+    let sequence = maxSequence + 1;
     let orderNo = String(sequence).padStart(3, '0');
 
     while (await Transaction.exists({
         orderNo,
-        createdAt: {
-            $gte: startOfDay,
-            $lte: endOfDay,
-        }
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
     })) {
         sequence += 1;
         orderNo = String(sequence).padStart(3, '0');
@@ -983,6 +1060,174 @@ async function generateOrderNo() {
 
 function roundStockAmount(value) {
     return Math.round(Number(value || 0) * 1000) / 1000;
+}
+
+function normalizeInventoryBatches(item) {
+    const batches = Array.isArray(item.expirationBatches) ? item.expirationBatches : [];
+    const normalized = batches
+        .map(batch => ({
+            quantity: roundStockAmount(batch.quantity),
+            expirationDate: batch.expirationDate || null,
+            receivedAt: batch.receivedAt || new Date(),
+            note: batch.note || '',
+        }))
+        .filter(batch => batch.quantity > 0);
+    const batchTotal = roundStockAmount(normalized.reduce((sum, batch) => sum + batch.quantity, 0));
+    const stockValue = roundStockAmount(item.stock || 0);
+
+    if (stockValue > batchTotal) {
+        normalized.push({
+            quantity: roundStockAmount(stockValue - batchTotal),
+            expirationDate: item.expirationDate || null,
+            receivedAt: item.createdAt || new Date(),
+            note: 'Existing stock',
+        });
+    }
+
+    return normalized;
+}
+
+function getStartOfToday() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+}
+
+function isExpiredInventoryDate(value, today = getStartOfToday()) {
+    if (!value) return false;
+    const expiry = new Date(value);
+    if (Number.isNaN(expiry.getTime())) return false;
+    expiry.setHours(0, 0, 0, 0);
+    return expiry < today;
+}
+
+async function autoDeductExpiredInventory(options = {}) {
+    const query = Array.isArray(options.inventoryIds) && options.inventoryIds.length > 0
+        ? { _id: { $in: options.inventoryIds } }
+        : {};
+    const items = await Inventory.find(query);
+    const today = getStartOfToday();
+    const deductedItems = [];
+
+    for (const item of items) {
+        const oldStock = roundStockAmount(item.stock || 0);
+        const batches = normalizeInventoryBatches(item);
+        const activeBatches = [];
+        const expiredBatches = [];
+
+        for (const batch of batches) {
+            if (isExpiredInventoryDate(batch.expirationDate, today)) {
+                expiredBatches.push(batch);
+            } else {
+                activeBatches.push(batch);
+            }
+        }
+
+        const expiredQuantity = roundStockAmount(expiredBatches.reduce((sum, batch) => sum + Number(batch.quantity || 0), 0));
+        if (expiredQuantity <= 0) continue;
+
+        const newStock = roundStockAmount(Math.max(0, oldStock - expiredQuantity));
+        item.expirationBatches = activeBatches;
+        item.expirationDate = getNearestExpirationDate(activeBatches);
+        item.stock = newStock;
+        await item.save();
+
+        console.log(`Auto deducted expired stock: ${item.name} | ${oldStock} -> ${newStock} (-${expiredQuantity})`);
+
+        await logSystemAudit({
+            module: 'Inventory',
+            action: 'Expired Stock Auto Deducted',
+            entityId: item._id,
+            entityName: item.name,
+            actor: 'System',
+            actorEmail: '',
+            details: 'Expired inventory batch deducted automatically',
+            changes: {
+                oldStock,
+                newStock,
+                quantity: expiredQuantity,
+                unit: item.unit,
+                reason: 'Expired stock',
+                expiredBatches: expiredBatches.map(batch => ({
+                    quantity: batch.quantity,
+                    expirationDate: batch.expirationDate,
+                    note: batch.note || '',
+                })),
+            },
+        });
+
+        deductedItems.push({
+            inventoryId: item._id,
+            name: item.name,
+            quantity: expiredQuantity,
+            unit: item.unit,
+            oldStock,
+            newStock,
+        });
+    }
+
+    return deductedItems;
+}
+
+async function addInventoryStock(inventoryId, quantity, options = {}) {
+    const amount = roundStockAmount(quantity);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    const item = await Inventory.findById(inventoryId);
+    if (!item) return null;
+
+    const expirationDate = options.expirationDate ? new Date(options.expirationDate) : null;
+    const batches = normalizeInventoryBatches(item);
+    batches.push({
+        quantity: amount,
+        expirationDate,
+        receivedAt: new Date(),
+        note: options.note || '',
+    });
+
+    item.expirationBatches = batches;
+    item.expirationDate = getNearestExpirationDate(batches);
+    item.stock = roundStockAmount(Number(item.stock || 0) + amount);
+    await item.save();
+    return item;
+}
+
+async function consumeInventoryStock(inventoryId, quantity) {
+    const amount = roundStockAmount(quantity);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    const item = await Inventory.findById(inventoryId);
+    if (!item || roundStockAmount(item.stock) < amount) return null;
+
+    let remaining = amount;
+    const batches = normalizeInventoryBatches(item).sort((a, b) => {
+        if (!a.expirationDate && !b.expirationDate) return new Date(a.receivedAt) - new Date(b.receivedAt);
+        if (!a.expirationDate) return 1;
+        if (!b.expirationDate) return -1;
+        return new Date(a.expirationDate) - new Date(b.expirationDate);
+    });
+
+    for (const batch of batches) {
+        if (remaining <= 0) break;
+        const deduction = Math.min(batch.quantity, remaining);
+        batch.quantity = roundStockAmount(batch.quantity - deduction);
+        remaining = roundStockAmount(remaining - deduction);
+    }
+
+    item.expirationBatches = batches.filter(batch => batch.quantity > 0);
+    item.expirationDate = getNearestExpirationDate(item.expirationBatches);
+    item.stock = roundStockAmount(Number(item.stock || 0) - amount);
+    await item.save();
+    return item;
+}
+
+function getNearestExpirationDate(batches = []) {
+    const dates = batches
+        .map(batch => batch.expirationDate ? new Date(batch.expirationDate) : null)
+        .filter(date => date && !Number.isNaN(date.getTime()))
+        .sort((a, b) => a - b);
+
+    return dates[0] || null;
 }
 
 async function buildInventoryRequirements(items = []) {
@@ -1051,6 +1296,9 @@ app.post('/api/transactions', async (req, res) => {
         const normalizedServiceType = serviceType === 'Dine Out' ? 'Dine Out' : 'Dine In';
 
         const requirements = await buildInventoryRequirements(items);
+        await autoDeductExpiredInventory({
+            inventoryIds: requirements.map(requirement => requirement.inventoryId),
+        });
 
         if (requirements.length > 0) {
             const inventoryItems = await Inventory.find({
@@ -1075,18 +1323,11 @@ app.post('/api/transactions', async (req, res) => {
             }
 
             for (const requirement of requirements) {
-                const updatedInventory = await Inventory.findOneAndUpdate(
-                    {
-                        _id: requirement.inventoryId,
-                        stock: { $gte: requirement.required },
-                    },
-                    { $inc: { stock: -requirement.required } },
-                    { returnDocument: 'after' }
-                );
+                const updatedInventory = await consumeInventoryStock(requirement.inventoryId, requirement.required);
 
                 if (!updatedInventory) {
                     for (const deducted of deductedRequirements) {
-                        await Inventory.findByIdAndUpdate(deducted.inventoryId, { $inc: { stock: deducted.required } });
+                        await addInventoryStock(deducted.inventoryId, deducted.required, { note: 'Rollback after checkout failure' });
                     }
 
                     const latestInventory = await Inventory.findById(requirement.inventoryId).lean();
@@ -1115,7 +1356,7 @@ app.post('/api/transactions', async (req, res) => {
         res.json({ success: true, receiptNo, orderNo, orderStatus: transaction.orderStatus, transactionId: transaction._id });
     } catch (err) {
         for (const deducted of deductedRequirements) {
-            await Inventory.findByIdAndUpdate(deducted.inventoryId, { $inc: { stock: deducted.required } });
+            await addInventoryStock(deducted.inventoryId, deducted.required, { note: 'Rollback after checkout error' });
         }
 
         console.error('Transaction error:', err.message);
@@ -1207,33 +1448,10 @@ function annotateTransactionRefundedItems(transaction) {
     };
 }
 
-app.get('/api/transactions', async (req, res) => {
-    try {
-        const { cashier, paymentMethod, startDate, endDate, includeActive } = req.query;
-        const filter = {};
-        if (includeActive !== 'true') {
-            filter.orderStatus = { $in: ['completed', 'cancelled'] };
-        }
-
-        if (cashier) filter.cashier = { $regex: cashier, $options: 'i' };
-        if (paymentMethod) filter.paymentMethod = paymentMethod;
-        if (startDate || endDate) {
-            filter.createdAt = {};
-            if (startDate) filter.createdAt.$gte = new Date(startDate);
-            if (endDate) filter.createdAt.$lte = new Date(endDate);
-        }
-
-        const transactions = await Transaction.find(filter).sort({ createdAt: -1 });
-        res.json(transactions.map(annotateTransactionRefundedItems));
-    } catch (err) {
-        res.status(500).json({ message: 'Server Error' });
-    }
-});
-
 const ACTIVE_ORDER_STATUSES = ['pending', 'preparing', 'ready'];
 const ORDER_STATUS_TRANSITIONS = {
-    pending: ['preparing', 'cancelled'],
-    preparing: ['ready'],
+    pending: ['preparing', 'cancelled', 'ready', 'completed'],
+    preparing: ['ready', 'completed'],
     ready: ['completed'],
     completed: [],
     cancelled: [],
@@ -1352,6 +1570,7 @@ app.get('/api/orders/active', async (req, res) => {
 
 // Update order status through Pending -> Preparing -> Ready -> Completed
 app.patch('/api/orders/:id/status', async (req, res) => {
+  console.log('=== PATCH STATUS HIT ===', req.params.id, req.body.status);
     try {
         const { status, actor, actorEmail } = req.body;
         const nextStatus = String(status || '').trim().toLowerCase();
@@ -1413,9 +1632,7 @@ app.post('/api/orders/:id/cancel', async (req, res) => {
 
         const requirements = await buildInventoryRequirements(activeItems);
         for (const requirement of requirements) {
-            await Inventory.findByIdAndUpdate(requirement.inventoryId, {
-                $inc: { stock: requirement.required },
-            });
+            await addInventoryStock(requirement.inventoryId, requirement.required, { note: 'Restored from cancelled order' });
         }
 
         const refundPayload = await buildRefundPayloadForItems(
@@ -1524,9 +1741,7 @@ app.post('/api/orders/:id/cancel-items', async (req, res) => {
 
         const requirements = await buildInventoryRequirements(selectedItems);
         for (const requirement of requirements) {
-            await Inventory.findByIdAndUpdate(requirement.inventoryId, {
-                $inc: { stock: requirement.required },
-            });
+            await addInventoryStock(requirement.inventoryId, requirement.required, { note: 'Restored from cancelled order item' });
         }
 
         const refundPayload = await buildRefundPayloadForItems(
@@ -1599,6 +1814,7 @@ app.post('/api/orders/:id/cancel-items', async (req, res) => {
 // Get inventory
 app.get('/api/inventory', async (req, res) => {
     try {
+        await autoDeductExpiredInventory();
         const inventory = await Inventory.find({}).sort({ category: 1, name: 1 });
         res.json(inventory);
     } catch (err) {
@@ -1609,6 +1825,7 @@ app.get('/api/inventory', async (req, res) => {
 // Get single inventory item
 app.get('/api/inventory/:id', async (req, res) => {
     try {
+        await autoDeductExpiredInventory({ inventoryIds: [req.params.id] });
         const item = await Inventory.findById(req.params.id);
         if (!item) return res.status(404).json({ message: 'Item not found' });
         res.json(item);
@@ -1619,25 +1836,48 @@ app.get('/api/inventory/:id', async (req, res) => {
 
 // Add new inventory item
 app.post('/api/inventory', async (req, res) => {
+    return res.status(403).json({
+        message: 'Inventory items can only be added when a purchase order is received.'
+    });
+    /*
     try {
-        const { name, unit, stock, lowStockAt, category, actor, actorEmail } = req.body;
+        const { name, unit, stock, lowStockAt, category, expirationDate, expirationBatches, actor, actorEmail } = req.body;
         const stockValue = Number(stock) || 0;
         const lowStockValue = Number(lowStockAt) || 500;
+        const parsedExpirationDate = expirationDate ? new Date(expirationDate) : null;
+        const normalizedBatches = Array.isArray(expirationBatches) && expirationBatches.length > 0
+            ? expirationBatches
+                .map(batch => ({
+                    quantity: roundStockAmount(batch.quantity),
+                    expirationDate: batch.expirationDate ? new Date(batch.expirationDate) : null,
+                    receivedAt: batch.receivedAt ? new Date(batch.receivedAt) : new Date(),
+                    note: batch.note || '',
+                }))
+                .filter(batch => batch.quantity > 0)
+            : stockValue > 0
+            ? [{ quantity: stockValue, expirationDate: parsedExpirationDate, receivedAt: new Date(), note: 'Opening stock' }]
+            : [];
+        const finalStockValue = normalizedBatches.length > 0
+            ? roundStockAmount(normalizedBatches.reduce((sum, batch) => sum + batch.quantity, 0))
+            : stockValue;
+        const nearestExpirationDate = getNearestExpirationDate(normalizedBatches);
         
         if (!name || !unit) {
             return res.status(400).json({ message: 'Name and unit are required' });
         }
 
-        if (stockValue < 0) {
+        if (finalStockValue < 0) {
             return res.status(400).json({ message: 'Stock cannot be negative' });
         }
 
         const newItem = await Inventory.create({
             name: name.trim(),
             unit,
-            stock: stockValue,
+            stock: finalStockValue,
             lowStockAt: lowStockValue,
             category: category || 'General',
+            expirationDate: nearestExpirationDate,
+            expirationBatches: normalizedBatches,
         });
 
         console.log(`✅ Inventory item added: ${newItem.name}`);
@@ -1649,7 +1889,7 @@ app.post('/api/inventory', async (req, res) => {
             actor,
             actorEmail,
             details: 'Inventory item added',
-            changes: { unit, stock: stockValue, lowStockAt: lowStockValue, category: category || 'General' },
+            changes: { unit, stock: finalStockValue, lowStockAt: lowStockValue, category: category || 'General', expirationDate: nearestExpirationDate, expirationBatches: normalizedBatches },
         });
         res.status(201).json({ success: true, item: newItem });
     } catch (err) {
@@ -1659,13 +1899,31 @@ app.post('/api/inventory', async (req, res) => {
         }
         res.status(500).json({ message: 'Failed to add item' });
     }
+    */
 });
 
 // Update inventory item
 app.put('/api/inventory/:id', async (req, res) => {
+    return res.status(403).json({
+        message: 'Inventory records are read-only. Update stock only by receiving an approved purchase order.'
+    });
+    /*
     try {
-        const { name, unit, lowStockAt, category, actor, actorEmail } = req.body;
+        const { name, unit, lowStockAt, category, expirationDate, expirationBatches, actor, actorEmail } = req.body;
         const lowStockValue = Number(lowStockAt) || 500;
+        const normalizedBatches = Array.isArray(expirationBatches)
+            ? expirationBatches
+                .map(batch => ({
+                    quantity: roundStockAmount(batch.quantity),
+                    expirationDate: batch.expirationDate ? new Date(batch.expirationDate) : null,
+                    receivedAt: batch.receivedAt ? new Date(batch.receivedAt) : new Date(),
+                    note: batch.note || '',
+                }))
+                .filter(batch => batch.quantity > 0)
+            : null;
+        const parsedExpirationDate = normalizedBatches
+            ? getNearestExpirationDate(normalizedBatches)
+            : expirationDate ? new Date(expirationDate) : null;
 
         if (!name || !unit) {
             return res.status(400).json({ message: 'Name and unit are required' });
@@ -1682,7 +1940,13 @@ app.put('/api/inventory/:id', async (req, res) => {
             unit: unit.trim(),
             lowStockAt: lowStockValue,
             category: category?.trim() || 'General',
+            expirationDate: parsedExpirationDate,
         };
+
+        if (normalizedBatches) {
+            update.expirationBatches = normalizedBatches;
+            update.stock = roundStockAmount(normalizedBatches.reduce((sum, batch) => sum + batch.quantity, 0));
+        }
         
         const updatedItem = await Inventory.findByIdAndUpdate(
             req.params.id,
@@ -1706,13 +1970,21 @@ app.put('/api/inventory/:id', async (req, res) => {
         res.json({ success: true, item: updatedItem });
     } catch (err) {
         console.error('Error updating inventory item:', err);
+        if (err.code === 11000) {
+            return res.status(400).json({ message: 'Item name already exists' });
+        }
         res.status(500).json({ message: 'Failed to update item' });
     }
+    */
 });
 
 async function stockInInventoryItem(req, res) {
+    return res.status(403).json({
+        message: 'Stock-in is only allowed through goods receipt for an approved purchase order.'
+    });
+    /*
     try {
-        let { quantity, adjustment, reason, actor, actorEmail } = req.body;
+        let { quantity, adjustment, reason, expirationDate, actor, actorEmail } = req.body;
         const stockInQuantity = Number(quantity ?? adjustment);
         
         if (!Number.isFinite(stockInQuantity) || stockInQuantity <= 0) {
@@ -1723,30 +1995,32 @@ async function stockInInventoryItem(req, res) {
         if (!item) return res.status(404).json({ message: 'Item not found' });
 
         const oldStock = item.stock;
-        item.stock += stockInQuantity;
+        const oldExpirationDate = item.expirationDate;
         adjustment = stockInQuantity;
+        const updatedItem = await addInventoryStock(item._id, stockInQuantity, {
+            expirationDate,
+            note: reason || 'New supplies received',
+        });
 
-        await item.save();
-
-        console.log(`Stock in: ${item.name} | ${oldStock} -> ${item.stock} (+${stockInQuantity}) | Reason: ${reason || 'New supplies received'}`);
+        console.log(`Stock in: ${updatedItem.name} | ${oldStock} -> ${updatedItem.stock} (+${stockInQuantity}) | Reason: ${reason || 'New supplies received'}`);
         
         await logSystemAudit({
             module: 'Inventory',
             action: 'Stock In',
-            entityId: item._id,
-            entityName: item.name,
+            entityId: updatedItem._id,
+            entityName: updatedItem.name,
             actor,
             actorEmail,
             details: reason || 'New supplies received',
-            changes: { oldStock, newStock: item.stock, quantity: stockInQuantity },
+            changes: { oldStock, newStock: updatedItem.stock, quantity: stockInQuantity, unit: updatedItem.unit, oldExpirationDate, expirationDate: updatedItem.expirationDate },
         });
 
         res.json({ 
             success: true, 
-            item,
+            item: updatedItem,
             change: {
                 oldStock,
-                newStock: item.stock,
+                newStock: updatedItem.stock,
                 quantity: stockInQuantity,
                 reason: reason || 'New supplies received'
             }
@@ -1755,6 +2029,7 @@ async function stockInInventoryItem(req, res) {
         console.error('Error adding stock:', err);
         res.status(500).json({ message: 'Failed to add stock' });
     }
+    */
 }
 
 // Add received stock for an inventory item.
@@ -1763,7 +2038,7 @@ app.put('/api/inventory/:id/stock-in', stockInInventoryItem);
 // Backward-compatible route: manual stock changes can only increase stock.
 app.put('/api/inventory/:id/adjust-stock', stockInInventoryItem);
 
-// Deduct damaged, lost, stolen, expired, or counted-down stock.
+// Deduct damaged, lost, stolen, or counted-down stock. Expired batches are deducted automatically.
 app.put('/api/inventory/:id/stock-out', async (req, res) => {
     try {
         const { quantity, adjustment, reason, actor, actorEmail } = req.body;
@@ -1787,34 +2062,38 @@ app.put('/api/inventory/:id/stock-out', async (req, res) => {
         }
 
         const oldStock = item.stock;
-        item.stock = roundStockAmount(Number(item.stock || 0) - stockOutQuantity);
-        await item.save();
+        const updatedItem = await consumeInventoryStock(item._id, stockOutQuantity);
+        if (!updatedItem) {
+            return res.status(400).json({
+                message: `Cannot deduct ${stockOutQuantity} ${item.unit}. Only ${item.stock} ${item.unit} available.`,
+            });
+        }
 
-        console.log(`Stock out: ${item.name} | ${oldStock} -> ${item.stock} (-${stockOutQuantity}) | Reason: ${reason}`);
+        console.log(`Stock out: ${updatedItem.name} | ${oldStock} -> ${updatedItem.stock} (-${stockOutQuantity}) | Reason: ${reason}`);
 
         await logSystemAudit({
             module: 'Inventory',
             action: 'Stock Out',
-            entityId: item._id,
-            entityName: item.name,
+            entityId: updatedItem._id,
+            entityName: updatedItem.name,
             actor,
             actorEmail,
             details: String(reason).trim(),
             changes: {
                 oldStock,
-                newStock: item.stock,
+                newStock: updatedItem.stock,
                 quantity: stockOutQuantity,
                 reason: String(reason).trim(),
-                unit: item.unit,
+                unit: updatedItem.unit,
             },
         });
 
         res.json({
             success: true,
-            item,
+            item: updatedItem,
             change: {
                 oldStock,
-                newStock: item.stock,
+                newStock: updatedItem.stock,
                 quantity: stockOutQuantity,
                 reason: String(reason).trim(),
             },
@@ -1827,6 +2106,10 @@ app.put('/api/inventory/:id/stock-out', async (req, res) => {
 
 // Delete inventory item
 app.delete('/api/inventory/:id', async (req, res) => {
+    return res.status(403).json({
+        message: 'Inventory records cannot be deleted. Keep the record for audit history.'
+    });
+    /*
     try {
         const { actor, actorEmail } = req.body || {};
         const item = await Inventory.findByIdAndDelete(req.params.id);
@@ -1848,25 +2131,41 @@ app.delete('/api/inventory/:id', async (req, res) => {
         console.error('Error deleting inventory item:', err);
         res.status(500).json({ message: 'Failed to delete item' });
     }
+    */
 });
 
 // Get inventory stats/KPIs
 app.get('/api/inventory-stats', async (req, res) => {
     try {
+        await autoDeductExpiredInventory();
         const items = await Inventory.find({});
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const nearExpiryLimit = new Date(today);
+        nearExpiryLimit.setDate(nearExpiryLimit.getDate() + 7);
         
         const totalItems = items.length;
         const lowStockItems = items.filter(item => item.stock <= item.lowStockAt);
         const outOfStockItems = items.filter(item => item.stock === 0);
+        const expiredItems = items.filter(item => item.expirationDate && new Date(item.expirationDate) < today);
+        const nearExpiryItems = items.filter(item => {
+            if (!item.expirationDate) return false;
+            const expiry = new Date(item.expirationDate);
+            return expiry >= today && expiry <= nearExpiryLimit;
+        });
         const totalValue = items.reduce((sum, item) => sum + item.stock, 0);
 
         res.json({
             totalItems,
             lowStockCount: lowStockItems.length,
             outOfStockCount: outOfStockItems.length,
+            nearExpiryCount: nearExpiryItems.length,
+            expiredCount: expiredItems.length,
             totalInventoryValue: totalValue,
             lowStockItems,
             outOfStockItems,
+            nearExpiryItems,
+            expiredItems,
         });
     } catch (err) {
         console.error('Error fetching inventory stats:', err);

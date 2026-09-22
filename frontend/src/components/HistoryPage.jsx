@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../components/Sidebar';
-import { isAdminRole } from '../utils/roles';
+import { hasPermission } from '../utils/roles';
 
 const ALL_TABS = [
   'Transaction History',
@@ -37,9 +37,9 @@ const cardStyle = {
 
 const HistoryPage = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isAdmin = isAdminRole(user.role);
+  const canViewSales = hasPermission(user, 'sales');
   const tabs = ALL_TABS
-    .filter(tab => typeof tab === 'string' || isAdmin || !tab.adminOnly)
+    .filter(tab => typeof tab === 'string' || canViewSales || !tab.adminOnly)
     .map(tab => typeof tab === 'string' ? tab : tab.label);
 
   const [activeTab, setActiveTab] = useState('Transaction History');
@@ -103,7 +103,7 @@ const HistoryPage = () => {
     });
   };
 
-  const formatMoney = (value) => `PHP ${Number(value || 0).toLocaleString('en-PH', {
+  const formatMoney = (value) => `₱${Number(value || 0).toLocaleString('en-PH', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })}`;
@@ -225,7 +225,7 @@ const HistoryPage = () => {
     return (
       <div style={{ display: 'grid', gap: '16px' }}>
         {metricGrid([
-          { label: 'Transactions', value: transactions.length.toLocaleString(), hint: 'Completed and cancelled records' },
+          { label: 'Transactions', value: transactions.length.toLocaleString(), hint: 'Final completed and cancelled records' },
           { label: 'Completed', value: completed.toLocaleString(), hint: 'Finished orders' },
           { label: 'Cancelled', value: cancelled.toLocaleString(), hint: 'Cancelled before completion' },
           { label: 'Revenue', value: formatMoney(revenue), hint: 'Completed orders only', compact: true },
@@ -243,7 +243,7 @@ const HistoryPage = () => {
 
         {reportTable({
           title: 'Transaction Records',
-          subtitle: 'Final completed orders and cancelled checkout records.',
+          subtitle: 'Only finalized completed and cancelled orders are saved here.',
           headers: ['Date', 'Slip No', 'Total Amount', 'Cashier', 'Payment', 'Status'],
           emptyText: 'No transactions found',
           rows: transactions.map((row, i) => (
@@ -253,7 +253,10 @@ const HistoryPage = () => {
               <td style={{ ...tableCellStyle, fontWeight: '900', color: '#1A1208' }}>{formatMoney(row.total)}</td>
               <td style={tableCellStyle}>{row.cashier || '-'}</td>
               <td style={tableCellStyle}>{statusBadge(row.paymentMethod || 'Unknown', 'info')}</td>
-              <td style={tableCellStyle}>{statusBadge(row.orderStatus || 'completed', row.orderStatus === 'cancelled' ? 'danger' : 'success')}</td>
+              <td style={tableCellStyle}>{statusBadge(
+                row.orderStatus || 'completed',
+                row.orderStatus === 'cancelled' ? 'danger' : 'success'
+              )}</td>
             </tr>
           )),
         })}
@@ -262,6 +265,7 @@ const HistoryPage = () => {
   };
 
   const renderInventoryHistory = () => {
+    const stockIn = inventory.filter(row => row.action === 'Stock In').length;
     const stockOut = inventory.filter(row => row.action === 'Stock Out').length;
     const deducted = inventory.filter(row => row.action?.includes('Deducted')).length;
     const latest = inventory[0];
@@ -270,6 +274,7 @@ const HistoryPage = () => {
       <div style={{ display: 'grid', gap: '16px' }}>
         {metricGrid([
           { label: 'Inventory Logs', value: inventory.length.toLocaleString(), hint: 'All recorded stock movements' },
+          { label: 'Stock In', value: stockIn.toLocaleString(), hint: 'Received supplies and restocks' },
           { label: 'Stock Out', value: stockOut.toLocaleString(), hint: 'Manual damage, theft, or loss' },
           { label: 'Refund Waste', value: deducted.toLocaleString(), hint: 'Waste from refunded made items' },
           { label: 'Latest Change', value: latest ? formatDate(latest.date) : '-', hint: latest?.item || 'No activity yet', compact: true },
@@ -277,7 +282,7 @@ const HistoryPage = () => {
 
         {reportTable({
           title: 'Inventory Movement',
-          subtitle: 'Manual stock-out and refund waste activity.',
+          subtitle: 'Manual stock-in, stock-out, and refund waste activity.',
           headers: ['Date', 'Item', 'Action', 'Quantity', 'By', 'Reason'],
           emptyText: 'No inventory history found',
           rows: inventory.map((row, i) => {
@@ -327,7 +332,7 @@ const HistoryPage = () => {
 
         {reportTable({
           title: 'Product Sales',
-          subtitle: 'Completed orders only. Refunded pending items are removed from quantity and revenue.',
+          subtitle: 'Completed orders only. Refunded items are removed from quantity and revenue.',
           headers: ['Rank', 'Product', 'Category', 'Qty Sold', 'Orders', 'Avg Price', 'Total Revenue', 'Last Sold'],
           emptyText: 'No completed sales found',
           rows: sales.map((row, i) => (

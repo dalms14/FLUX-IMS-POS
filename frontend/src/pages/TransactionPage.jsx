@@ -12,8 +12,18 @@ const buildDateTimeParam = (date, time, isEnd = false) => {
   return `${date}T${isEnd ? '23:59:59.999' : '00:00:00'}+08:00`;
 };
 
-const money = (value) => `PHP ${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
+const money = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
 const isCancelledTransaction = (transaction) => transaction?.orderStatus === 'cancelled' || transaction?.paymentMethod === 'Cancelled';
+const ITEM_SCOPED_DISCOUNT_CODES = new Set(['pagibig', 'pwd_senior']);
+const isItemScopedDiscount = (discount, type) => (
+  discount?.scope ? discount.scope === 'item' : ITEM_SCOPED_DISCOUNT_CODES.has(discount?.code) || ITEM_SCOPED_DISCOUNT_CODES.has(type)
+);
+const getItemScopedDiscountName = (discount, type) => {
+  if (discount?.name) return discount.name;
+  if (type === 'pagibig') return 'Pag-IBIG';
+  if (type === 'pwd_senior') return 'PWD/Senior';
+  return 'Discount';
+};
 const buildReceiptProps = (transaction) => ({
   receiptNo: transaction.receiptNo,
   orderNo: transaction.orderNo,
@@ -50,6 +60,8 @@ const TransactionDetailsModal = ({ transaction, onClose, formatDate }) => {
   const discountLabel = transaction.discountInfo?.name
     ? `${transaction.discountInfo.name} ${Number(transaction.discountInfo.percentage || 0).toLocaleString()}%`
     : '';
+  const isScopedDiscount = isItemScopedDiscount(transaction.discountInfo, transaction.customerType);
+  const scopedDiscountName = getItemScopedDiscountName(transaction.discountInfo, transaction.customerType);
 
   return (
     <>
@@ -173,9 +185,9 @@ const TransactionDetailsModal = ({ transaction, onClose, formatDate }) => {
                         Add-ons: {item.upgrades.map(upgrade => `${upgrade.name}${upgrade.price ? ` (+${money(upgrade.price)})` : ''}`).join(', ')}
                       </p>
                     )}
-                    {transaction.customerType === 'pwd_senior' && item.discountEligibleQuantity > 0 && (
+                    {isScopedDiscount && item.discountEligibleQuantity > 0 && (
                       <p style={{ margin: '5px 0 0', fontSize: '11px', color: '#975A16', lineHeight: 1.45, fontWeight: '800' }}>
-                        PWD/Senior discount qty: {item.discountEligibleQuantity}
+                        {scopedDiscountName} discount qty: {item.discountEligibleQuantity}
                       </p>
                     )}
                     {refundedQuantity > 0 && (
@@ -362,7 +374,8 @@ const TransactionPage = () => {
     setError('');
     try {
       const params = new URLSearchParams();
-      if (filters.cashier) params.append('cashier', filters.cashier);
+      const cashierSearch = String(filters.cashier || '').trim();
+      if (cashierSearch) params.append('cashier', cashierSearch);
       if (filters.payment) params.append('paymentMethod', filters.payment);
 
       const startDateTime = buildDateTimeParam(filters.startDate, filters.startTime);
@@ -444,7 +457,7 @@ const TransactionPage = () => {
       <div className="mobile-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
         <PageHeader
           title="Transaction History"
-          description="View completed and cancelled orders."
+          description="View finalized completed and cancelled transaction records."
         />
 
         {/* Filters */}

@@ -6,6 +6,11 @@ const UserSchema = new mongoose.Schema({
     email: String,
     password: String,
     role: String,
+    jobRole: String,
+    permissions: {
+        type: [String],
+        default: undefined,
+    },
     pin: String,
     profileImage: String,
     isOnline: {
