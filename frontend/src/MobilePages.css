@@ -306,6 +306,18 @@
     box-sizing: border-box !important;
   }
 
+  .change-password-layout {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .change-password-layout form,
+  .change-password-layout aside {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
   .products-toolbar {
     display: grid !important;
     grid-template-columns: 1fr !important;

@@ -1808,7 +1808,7 @@ const ChangePasswordSettings = () => {
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 460px) 260px', gap: '20px', alignItems: 'start' }}>
+        <div className="change-password-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 460px) 260px', gap: '20px', alignItems: 'start' }}>
             <form onSubmit={handleChangePassword} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
                 <div style={{ marginBottom: '16px' }}>
                     <label style={labelStyle}>Current Password *</label>
