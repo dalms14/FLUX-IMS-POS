@@ -42,6 +42,53 @@
   .items-order-summary {
     width: 280px !important;
   }
+
+  /* Tablet data pages can have an expanded navigation rail and a settings
+     sub-menu. Keep the document inside the viewport; wide tables scroll in
+     their own card rather than expanding the entire page. */
+  .mobile-page-content {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 20px !important;
+  }
+
+  .settings-mobile-content {
+    gap: 16px !important;
+  }
+
+  .settings-mobile-content > div:first-child {
+    width: 164px !important;
+    flex: 0 0 164px !important;
+    padding: 14px 10px !important;
+    box-sizing: border-box !important;
+  }
+
+  .settings-mobile-content > div:last-child {
+    min-width: 0 !important;
+  }
+
+  .products-toolbar {
+    flex-wrap: wrap !important;
+  }
+
+  .products-toolbar input {
+    width: min(220px, 100%) !important;
+    min-width: 0 !important;
+  }
+
+  .products-table-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+  }
+
+  .mobile-page-content [style*="minmax(200px, 1fr)"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
 }
 
 @media (max-width: 768px) {
