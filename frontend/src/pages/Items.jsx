@@ -327,6 +327,7 @@ const ProductCard = ({ product, onAdd }) => {
 
   return (
     <div
+      className="items-product-card"
       onClick={() => onAdd(product)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

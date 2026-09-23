@@ -5,6 +5,46 @@
   display: none;
 }
 
+/* POS is primarily used on iPad landscape. Keep navigation available as a
+   compact rail so the menu and cashier panels retain useful working width. */
+@media (min-width: 769px) and (max-width: 1180px) {
+  .flux-sidebar-desktop {
+    width: 64px !important;
+  }
+
+  .flux-sidebar-desktop > div:first-child {
+    justify-content: center !important;
+    padding: 14px 5px !important;
+  }
+
+  .flux-sidebar-desktop .sidebarBrand,
+  .flux-sidebar-desktop > div:first-child > button:last-child,
+  .flux-sidebar-desktop > div:nth-child(2) > div,
+  .flux-sidebar-desktop nav button > span:nth-child(2),
+  .flux-sidebar-desktop nav button > span:nth-child(3),
+  .flux-sidebar-desktop > div:last-child button > span:nth-child(2) {
+    display: none !important;
+  }
+
+  .items-main {
+    min-width: 0 !important;
+    padding: 16px !important;
+  }
+
+  .items-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .items-active-orders-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .items-order-summary {
+    width: 280px !important;
+  }
+}
+
 @media (max-width: 768px) {
   .mobile-app-shell {
     display: block !important;
@@ -128,6 +168,12 @@
     overflow: visible !important;
     gap: 10px !important;
     padding-bottom: 8px !important;
+  }
+
+  .items-product-card {
+    min-height: 244px !important;
+    padding: 9px !important;
+    gap: 8px !important;
   }
 
   .items-active-orders-grid {
@@ -314,7 +360,7 @@
   }
 }
 
-@media (max-width: 374px) {
+@media (max-width: 339px) {
   .items-product-grid {
     grid-template-columns: 1fr !important;
   }
