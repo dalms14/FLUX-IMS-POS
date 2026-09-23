@@ -1567,9 +1567,9 @@ const UserAccountSettings = () => {
     }
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: '20px', alignItems: 'start' }}>
+        <div className="settings-form-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: '20px', alignItems: 'start' }}>
             <form onSubmit={handleCreateUser} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="settings-account-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Full Name *</label>
                         <input style={inputStyle} value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="e.g. Maria Santos" />
@@ -1995,7 +1995,7 @@ const SystemBackupSettings = () => {
     ];
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: '20px', alignItems: 'start' }}>
+        <div className="settings-form-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: '20px', alignItems: 'start' }}>
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
                 <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>Database Backup</h3>
                 <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#7A6A5D', lineHeight: 1.5 }}>
