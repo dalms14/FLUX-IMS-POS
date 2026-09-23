@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: flux-pos-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
