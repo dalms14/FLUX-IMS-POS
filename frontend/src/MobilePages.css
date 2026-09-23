@@ -8,21 +8,20 @@
 /* POS is primarily used on iPad landscape. Keep navigation available as a
    compact rail so the menu and cashier panels retain useful working width. */
 @media (min-width: 769px) and (max-width: 1180px) {
-  .flux-sidebar-desktop {
+  .flux-sidebar-desktop.is-collapsed {
     width: 64px !important;
   }
 
-  .flux-sidebar-desktop > div:first-child {
+  .flux-sidebar-desktop.is-collapsed > div:first-child {
     justify-content: center !important;
     padding: 14px 5px !important;
   }
 
-  .flux-sidebar-desktop .sidebarBrand,
-  .flux-sidebar-desktop > div:first-child > button:last-child,
-  .flux-sidebar-desktop > div:nth-child(2) > div,
-  .flux-sidebar-desktop nav button > span:nth-child(2),
-  .flux-sidebar-desktop nav button > span:nth-child(3),
-  .flux-sidebar-desktop > div:last-child button > span:nth-child(2) {
+  .flux-sidebar-desktop.is-collapsed .sidebarBrand,
+  .flux-sidebar-desktop.is-collapsed > div:nth-child(2) > div,
+  .flux-sidebar-desktop.is-collapsed nav button > span:nth-child(2),
+  .flux-sidebar-desktop.is-collapsed nav button > span:nth-child(3),
+  .flux-sidebar-desktop.is-collapsed > div:last-child button > span:nth-child(2) {
     display: none !important;
   }
 

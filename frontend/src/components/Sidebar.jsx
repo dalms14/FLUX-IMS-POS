@@ -92,7 +92,7 @@ export default function Sidebar() {
 
   return (
     <>
-    <div className="flux-sidebar-desktop" style={{
+    <div className={`flux-sidebar-desktop ${collapsed ? 'is-collapsed' : 'is-expanded'}`} style={{
       width: collapsed ? '64px' : '220px',
       minHeight: '100vh',
       backgroundColor: '#1A1208',
