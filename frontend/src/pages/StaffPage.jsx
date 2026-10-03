@@ -172,6 +172,18 @@ const DeleteUserModal = ({ user, password, error, deleting, onPasswordChange, on
   );
 };
 
+const RestoreUserModal = ({ user, password, error, restoring, onPasswordChange, onConfirm, onClose }) => (
+  <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 18, 8, 0.55)', zIndex: 1800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px', fontFamily: 'Segoe UI, sans-serif' }}>
+    <form onClick={event => event.stopPropagation()} onSubmit={onConfirm} style={{ width: 'min(390px, 100%)', backgroundColor: '#fff', borderRadius: '14px', padding: '26px', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
+      <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: '900', color: '#1a1a1a', textAlign: 'center' }}>Restore this account?</h3>
+      <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#777', lineHeight: 1.5, textAlign: 'center' }}>{user?.name || user?.email} will be able to sign in again. Enter your password to confirm.</p>
+      <label style={{ display: 'block', marginBottom: '14px' }}><span style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: '#4A3A2A', fontWeight: '800' }}>Your password</span><input type="password" value={password} onChange={event => onPasswordChange(event.target.value)} autoFocus placeholder="Enter your password" style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1.5px solid #D8CABB', borderRadius: '8px', fontSize: '13px', outline: 'none' }} /></label>
+      {error && <p style={{ margin: '0 0 14px', padding: '10px 12px', borderRadius: '8px', backgroundColor: '#FFF5F5', border: '1px solid #FED7D7', color: '#C53030', fontSize: '12px', fontWeight: '700' }}>{error}</p>}
+      <div style={{ display: 'flex', gap: '10px' }}><button type="button" onClick={onClose} disabled={restoring} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', backgroundColor: '#f5f5f5', color: '#555', fontSize: '13px', fontWeight: '700', cursor: restoring ? 'not-allowed' : 'pointer' }}>Cancel</button><button type="submit" disabled={restoring || !password.trim()} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', backgroundColor: restoring || !password.trim() ? '#9AE6B4' : '#276749', color: '#fff', fontSize: '13px', fontWeight: '800', cursor: restoring || !password.trim() ? 'not-allowed' : 'pointer' }}>{restoring ? 'Restoring...' : 'Restore'}</button></div>
+    </form>
+  </div>
+);
+
 const StaffPage = () => {
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -189,6 +201,11 @@ const StaffPage = () => {
   const [accessPermissions, setAccessPermissions] = useState([]);
   const [accessSaving, setAccessSaving] = useState(false);
   const [accessError, setAccessError] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [userToRestore, setUserToRestore] = useState(null);
+  const [restorePassword, setRestorePassword] = useState('');
+  const [restoreError, setRestoreError] = useState('');
+  const [restoringId, setRestoringId] = useState('');
 
   const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   const ownerCanEditAccess = isOwnerAccount(currentUser);
@@ -207,7 +224,7 @@ const StaffPage = () => {
       setError('');
 
       try {
-        const res = await axios.get('http://localhost:5000/api/auth/users');
+        const res = await axios.get(`http://localhost:5000/api/auth/users${showArchived ? '?archived=true' : ''}`);
         if (mounted) {
           setUsers(res.data.data || []);
         }
@@ -240,7 +257,7 @@ const StaffPage = () => {
       document.removeEventListener('visibilitychange', refreshWhenVisible);
       window.removeEventListener('focus', refreshWhenVisible);
     };
-  }, []);
+  }, [showArchived]);
 
   const filteredUsers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -380,6 +397,23 @@ const StaffPage = () => {
     }
   };
 
+  const openRestoreUserModal = (user) => { setUserToRestore(user); setRestorePassword(''); setRestoreError(''); };
+  const closeRestoreUserModal = () => { if (!restoringId) { setUserToRestore(null); setRestorePassword(''); setRestoreError(''); } };
+  const handleRestoreUser = async (event) => {
+    event.preventDefault();
+    if (!userToRestore || !restorePassword.trim()) return;
+    setRestoringId(userToRestore._id); setRestoreError('');
+    try {
+      await axios.post(`http://localhost:5000/api/auth/users/${userToRestore._id}/restore`, { currentUserEmail: currentUser.email, password: restorePassword });
+      setUsers(prev => prev.filter(user => user._id !== userToRestore._id));
+      setUserToRestore(null);
+      setRestorePassword('');
+      setRestoreError('');
+    } catch (err) {
+      setRestoreError(err.response?.data?.message || 'Failed to restore this account.');
+    } finally { setRestoringId(''); }
+  };
+
   const openUserDetails = async (user) => {
     setSelectedUser(user);
     setActivityLogs([]);
@@ -422,15 +456,22 @@ const StaffPage = () => {
         />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+          <button
+            type="button"
+            onClick={() => { setShowArchived(value => !value); setSearchQuery(''); }}
+            style={{ padding: '11px 14px', border: `1px solid ${showArchived ? '#276749' : '#8B5E3C'}`, borderRadius: '8px', backgroundColor: showArchived ? '#276749' : '#fff', color: showArchived ? '#fff' : '#8B5E3C', fontSize: '12px', fontWeight: '900', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            {showArchived ? 'Active Users' : 'Archived Users'}
+          </button>
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search users..."
+            placeholder={showArchived ? 'Search archived users...' : 'Search users...'}
             style={{ width: '280px', padding: '11px 14px', border: '1.5px solid #D8CABB', borderRadius: '8px', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}
           />
           <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>
-            Showing {filteredUsers.length} of {users.length}
+            Showing {filteredUsers.length} of {users.length} {showArchived ? 'archived' : 'active'} user{users.length === 1 ? '' : 's'}
           </p>
         </div>
 
@@ -502,7 +543,7 @@ const StaffPage = () => {
                 </div>
                 <p style={{ margin: 0, fontSize: '13px', color: '#777' }}>{formatDate(user.createdAt)}</p>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {ownerCanEditAccess && user.role !== 'owner' && (
+                  {!showArchived && ownerCanEditAccess && user.role !== 'owner' && (
                     <button
                       onClick={event => {
                         event.stopPropagation();
@@ -522,7 +563,15 @@ const StaffPage = () => {
                       Edit Access
                     </button>
                   )}
-                  {!isCurrentUser(user) && !isOwnerAccount(user) && (
+                  {showArchived ? (
+                  <button
+                    onClick={event => { event.stopPropagation(); openRestoreUserModal(user); }}
+                    disabled={restoringId === user._id}
+                    style={{ padding: '8px 10px', border: '1px solid #9AE6B4', borderRadius: '7px', backgroundColor: '#F0FFF4', color: '#276749', fontSize: '12px', fontWeight: '800', cursor: restoringId === user._id ? 'not-allowed' : 'pointer' }}
+                  >
+                    {restoringId === user._id ? 'Restoring...' : 'Restore'}
+                  </button>
+                  ) : !isCurrentUser(user) && !isOwnerAccount(user) && (
                   <button
                     onClick={event => {
                       event.stopPropagation();
@@ -568,6 +617,17 @@ const StaffPage = () => {
             onPasswordChange={setDeletePassword}
             onConfirm={handleDeleteUser}
             onClose={closeDeleteUserModal}
+          />
+        )}
+        {userToRestore && (
+          <RestoreUserModal
+            user={userToRestore}
+            password={restorePassword}
+            error={restoreError}
+            restoring={restoringId === userToRestore._id}
+            onPasswordChange={setRestorePassword}
+            onConfirm={handleRestoreUser}
+            onClose={closeRestoreUserModal}
           />
         )}
         {selectedUser && (

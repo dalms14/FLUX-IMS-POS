@@ -428,6 +428,9 @@ router.post('/users', async (req, res) => {
     try {
         const existingEmail = await User.findOne({ email: normalizedEmail });
         if (existingEmail) {
+            if (existingEmail.archived) {
+                return res.status(409).json({ message: 'This email belongs to an archived account. Restore the account from Users instead of creating a duplicate.' });
+            }
             return res.status(409).json({ message: 'A user with that email already exists' });
         }
 
