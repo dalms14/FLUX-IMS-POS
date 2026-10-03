@@ -108,7 +108,8 @@ const DeliveryArrivalModal = ({ order, onClose, onRecorded }) => {
     setSaving(true); setError('');
     try {
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const response = await axios.post(`http://localhost:5000/api/purchase-orders/${order._id}/record-arrival`, { items, actor: currentUser.name || currentUser.email || 'System', actorEmail: currentUser.email || '' });
+      const arrival = await axios.post(`http://localhost:5000/api/purchase-orders/${order._id}/record-arrival`, { items, actor: currentUser.name || currentUser.email || 'System', actorEmail: currentUser.email || '' });
+      const response = await axios.post(`http://localhost:5000/api/purchase-orders/${order._id}/pending-receipts/${arrival.data.pendingReceipt._id}/approve`, { actor: currentUser.name || currentUser.email || 'System', actorEmail: currentUser.email || '' });
       onRecorded(response.data.order);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not record this delivery.');

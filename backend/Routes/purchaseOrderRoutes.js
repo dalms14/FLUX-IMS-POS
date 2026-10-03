@@ -66,8 +66,12 @@ router.get('/my-deliveries', async (req, res) => {
     try {
         const email = String(req.query.email || '').trim().toLowerCase();
         if (!email) return res.status(400).json({ message: 'Email is required' });
+        const user = await User.findOne({ email, archived: { $ne: true } }).select('role');
+        if (!user) return res.status(403).json({ message: 'This account is no longer active.' });
+        const receiverEmails = [email, '__anyone__'];
+        if (String(user.role || '').toLowerCase() === 'staff') receiverEmails.push('__any_staff__');
         const orders = await PurchaseOrder.find({
-            'assignedReceiver.email': email,
+            'assignedReceiver.email': { $in: receiverEmails },
             status: { $in: ['Approved', 'Partially Received'] },
         }).sort({ expectedDeliveryDate: 1, createdAt: -1 });
         res.json({ success: true, data: orders });
