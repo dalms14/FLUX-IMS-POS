@@ -65,3 +65,12 @@ body {
   transform: translateY(0);
   transition-delay: 0.28s;
 }
+/* Keep the close icon centered in the dashboard delivery modal. */
+div[style*="z-index: 2200"] form > div:first-child > button[type="button"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
