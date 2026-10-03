@@ -57,7 +57,13 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
   const [error, setError] = useState('');
   const [supplierHistory, setSupplierHistory] = useState(getSupplierHistory);
   const [showSupplierHistory, setShowSupplierHistory] = useState(false);
-  const change = (field, value) => setForm(current => ({ ...current, [field]: value }));
+  const change = (field, value) => setForm(current => {
+    // A delivery cannot be scheduled before its purchase order.
+    if (field === 'orderDate' && current.expectedDeliveryDate && current.expectedDeliveryDate < value) {
+      return { ...current, orderDate: value, expectedDeliveryDate: '' };
+    }
+    return { ...current, [field]: value };
+  });
   const updateLine = (index, field, value) => setForm(current => ({ ...current, items: current.items.map((line, i) => i === index ? { ...line, [field]: value } : line) }));
   const chooseItem = (index, value) => {
     if (value === '__new__') {
@@ -96,7 +102,7 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
           <div><label style={label}>Supplier Contact</label><input value={form.supplierContact} onChange={e => change('supplierContact', e.target.value)} style={input} placeholder="Phone or contact person" /></div>
           <div style={{ gridColumn: '1 / -1' }}><label style={label}>Assigned Receiving Staff *</label><select required value={form.assignedReceiverEmail} onChange={e => change('assignedReceiverEmail', e.target.value)} style={input}><option value="">Select the staff member who will receive this delivery…</option><option value="__any_staff__">Any Staff</option><option value="__anyone__">Everyone</option>{receivers.map(receiver => <option key={receiver._id} value={receiver.email}>{receiver.name || receiver.email} — {receiver.jobRole || receiver.role}</option>)}</select><p style={{ margin: '6px 0 0', color: '#777', fontSize: '11px' }}>Any Staff permits staff accounts; Everyone permits any signed-in account to receive the delivery.</p></div>
           <div><label style={label}>Order Date</label><input type="date" min={today()} value={form.orderDate} onChange={e => change('orderDate', e.target.value)} style={input} /></div>
-          <div><label style={label}>Expected Delivery</label><input type="date" min={today()} value={form.expectedDeliveryDate} onChange={e => change('expectedDeliveryDate', e.target.value)} style={input} /></div>
+          <div><label style={label}>Expected Delivery</label><input type="date" min={form.orderDate || today()} value={form.expectedDeliveryDate} onChange={e => change('expectedDeliveryDate', e.target.value)} style={input} /></div>
         </div>
         <label style={label}>Order Items *</label>
         <div style={{ display: 'grid', gap: '10px' }}>

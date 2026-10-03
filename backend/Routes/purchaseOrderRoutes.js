@@ -88,6 +88,11 @@ router.post('/', async (req, res) => {
         if (isPastCalendarDate(req.body.orderDate) || isPastCalendarDate(req.body.expectedDeliveryDate)) {
             return res.status(400).json({ message: 'Order date and expected delivery date must be today or a future date.' });
         }
+        const orderDateValue = String(req.body.orderDate || '').slice(0, 10);
+        const expectedDeliveryValue = String(req.body.expectedDeliveryDate || '').slice(0, 10);
+        if (orderDateValue && expectedDeliveryValue && expectedDeliveryValue < orderDateValue) {
+            return res.status(400).json({ message: 'Expected delivery date must be the same as or later than the order date.' });
+        }
         const receiverMode = assignedReceiverEmail === '__any_staff__' ? 'any-staff'
             : assignedReceiverEmail === '__anyone__' ? 'anyone' : 'assigned';
         const assignedReceiver = receiverMode === 'assigned' && assignedReceiverEmail
@@ -96,7 +101,7 @@ router.post('/', async (req, res) => {
         const receiverDetails = receiverMode === 'any-staff'
             ? { userId: null, name: 'Any Staff', email: '__any_staff__' }
             : receiverMode === 'anyone'
-                ? { userId: null, name: 'Anyone', email: '__anyone__' }
+                ? { userId: null, name: 'Everyone', email: '__anyone__' }
                 : { userId: assignedReceiver._id, name: assignedReceiver.name, email: assignedReceiver.email };
 
         const order = await PurchaseOrder.create({
