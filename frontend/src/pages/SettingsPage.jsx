@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
-import { PERMISSIONS, hasPermission, isOwnerRole } from '../utils/roles';
+import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
 import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiTrash2 } from 'react-icons/fi';
 
 const normalizeAccountEmail = (value = '') => value.toLowerCase().trim();
@@ -1881,21 +1881,17 @@ const ChangePasswordSettings = () => {
 
 const SystemBackupSettings = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    const canExportBackup = isOwnerAccount(currentUser);
     const [exporting, setExporting] = useState(false);
     const [message, setMessage] = useState(null);
     const [lastBackup, setLastBackup] = useState(localStorage.getItem('lastBackupAt') || '');
 
     const backupSources = [
-        { key: 'products', label: 'Products', url: 'http://localhost:5000/api/products?includeImages=true' },
-        { key: 'categories', label: 'Categories', url: 'http://localhost:5000/api/categories' },
-        { key: 'addons', label: 'Add-ons', url: 'http://localhost:5000/api/addons' },
-        { key: 'discounts', label: 'Discounts', url: 'http://localhost:5000/api/discounts' },
-        { key: 'inventory', label: 'Inventory', url: 'http://localhost:5000/api/inventory' },
-        { key: 'transactions', label: 'Transactions', url: 'http://localhost:5000/api/transactions' },
-        { key: 'refunds', label: 'Refunds', url: 'http://localhost:5000/api/refunds' },
+        { key: 'products', label: 'Products' }, { key: 'categories', label: 'Categories' },
+        { key: 'addons', label: 'Add-ons' }, { key: 'discounts', label: 'Discounts' },
+        { key: 'inventory', label: 'Inventory' }, { key: 'transactions', label: 'Transactions' },
+        { key: 'refunds', label: 'Refunds' }, { key: 'recipes', label: 'Recipes' },
     ];
-
-    const normalizePayload = (payload) => payload?.data || payload || [];
 
     const formatBackupDate = (dateString) => {
         if (!dateString) return 'No backup created yet';
@@ -1923,53 +1919,19 @@ const SystemBackupSettings = () => {
     };
 
     const handleExportBackup = async () => {
+        if (!canExportBackup) {
+            setMessage({ type: 'error', text: 'Only the Owner can export database backups.' });
+            return;
+        }
+        const password = window.prompt('Enter your Owner password to export the database backup:');
+        if (!password) return;
         setExporting(true);
         setMessage(null);
 
         try {
-            const results = await Promise.allSettled(
-                backupSources.map(source => axios.get(source.url))
-            );
-
-            const failedSources = [];
-            const data = {};
-            const counts = {};
-
-            results.forEach((result, index) => {
-                const source = backupSources[index];
-
-                if (result.status === 'fulfilled') {
-                    const rows = normalizePayload(result.value.data);
-                    data[source.key] = rows;
-                    counts[source.key] = Array.isArray(rows) ? rows.length : 0;
-                } else {
-                    failedSources.push(source.label);
-                    data[source.key] = [];
-                    counts[source.key] = 0;
-                }
-            });
-
-            if (failedSources.length > 0) {
-                setMessage({
-                    type: 'error',
-                    text: `Backup incomplete. Failed to load: ${failedSources.join(', ')}.`,
-                });
-                return;
-            }
-
-            const createdAt = new Date().toISOString();
-            const backup = {
-                app: 'FLUX POS',
-                version: '1.0',
-                createdAt,
-                createdBy: {
-                    name: currentUser.name || '',
-                    email: currentUser.email || '',
-                    role: currentUser.role || '',
-                },
-                counts,
-                data,
-            };
+            const response = await axios.post('http://localhost:5000/api/system/backup', { email: currentUser.email, password });
+            const backup = response.data.backup;
+            const createdAt = backup.createdAt;
 
             downloadBackup(backup);
             localStorage.setItem('lastBackupAt', createdAt);
@@ -1988,6 +1950,8 @@ const SystemBackupSettings = () => {
         ['Server', 'http://localhost:5000'],
         ['Signed In As', currentUser.name || 'User'],
     ];
+
+    if (!canExportBackup) return <div style={{ backgroundColor: '#FFF5F5', border: '1px solid #FED7D7', borderRadius: '12px', padding: '22px', color: '#9B2C2C', fontWeight: '700' }}>Database backups are restricted to the Owner because they contain sensitive business records.</div>;
 
     return (
         <div className="settings-form-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: '20px', alignItems: 'start' }}>
@@ -2059,13 +2023,13 @@ const MENU_ITEMS = [
     { key: 'discounts', label: 'DISCOUNTS', permission: 'products', group: 'products' },
     { key: 'users', label: 'CREATE ACCOUNT', permission: 'users' },
     { key: 'password', label: 'CHANGE PASSWORD' },
-    { key: 'system', label: 'SYSTEM & BACKUP' },
+    { key: 'system', label: 'SYSTEM & BACKUP', ownerOnly: true },
     { key: 'about', label: 'ABOUT FLUX' },
 ];
 
 const SettingsPage = ({ initialSection, mode = 'settings' }) => {
     const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
-    const canAccess = useCallback((item) => !item.permission || hasPermission(currentUser, item.permission), [currentUser]);
+    const canAccess = useCallback((item) => (!item.permission || hasPermission(currentUser, item.permission)) && (!item.ownerOnly || isOwnerAccount(currentUser)), [currentUser]);
     const pageMenuItems = useMemo(() => MENU_ITEMS.filter(item => (
         mode === 'products'
             ? item.group === 'products'
@@ -2099,7 +2063,7 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
             case 'discounts': return hasPermission(currentUser, 'products') ? <DiscountSettings /> : null;
             case 'users': return hasPermission(currentUser, 'users') ? <UserAccountSettings /> : null;
             case 'password': return <ChangePasswordSettings />;
-            case 'system': return <SystemBackupSettings />;
+            case 'system': return isOwnerAccount(currentUser) ? <SystemBackupSettings /> : null;
             case 'about': return (
                 <div style={{ marginTop: '20px', fontFamily: 'Segoe UI, sans-serif' }}>
                     <div style={{ width: '76px', height: '76px', borderRadius: '16px', backgroundColor: '#fff', border: '1px solid #E0D5CB', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>

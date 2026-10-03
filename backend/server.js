@@ -64,6 +64,37 @@ app.use('/api', historyRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Backups contain sensitive business records, so exporting one requires the owner's
+// saved account email and a fresh password confirmation.
+app.post('/api/system/backup', async (req, res) => {
+    try {
+        const email = String(req.body.email || '').trim().toLowerCase();
+        const password = String(req.body.password || '');
+        const owner = await User.findOne({ email, archived: { $ne: true } });
+        const isOwner = owner && (
+            String(owner.role || '').trim().toLowerCase() === 'owner' ||
+            String(owner.userId || '').trim().toUpperCase() === 'ELI001' ||
+            String(owner.email || '').trim().toLowerCase() === 'admin@elicoffee.com'
+        );
+        if (!isOwner || !password || !(await bcrypt.compare(password, owner.password))) {
+            return res.status(403).json({ message: 'Only the owner can export a backup. Password confirmation is required.' });
+        }
+
+        const [products, categories, addons, discounts, inventory, transactions, refunds, recipes] = await Promise.all([
+            Product.find({}).lean(), Category.find({}).lean(), Addon.find({}).lean(), Discount.find({}).lean(),
+            Inventory.find({}).lean(), Transaction.find({}).lean(), Refund.find({}).lean(), Recipe.find({}).lean(),
+        ]);
+        const createdAt = new Date().toISOString();
+        const data = { products, categories, addons, discounts, inventory, transactions, refunds, recipes };
+        const counts = Object.fromEntries(Object.entries(data).map(([key, value]) => [key, value.length]));
+        await logSystemAudit({ module: 'System', action: 'Backup Exported', entityName: 'Database backup', actor: owner.name || 'Owner', actorEmail: owner.email, details: 'Owner exported a complete database backup', changes: counts });
+        res.json({ success: true, backup: { app: 'FLUX POS', version: '1.0', createdAt, createdBy: { name: owner.name || '', email: owner.email, role: owner.role }, counts, data } });
+    } catch (err) {
+        console.error('Error exporting backup:', err);
+        res.status(500).json({ message: 'Failed to export backup.' });
+    }
+});
+
 // --- Connect to MongoDB Atlas ---
 console.log("Connecting to Database...");
 mongoose.connect(process.env.MONGO_URI)
