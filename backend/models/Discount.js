@@ -28,6 +28,7 @@ const DiscountSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    archivedAt: { type: Date, default: null },
   },
   {
     collection: 'discounts',

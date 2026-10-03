@@ -13,6 +13,8 @@ const InventorySchema = new mongoose.Schema({
         receivedAt: { type: Date, default: Date.now },
         note: { type: String, default: '' },
     }],
+    archived: { type: Boolean, default: false, index: true },
+    archivedAt: { type: Date, default: null },
 }, {
     collection: 'inventory',
     timestamps: true,

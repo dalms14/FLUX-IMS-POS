@@ -22,6 +22,7 @@ const AddonSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    archivedAt: { type: Date, default: null },
   },
   {
     collection: 'addons',

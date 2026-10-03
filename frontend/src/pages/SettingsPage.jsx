@@ -2,17 +2,9 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import { PERMISSIONS, hasPermission, isOwnerRole } from '../utils/roles';
-import { FiEdit2, FiSearch, FiTrash2 } from 'react-icons/fi';
+import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiTrash2 } from 'react-icons/fi';
 
-const EMAIL_DOMAIN = '@elicoffee.com';
-
-const normalizeEmailName = (value = '') =>
-    value.toLowerCase().trim().replace(EMAIL_DOMAIN, '').replace(/@.*/, '');
-
-const buildEliEmail = (value = '') => {
-    const emailName = normalizeEmailName(value);
-    return emailName ? `${emailName}${EMAIL_DOMAIN}` : '';
-};
+const normalizeAccountEmail = (value = '') => value.toLowerCase().trim();
 
 const AVAILABLE_ADDONS = [
     { name: 'Up size', price: 30 },
@@ -727,15 +719,15 @@ const DeleteModal = ({ product, onConfirm, onClose }) => (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '360px', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
             <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FiTrash2 size={28} />
+                <FiArchive size={28} />
             </div>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '0 0 8px', color: '#1a1a1a' }}>Delete Product?</h3>
+            <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '0 0 8px', color: '#1a1a1a' }}>Archive Product?</h3>
             <p style={{ fontSize: '13px', color: '#888', margin: '0 0 24px' }}>
-                Are you sure you want to delete <strong>{product?.name}</strong>? This cannot be undone.
+                Archive <strong>{product?.name}</strong>? It will be removed from the menu, but can be restored later.
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
                 <button onClick={onClose} style={{ flex: 1, padding: '12px', backgroundColor: '#f5f5f5', color: '#555', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={onConfirm} style={{ flex: 1, padding: '12px', backgroundColor: '#E53E3E', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>Delete</button>
+                <button onClick={onConfirm} style={{ flex: 1, padding: '12px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>Archive</button>
             </div>
         </div>
     </div>
@@ -863,18 +855,32 @@ const InventorySettings = () => {
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [editProduct, setEditProduct] = useState(null);
     const [deleteProduct, setDeleteProduct] = useState(null);
+    const [showArchive, setShowArchive] = useState(false);
     const [loading, setLoading] = useState(true);
+    const productsRequestId = useRef(0);
 
-    const fetchProducts = async () => {
+    const fetchProducts = useCallback(async () => {
+        const requestId = ++productsRequestId.current;
+        setLoading(true);
         try {
-            const res = await axios.get('http://localhost:5000/api/products?includeImages=true');
-            setProducts(res.data);
+            const res = await axios.get(`http://localhost:5000/api/products?includeImages=true${showArchive ? '&archived=true' : ''}`);
+            const fetchedProducts = Array.isArray(res.data) ? res.data : [];
+            // Protect the archive screen while an older backend is still running
+            // and does not yet honor the archived=true query parameter.
+            if (requestId !== productsRequestId.current) return;
+            setProducts(showArchive
+                ? fetchedProducts.filter(product => product.archived === true)
+                : fetchedProducts.filter(product => product.archived !== true));
         } catch (err) {
-            console.error('Error fetching products:', err);
+            if (requestId === productsRequestId.current) {
+                console.error('Error fetching products:', err);
+            }
         } finally {
-            setLoading(false);
+            if (requestId === productsRequestId.current) {
+                setLoading(false);
+            }
         }
-    };
+    }, [showArchive]);
 
     const fetchCategories = async () => {
         try {
@@ -895,7 +901,8 @@ const InventorySettings = () => {
         }
     };
 
-    useEffect(() => { fetchProducts(); fetchCategories(); fetchAddons(); }, []);
+    useEffect(() => { fetchProducts(); }, [fetchProducts]);
+    useEffect(() => { fetchCategories(); fetchAddons(); }, []);
 
     const handleDelete = async () => {
         try {
@@ -903,7 +910,16 @@ const InventorySettings = () => {
             setDeleteProduct(null);
             fetchProducts();
         } catch (err) {
-            alert('Failed to delete product.');
+            alert('Failed to archive product.');
+        }
+    };
+
+    const handleRestore = async (product) => {
+        try {
+            await axios.post(`http://localhost:5000/api/products/${product._id}/restore`);
+            fetchProducts();
+        } catch (err) {
+            alert('Failed to restore product.');
         }
     };
 
@@ -928,6 +944,12 @@ const InventorySettings = () => {
                 >
                     + Add Category
                 </button>
+                <button
+                    onClick={() => setShowArchive(value => !value)}
+                    style={{ padding: '10px 18px', backgroundColor: showArchive ? '#1A1208' : '#fff', color: showArchive ? '#fff' : '#8B5E3C', border: '1.5px solid #8B5E3C', borderRadius: '8px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                    <FiArchive size={15} /> {showArchive ? 'Active Products' : 'Archive'}
+                </button>
                 <input
                     type="text" placeholder="Search products..."
                     value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
@@ -943,7 +965,7 @@ const InventorySettings = () => {
                 <div style={{ minWidth: '820px' }}>
                     {/* Header */}
                     <div style={{ display: 'grid', gridTemplateColumns: productTableGrid, padding: '12px 20px', backgroundColor: '#1A1208', gap: '12px' }}>
-                        {['Product Name', 'Category', 'Solo', 'Platter', 'Image', 'Edit', 'Delete'].map(h => (
+                        {['Product Name', 'Category', 'Solo', 'Platter', 'Image', ...(showArchive ? ['Archived', 'Restore'] : ['Edit', 'Archive'])].map(h => (
                             <p key={h} style={{ fontSize: '11px', fontWeight: '700', color: '#C4894A', textTransform: 'uppercase', letterSpacing: '0.8px', margin: 0 }}>{h}</p>
                         ))}
                     </div>
@@ -984,21 +1006,13 @@ const InventorySettings = () => {
                                 }
                             </div>
 
-                            {/* Edit */}
-                            <button
-                                onClick={() => setEditProduct(product)}
-                                style={{ padding: '7px 12px', backgroundColor: '#EBF8FF', color: '#2B6CB0', border: '1px solid #BEE3F8', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                            >
-                                <FiEdit2 size={13} /> Edit
-                            </button>
-
-                            {/* Delete */}
-                            <button
-                                onClick={() => setDeleteProduct(product)}
-                                style={{ padding: '7px 12px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                            >
-                                <FiTrash2 size={13} /> Del
-                            </button>
+                            {showArchive ? <>
+                                <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>{product.archivedAt ? new Date(product.archivedAt).toLocaleDateString() : '—'}</p>
+                                <button onClick={() => handleRestore(product)} style={{ padding: '7px 12px', backgroundColor: '#F0FFF4', color: '#276749', border: '1px solid #9AE6B4', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiRotateCcw size={13} /> Restore</button>
+                            </> : <>
+                                <button onClick={() => setEditProduct(product)} style={{ padding: '7px 12px', backgroundColor: '#EBF8FF', color: '#2B6CB0', border: '1px solid #BEE3F8', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiEdit2 size={13} /> Edit</button>
+                                <button onClick={() => setDeleteProduct(product)} style={{ padding: '7px 12px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiArchive size={13} /> Archive</button>
+                            </>}
                             </div>
                         ))
                     )}
@@ -1511,7 +1525,7 @@ const UserAccountSettings = () => {
 
     const handleCreateUser = async (e) => {
         e.preventDefault();
-        const accountEmail = buildEliEmail(form.email);
+        const accountEmail = normalizeAccountEmail(form.email);
 
         if (!form.name.trim() || !accountEmail || !form.password || !form.role) {
             setMessage({ type: 'error', text: 'Please fill in name, email, password, and role.' });
@@ -1575,38 +1589,19 @@ const UserAccountSettings = () => {
                         <input style={inputStyle} value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="e.g. Maria Santos" />
                     </div>
                     <div style={{ gridColumn: '1/-1' }}>
-                        <label style={labelStyle}>Email Username *</label>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            border: '1.5px solid #ddd',
-                            borderRadius: '8px',
-                            backgroundColor: '#fff',
-                            boxSizing: 'border-box',
-                        }}>
+                        <label style={labelStyle}>Personal Email Address *</label>
+                        <div>
                             <input
-                                type="text"
+                                type="email"
                                 style={{
                                     ...inputStyle,
-                                    flex: 1,
-                                    minWidth: 0,
-                                    border: 'none',
-                                    backgroundColor: 'transparent',
                                 }}
                                 value={form.email}
-                                onChange={e => updateField('email', normalizeEmailName(e.target.value))}
-                                placeholder="staff"
+                                onChange={e => updateField('email', normalizeAccountEmail(e.target.value))}
+                                placeholder="staff.personal@gmail.com"
                             />
-                            <span style={{
-                                padding: '0 12px 0 8px',
-                                color: '#8B5E3C',
-                                fontSize: '12px',
-                                fontWeight: '800',
-                                whiteSpace: 'nowrap',
-                            }}>
-                                {EMAIL_DOMAIN}
-                            </span>
                         </div>
+                        <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#777' }}>Use the staff member's real email. Password reset codes are sent only to this address.</p>
                     </div>
                     <div>
                         <label style={labelStyle}>Temporary Password *</label>

@@ -11,8 +11,30 @@ const input = { width: '100%', boxSizing: 'border-box', border: '1px solid #D8CA
 const label = { display: 'block', marginBottom: '6px', fontSize: '10px', fontWeight: 900, color: '#6B5A4C', textTransform: 'uppercase', letterSpacing: '.65px' };
 const primary = { border: 'none', borderRadius: '8px', background: '#8B5E3C', color: '#fff', padding: '10px 13px', fontWeight: 900, fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px' };
 const secondary = { ...primary, background: '#fff', color: '#6F4A2F', border: '1px solid #D4B89A' };
+const SUPPLIER_HISTORY_KEY = 'flux.purchaseOrderSupplierHistory';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const getSupplierHistory = () => {
+  try {
+    const history = JSON.parse(localStorage.getItem(SUPPLIER_HISTORY_KEY) || '[]');
+    return Array.isArray(history) ? history.filter(item => item?.name) : [];
+  } catch { return []; }
+};
+
+const saveSupplierHistory = (supplier) => {
+  const name = String(supplier?.name || '').trim();
+  if (!name) return getSupplierHistory();
+  const contact = String(supplier?.contact || '').trim();
+  const history = getSupplierHistory().filter(item => item.name.toLowerCase() !== name.toLowerCase());
+  const next = [{ name, contact }, ...history].slice(0, 12);
+  localStorage.setItem(SUPPLIER_HISTORY_KEY, JSON.stringify(next));
+  return next;
+};
+
+const today = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return now.toISOString().slice(0, 10);
+};
 const date = value => value ? new Date(value).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' }) : '—';
 const number = value => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 3 });
 const actor = () => {
@@ -33,6 +55,8 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
   const [form, setForm] = useState({ supplierName: '', supplierContact: '', assignedReceiverEmail: '', orderDate: today(), expectedDeliveryDate: '', notes: '', items: [blankLine()] });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [supplierHistory, setSupplierHistory] = useState(getSupplierHistory);
+  const [showSupplierHistory, setShowSupplierHistory] = useState(false);
   const change = (field, value) => setForm(current => ({ ...current, [field]: value }));
   const updateLine = (index, field, value) => setForm(current => ({ ...current, items: current.items.map((line, i) => i === index ? { ...line, [field]: value } : line) }));
   const chooseItem = (index, value) => {
@@ -55,6 +79,7 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
     setSaving(true); setError('');
     try {
       const response = await axios.post(`${api}/purchase-orders`, { ...form, ...actor() });
+      setSupplierHistory(saveSupplierHistory({ name: form.supplierName, contact: form.supplierContact }));
       onSaved(response.data.order);
     } catch (err) { setError(err.response?.data?.message || 'Could not create the purchase order.'); }
     finally { setSaving(false); }
@@ -67,11 +92,11 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
       </div>
       <div style={{ padding: '22px 24px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '12px', marginBottom: '13px' }}>
-          <div><label style={label}>Supplier *</label><input required value={form.supplierName} onChange={e => change('supplierName', e.target.value)} style={input} placeholder="e.g. Metro Food Supply" /></div>
+          <div style={{ position: 'relative' }}><label style={label}>Supplier *</label><input required value={form.supplierName} onFocus={() => setShowSupplierHistory(true)} onBlur={() => window.setTimeout(() => setShowSupplierHistory(false), 150)} onChange={e => { change('supplierName', e.target.value); setShowSupplierHistory(true); }} style={input} placeholder="e.g. Metro Food Supply" autoComplete="off" />{showSupplierHistory && (() => { const query = form.supplierName.trim().toLowerCase(); const matches = supplierHistory.filter(item => !query || item.name.toLowerCase().includes(query)); return matches.length ? <div style={{ position: 'absolute', zIndex: 10, top: '100%', left: 0, right: 0, marginTop: '4px', maxHeight: '190px', overflowY: 'auto', background: '#fff', border: '1px solid #D8CABB', borderRadius: '8px', boxShadow: '0 8px 20px rgba(26,18,8,.14)' }}>{matches.map(item => <div key={item.name} onMouseDown={() => { change('supplierName', item.name); change('supplierContact', item.contact || ''); setShowSupplierHistory(false); }} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 10px', cursor: 'pointer', borderBottom: '1px solid #F0E8E0' }}><div style={{ minWidth: 0, flex: 1 }}><p style={{ margin: 0, fontSize: '12px', fontWeight: 800, color: '#3D1F0D' }}>{item.name}</p>{item.contact && <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#8A7A6B' }}>{item.contact}</p>}</div><button type="button" aria-label={`Remove ${item.name} from supplier history`} onMouseDown={event => { event.stopPropagation(); const next = supplierHistory.filter(historyItem => historyItem.name !== item.name); localStorage.setItem(SUPPLIER_HISTORY_KEY, JSON.stringify(next)); setSupplierHistory(next); }} style={{ width: '25px', height: '25px', border: 'none', borderRadius: '5px', background: '#FFF5F5', color: '#C53030', cursor: 'pointer', fontWeight: 900 }}>×</button></div>)}</div> : null; })()}</div>
           <div><label style={label}>Supplier Contact</label><input value={form.supplierContact} onChange={e => change('supplierContact', e.target.value)} style={input} placeholder="Phone or contact person" /></div>
-          <div style={{ gridColumn: '1 / -1' }}><label style={label}>Assigned Receiving Staff *</label><select required value={form.assignedReceiverEmail} onChange={e => change('assignedReceiverEmail', e.target.value)} style={input}><option value="">Select the staff member who will receive this delivery…</option>{receivers.map(receiver => <option key={receiver._id} value={receiver.email}>{receiver.name || receiver.email} — {receiver.jobRole || receiver.role}</option>)}</select><p style={{ margin: '6px 0 0', color: '#777', fontSize: '11px' }}>Only this assigned staff member can record the actual delivery when it arrives.</p></div>
-          <div><label style={label}>Order Date</label><input type="date" value={form.orderDate} onChange={e => change('orderDate', e.target.value)} style={input} /></div>
-          <div><label style={label}>Expected Delivery</label><input type="date" value={form.expectedDeliveryDate} onChange={e => change('expectedDeliveryDate', e.target.value)} style={input} /></div>
+          <div style={{ gridColumn: '1 / -1' }}><label style={label}>Assigned Receiving Staff *</label><select required value={form.assignedReceiverEmail} onChange={e => change('assignedReceiverEmail', e.target.value)} style={input}><option value="">Select the staff member who will receive this delivery…</option><option value="__any_staff__">Any Staff</option><option value="__anyone__">Everyone</option>{receivers.map(receiver => <option key={receiver._id} value={receiver.email}>{receiver.name || receiver.email} — {receiver.jobRole || receiver.role}</option>)}</select><p style={{ margin: '6px 0 0', color: '#777', fontSize: '11px' }}>Any Staff permits staff accounts; Everyone permits any signed-in account to receive the delivery.</p></div>
+          <div><label style={label}>Order Date</label><input type="date" min={today()} value={form.orderDate} onChange={e => change('orderDate', e.target.value)} style={input} /></div>
+          <div><label style={label}>Expected Delivery</label><input type="date" min={today()} value={form.expectedDeliveryDate} onChange={e => change('expectedDeliveryDate', e.target.value)} style={input} /></div>
         </div>
         <label style={label}>Order Items *</label>
         <div style={{ display: 'grid', gap: '10px' }}>
@@ -104,14 +129,18 @@ function RecordArrivalModal({ order, onClose, onSaved }) {
     const validRows = rows.filter(row => Number(row.quantity) > 0);
     if (!validRows.length) return setError('Enter the quantity received for at least one item.');
     setSaving(true); setError('');
-    try { const response = await axios.post(`${api}/purchase-orders/${order._id}/record-arrival`, { items: validRows, ...actor() }); onSaved(response.data.order); }
+    try {
+      const arrival = await axios.post(`${api}/purchase-orders/${order._id}/record-arrival`, { items: validRows, ...actor() });
+      const response = await axios.post(`${api}/purchase-orders/${order._id}/pending-receipts/${arrival.data.pendingReceipt._id}/approve`, actor());
+      onSaved(response.data.order);
+    }
     catch (err) { setError(err.response?.data?.message || 'Could not record this delivery.'); }
     finally { setSaving(false); }
   };
   return <Modal onClose={onClose} width="700px"><form onSubmit={submit}>
-    <div style={{ padding: '21px 24px', borderBottom: '1px solid #E8DDD0', display: 'flex', justifyContent: 'space-between', gap: '16px' }}><div><p style={{ margin: '0 0 4px', color: '#8B5E3C', fontSize: '10px', fontWeight: 900, letterSpacing: '.8px' }}>DELIVERY ARRIVAL</p><h2 style={{ margin: 0, fontSize: '20px' }}>{order.purchaseOrderNo}</h2><p style={{ margin: '6px 0 0', color: '#777', fontSize: '12px' }}>Record supplies physically delivered. Inventory will remain unchanged until Finance, HR, or the Owner approves it.</p></div><button type="button" onClick={onClose} style={{ ...secondary, height: '34px', padding: '0 11px' }}><FiX /></button></div>
+    <div style={{ padding: '21px 24px', borderBottom: '1px solid #E8DDD0', display: 'flex', justifyContent: 'space-between', gap: '16px' }}><div><p style={{ margin: '0 0 4px', color: '#8B5E3C', fontSize: '10px', fontWeight: 900, letterSpacing: '.8px' }}>GOODS RECEIPT</p><h2 style={{ margin: 0, fontSize: '20px' }}>{order.purchaseOrderNo}</h2><p style={{ margin: '6px 0 0', color: '#777', fontSize: '12px' }}>Record supplies physically received. Inventory updates immediately and remains fully audited.</p></div><button type="button" onClick={onClose} style={{ ...secondary, height: '34px', padding: '0 11px' }}><FiX /></button></div>
     <div style={{ padding: '22px 24px', display: 'grid', gap: '10px' }}>{order.items.map((item, index) => { const remaining = Number(item.orderedQuantity) - Number(item.receivedQuantity || 0); return <div key={item._id} style={{ padding: '12px', border: '1px solid #E8DDD0', borderRadius: '9px', background: '#FAF7F4' }}><div style={{ display: 'grid', gridTemplateColumns: '1.4fr .65fr .85fr', gap: '8px', alignItems: 'end' }}><div><b style={{ fontSize: '13px' }}>{item.name}</b><p style={{ margin: '3px 0 0', fontSize: '11px', color: '#777' }}>Remaining: {number(remaining)} {item.unit}</p></div><div><label style={label}>Receive now</label><input type="number" min="0" max={remaining} step="any" value={rows[index].quantity} onChange={e => update(index, 'quantity', e.target.value)} style={input} /></div><div><label style={label}>Expiry date</label><input type="date" value={rows[index].expirationDate} onChange={e => update(index, 'expirationDate', e.target.value)} style={input} /></div></div><input value={rows[index].note} onChange={e => update(index, 'note', e.target.value)} style={{ ...input, marginTop: '8px' }} placeholder="Optional receiving note" /></div>; })}{error && <p style={{ margin: 0, padding: '10px 11px', borderRadius: '8px', color: '#C53030', background: '#FFF5F5', fontSize: '12px', fontWeight: 700 }}>{error}</p>}</div>
-    <div style={{ padding: '16px 24px', borderTop: '1px solid #E8DDD0', display: 'flex', justifyContent: 'flex-end', gap: '9px' }}><button type="button" onClick={onClose} style={secondary}>Cancel</button><button disabled={saving} style={{ ...primary, background: '#276749', opacity: saving ? .65 : 1 }}><FiTruck /> {saving ? 'Saving…' : 'Report Arrival'}</button></div>
+    <div style={{ padding: '16px 24px', borderTop: '1px solid #E8DDD0', display: 'flex', justifyContent: 'flex-end', gap: '9px' }}><button type="button" onClick={onClose} style={secondary}>Cancel</button><button disabled={saving} style={{ ...primary, background: '#276749', opacity: saving ? .65 : 1 }}><FiTruck /> {saving ? 'Receiving…' : 'Receive Stock'}</button></div>
   </form></Modal>;
 }
 
@@ -127,9 +156,9 @@ export default function PurchaseOrdersPage() {
   const canApproveArrival = String(currentUser.role || '').toLowerCase() === 'owner' || ['finance', 'hr'].includes(String(currentUser.jobRole || '').toLowerCase()) || String(currentUser.email || '').toLowerCase() === 'admin@elicoffee.com' || String(currentUser.userId || '').toUpperCase() === 'ELI001';
   const badge = value => ({ Draft: ['#718096', '#F7FAFC'], Approved: ['#2B6CB0', '#EBF8FF'], 'Arrival Pending Approval': ['#805AD5', '#FAF5FF'], 'Partially Received': ['#D97706', '#FFFAF0'], Received: ['#276749', '#F0FFF4'], Cancelled: ['#C53030', '#FFF5F5'] }[value] || ['#555', '#f5f5f5']);
   return <div className="mobile-app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F5F0EB', fontFamily: 'Segoe UI, sans-serif' }}><Sidebar /><main className="mobile-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
-    <PageHeader title="Purchase Orders" description="Create supplier orders, record actual deliveries, and approve received stock before inventory changes." actions={<button onClick={() => setCreateOpen(true)} style={primary}><FiPlus /> New Purchase Order</button>} />
+    <PageHeader title="Purchase Orders" description="Create supplier orders and receive delivered stock directly into inventory with a complete audit trail." actions={<button onClick={() => setCreateOpen(true)} style={primary}><FiPlus /> New Purchase Order</button>} />
     {message && <div style={{ marginBottom: '14px', padding: '11px 13px', borderRadius: '8px', background: '#FDF5EE', border: '1px solid #E0D5CB', color: '#6F4A2F', fontSize: '12px', fontWeight: 700 }}>{message}</div>}
     <section style={{ background: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '14px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}><div><label style={label}>Status</label><select value={status} onChange={e => setStatus(e.target.value)} style={{ ...input, minWidth: '200px' }}><option value="">All purchase orders</option>{['Draft', 'Approved', 'Arrival Pending Approval', 'Partially Received', 'Received', 'Cancelled'].map(value => <option key={value}>{value}</option>)}</select></div><p style={{ margin: 0, alignSelf: 'end', paddingBottom: '10px', color: '#777', fontSize: '12px', fontWeight: 700 }}>{filtered.length} order{filtered.length === 1 ? '' : 's'}</p></section>
     <section style={{ background: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}><div style={{ minWidth: '900px', display: 'grid', gridTemplateColumns: '1.1fr 1.2fr .8fr 1.1fr 1fr 1.25fr', background: '#1A1208', gap: '12px', padding: '13px 17px', color: '#C4894A', fontSize: '10px', fontWeight: 900, letterSpacing: '.65px' }}>{['PO NUMBER', 'SUPPLIER', 'ORDER DATE', 'EXPECTED', 'STATUS', 'ACTIONS'].map(header => <span key={header}>{header}</span>)}</div><div style={{ overflow: 'auto', minWidth: '900px' }}>{loading ? <p style={{ padding: '35px', textAlign: 'center', color: '#777' }}>Loading purchase orders…</p> : filtered.length === 0 ? <div style={{ padding: '45px', textAlign: 'center', color: '#777' }}><FiPackage size={28} style={{ marginBottom: '8px' }} /><p style={{ margin: 0, fontWeight: 700 }}>No purchase orders found.</p></div> : filtered.map((order, index) => { const [color, background] = badge(order.status); return <div key={order._id} style={{ display: 'grid', gridTemplateColumns: '1.1fr 1.2fr .8fr 1.1fr 1fr 1.25fr', gap: '12px', padding: '14px 17px', alignItems: 'center', borderBottom: index === filtered.length - 1 ? 'none' : '1px solid #F0E8E0', background: index % 2 ? '#FAFAF8' : '#fff' }}><div><b style={{ fontSize: '13px' }}>{order.purchaseOrderNo}</b><p style={{ margin: '3px 0 0', fontSize: '10px', color: '#8A7A6B' }}>{order.items.length} item{order.items.length === 1 ? '' : 's'} · Receiver: {order.assignedReceiver?.name || 'Not assigned'}</p></div><span style={{ fontSize: '13px', fontWeight: 700 }}>{order.supplierName}</span><span style={{ fontSize: '12px', color: '#555' }}>{date(order.orderDate)}</span><span style={{ fontSize: '12px', color: '#555' }}>{date(order.expectedDeliveryDate)}</span><span style={{ justifySelf: 'start', padding: '5px 8px', borderRadius: '999px', color, background, fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{order.status}</span><div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>{order.status === 'Draft' && <button onClick={() => action(order, 'approve')} style={{ ...primary, background: '#2B6CB0', padding: '7px 9px' }}><FiCheck /> Approve</button>}{['Approved', 'Partially Received'].includes(order.status) && <button onClick={() => setReceiving(order)} style={{ ...primary, background: '#276749', padding: '7px 9px' }}><FiTruck /> Report Arrival</button>}{order.status === 'Arrival Pending Approval' && canApproveArrival && <button onClick={() => approveArrival(order)} style={{ ...primary, background: '#805AD5', padding: '7px 9px' }}><FiCheck /> Approve Delivery</button>}{['Draft', 'Approved'].includes(order.status) && <button onClick={() => action(order, 'cancel')} style={{ ...secondary, padding: '7px 9px', color: '#C53030', borderColor: '#FED7D7' }}>Cancel</button>}</div></div>; })}</div></section>
-  </main>{createOpen && <CreateOrderModal inventory={inventory} receivers={receivers} onClose={() => setCreateOpen(false)} onSaved={order => { replace(order); setCreateOpen(false); setMessage(`${order.purchaseOrderNo} created as a draft.`); }} />}{receiving && <RecordArrivalModal order={receiving} onClose={() => setReceiving(null)} onSaved={order => { replace(order); setReceiving(null); setMessage(`${order.purchaseOrderNo} arrival recorded. Approval is required before inventory changes.`); }} />}</div>;
+  </main>{createOpen && <CreateOrderModal inventory={inventory} receivers={receivers} onClose={() => setCreateOpen(false)} onSaved={order => { replace(order); setCreateOpen(false); setMessage(`${order.purchaseOrderNo} created as a draft.`); }} />}{receiving && <RecordArrivalModal order={receiving} onClose={() => setReceiving(null)} onSaved={order => { replace(order); setReceiving(null); setMessage(`${order.purchaseOrderNo} received and added to inventory.`); }} />}</div>;
 }

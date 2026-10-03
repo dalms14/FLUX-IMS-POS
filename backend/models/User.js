@@ -18,6 +18,12 @@ const UserSchema = new mongoose.Schema({
         default: false
     },
     lastSeenAt: Date,
+    archived: { type: Boolean, default: false, index: true },
+    archivedAt: { type: Date, default: null },
+    passwordResetOtpHash: { type: String, default: null, select: false },
+    passwordResetOtpExpiresAt: { type: Date, default: null, select: false },
+    passwordResetOtpAttempts: { type: Number, default: 0, select: false },
+    passwordResetOtpUsedAt: { type: Date, default: null, select: false },
     userId: {
         type: String,
         required: true,

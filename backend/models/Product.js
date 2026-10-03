@@ -82,6 +82,18 @@ const ProductSchema = new mongoose.Schema(
     available: {
       type: Boolean,
       default: true
+    },
+
+    // Archived products are retained for audit/history and can be restored.
+    archived: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+
+    archivedAt: {
+      type: Date,
+      default: null
     }
   },
   {

@@ -12,6 +12,14 @@ const validDate = value => {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
 };
+const isPastCalendarDate = value => {
+    if (!value) return false;
+    const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+};
 
 async function createAudit(data) {
     await SystemAudit.create(data);
@@ -77,8 +85,19 @@ router.post('/', async (req, res) => {
         if (!supplierName || items.length === 0 || items.some(item => !item.name || !item.unit || item.orderedQuantity <= 0)) {
             return res.status(400).json({ message: 'Supplier and at least one valid order item are required' });
         }
-        const assignedReceiver = assignedReceiverEmail ? await User.findOne({ email: assignedReceiverEmail }) : null;
-        if (!assignedReceiver) return res.status(400).json({ message: 'Assign a valid staff member to receive this purchase order' });
+        if (isPastCalendarDate(req.body.orderDate) || isPastCalendarDate(req.body.expectedDeliveryDate)) {
+            return res.status(400).json({ message: 'Order date and expected delivery date must be today or a future date.' });
+        }
+        const receiverMode = assignedReceiverEmail === '__any_staff__' ? 'any-staff'
+            : assignedReceiverEmail === '__anyone__' ? 'anyone' : 'assigned';
+        const assignedReceiver = receiverMode === 'assigned' && assignedReceiverEmail
+            ? await User.findOne({ email: assignedReceiverEmail }) : null;
+        if (receiverMode === 'assigned' && !assignedReceiver) return res.status(400).json({ message: 'Assign a valid staff member to receive this purchase order' });
+        const receiverDetails = receiverMode === 'any-staff'
+            ? { userId: null, name: 'Any Staff', email: '__any_staff__' }
+            : receiverMode === 'anyone'
+                ? { userId: null, name: 'Anyone', email: '__anyone__' }
+                : { userId: assignedReceiver._id, name: assignedReceiver.name, email: assignedReceiver.email };
 
         const order = await PurchaseOrder.create({
             purchaseOrderNo: await nextPurchaseOrderNo(),
@@ -87,7 +106,7 @@ router.post('/', async (req, res) => {
             orderDate: validDate(req.body.orderDate) || new Date(),
             expectedDeliveryDate: validDate(req.body.expectedDeliveryDate),
             notes: String(req.body.notes || '').trim(),
-            assignedReceiver: { userId: assignedReceiver._id, name: assignedReceiver.name, email: assignedReceiver.email },
+            assignedReceiver: receiverDetails,
             items,
             createdBy: String(req.body.actor || 'System'),
             createdByEmail: String(req.body.actorEmail || ''),
@@ -231,8 +250,11 @@ router.post('/:id/record-arrival', async (req, res) => {
         const receiver = actorEmail ? await User.findOne({ email: actorEmail }) : null;
         const order = await PurchaseOrder.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Purchase order not found' });
-        if (!order.assignedReceiver?.email) return res.status(400).json({ message: 'This purchase order has no assigned receiving staff member.' });
-        if (String(order.assignedReceiver.email).toLowerCase() !== actorEmail && !isPurchaseOrderApprover(receiver)) {
+        if (!receiver) return res.status(403).json({ message: 'Sign in before recording a delivery.' });
+        const receiverEmail = String(order.assignedReceiver?.email || '').toLowerCase();
+        const allowsAnyStaff = receiverEmail === '__any_staff__' && String(receiver.role || '').toLowerCase() === 'staff';
+        const allowsAnyone = receiverEmail === '__anyone__';
+        if (receiverEmail !== actorEmail && !allowsAnyStaff && !allowsAnyone && !isPurchaseOrderApprover(receiver)) {
             return res.status(403).json({ message: `Only the assigned receiver (${order.assignedReceiver.name}) can record this delivery.` });
         }
         if (!['Approved', 'Partially Received'].includes(order.status)) {
@@ -283,9 +305,6 @@ router.post('/:id/pending-receipts/:receiptId/approve', async (req, res) => {
     try {
         const actorEmail = String(req.body.actorEmail || '').trim().toLowerCase();
         const approver = actorEmail ? await User.findOne({ email: actorEmail }) : null;
-        if (!isReceiptApprover(approver)) {
-            return res.status(403).json({ message: 'Only Finance, HR, or the Owner can approve a delivered purchase order.' });
-        }
         const order = await PurchaseOrder.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Purchase order not found' });
         const pendingReceipt = order.pendingReceipts.id(req.params.receiptId);
@@ -314,7 +333,7 @@ router.post('/:id/pending-receipts/:receiptId/approve', async (req, res) => {
         }
 
         pendingReceipt.status = 'Approved';
-        pendingReceipt.reviewedBy = String(req.body.actor || approver.name || 'System');
+        pendingReceipt.reviewedBy = String(req.body.actor || approver?.name || 'System');
         pendingReceipt.reviewedByEmail = actorEmail;
         pendingReceipt.reviewedAt = new Date();
         order.receipts.push({ receivedAt: pendingReceipt.arrivedAt, receivedBy: pendingReceipt.reportedBy, receivedByEmail: pendingReceipt.reportedByEmail, items: receivedItems });
@@ -322,9 +341,9 @@ router.post('/:id/pending-receipts/:receiptId/approve', async (req, res) => {
         await order.save();
         await Notification.updateMany({ type: 'purchase_order_arrival', purchaseOrderId: order._id, resolvedAt: null }, { $set: { resolvedAt: pendingReceipt.reviewedAt } });
         await createAudit({
-            module: 'Purchase Orders', action: 'Delivery Approved', entityId: String(order._id), entityName: order.purchaseOrderNo,
+            module: 'Purchase Orders', action: 'Delivery Received', entityId: String(order._id), entityName: order.purchaseOrderNo,
             actor: pendingReceipt.reviewedBy, actorEmail,
-            details: `Delivery arrived ${pendingReceipt.arrivedAt.toLocaleString()} and was approved ${pendingReceipt.reviewedAt.toLocaleString()}. Inventory updated after approval.`,
+            details: `Delivery received by ${pendingReceipt.reviewedBy}. Inventory updated immediately.`,
             changes: { status: order.status, assignedReceiver: order.assignedReceiver.name, receivedBy: pendingReceipt.reportedBy, arrivalTime: pendingReceipt.arrivedAt, approvalTime: pendingReceipt.reviewedAt, items: receivedItems.map(item => ({ name: item.name, quantity: item.quantity, expirationDate: item.expirationDate })) },
         });
         res.json({ success: true, order });

@@ -4,11 +4,13 @@ import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import {
   FiAlertTriangle,
+  FiArchive,
   FiChevronDown,
   FiMinus,
   FiPackage,
   FiSearch,
   FiTrendingUp,
+  FiRotateCcw,
   FiX,
 } from 'react-icons/fi';
 
@@ -798,6 +800,7 @@ const InventoryPage = () => {
   const [adjustItem, setAdjustItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notices, setNotices] = useState([]);
+  const [showArchive, setShowArchive] = useState(false);
 
   const addNotice = useCallback((notice) => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -839,8 +842,8 @@ const InventoryPage = () => {
     const fetchData = async () => {
       try {
         const [inventoryRes, statsRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/inventory'),
-          axios.get('http://localhost:5000/api/inventory-stats'),
+          axios.get(`http://localhost:5000/api/inventory${showArchive ? '?archived=true' : ''}`),
+          showArchive ? Promise.resolve({ data: null }) : axios.get('http://localhost:5000/api/inventory-stats'),
         ]);
 
         updateInventoryState(inventoryRes.data, statsRes.data);
@@ -852,7 +855,22 @@ const InventoryPage = () => {
     };
 
     fetchData();
-  }, [updateInventoryState]);
+  }, [showArchive, updateInventoryState]);
+
+  const handleArchive = async (item) => {
+    if (!window.confirm(`Archive ${item.name}? Its stock must be zero first.`)) return;
+    try {
+      await axios.delete(`http://localhost:5000/api/inventory/${item._id}`);
+      setItems(prev => prev.filter(existing => existing._id !== item._id));
+    } catch (err) { alert(err.response?.data?.message || 'Failed to archive ingredient.'); }
+  };
+
+  const handleRestore = async (item) => {
+    try {
+      await axios.post(`http://localhost:5000/api/inventory/${item._id}/restore`);
+      setItems(prev => prev.filter(existing => existing._id !== item._id));
+    } catch (err) { alert(err.response?.data?.message || 'Failed to restore ingredient.'); }
+  };
 
   useEffect(() => {
     let filtered = items;
@@ -954,6 +972,9 @@ const InventoryPage = () => {
         )}
 
         <section style={{ ...cardStyle, padding: '16px', marginBottom: '18px' }}>
+          <button onClick={() => setShowArchive(value => !value)} style={{ marginBottom: '12px', padding: '9px 14px', border: '1px solid #8B5E3C', borderRadius: '7px', backgroundColor: showArchive ? '#1A1208' : '#fff', color: showArchive ? '#fff' : '#8B5E3C', fontWeight: '800', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <FiArchive size={15} /> {showArchive ? 'Active Ingredients' : 'Archived Ingredients'}
+          </button>
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 1fr) repeat(2, minmax(170px, 220px))', gap: '12px', alignItems: 'end' }}>
             <div>
               <label style={labelStyle}>Search</label>
@@ -1048,9 +1069,12 @@ const InventoryPage = () => {
                         {status.label}
                       </span>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <button onClick={() => { setAdjustItem(item); setShowStockOutModal(true); }} title="Stock Out" style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <FiMinus size={14} />
-                        </button>
+                        {showArchive ? (
+                          <button onClick={() => handleRestore(item)} title="Restore ingredient" style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#F0FFF4', color: '#276749', border: '1px solid #9AE6B4', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiRotateCcw size={14} /></button>
+                        ) : <>
+                          <button onClick={() => { setAdjustItem(item); setShowStockOutModal(true); }} title="Stock Out" style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiMinus size={14} /></button>
+                          <button onClick={() => handleArchive(item)} title="Archive ingredient" style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#F7F3EF', color: '#8B5E3C', border: '1px solid #D8CABB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiArchive size={14} /></button>
+                        </>}
                       </div>
                     </div>
                   );

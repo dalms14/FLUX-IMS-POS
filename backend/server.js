@@ -101,7 +101,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     try {
-        const user = await User.findOne({ email: email.toLowerCase().trim() });
+        const user = await User.findOne({ email: email.toLowerCase().trim(), archived: { $ne: true } });
 
         if (!user) {
             // Track failed attempt
@@ -326,8 +326,9 @@ app.get('/api/system-audit', async (req, res) => {
 // --- Add-on Routes ---
 app.get('/api/addons', async (req, res) => {
   try {
-    await seedDefaultAddons();
-    const addons = await Addon.find({ active: true }).sort({ name: 1 }).lean();
+    const showArchived = req.query.archived === 'true';
+    if (!showArchived) await seedDefaultAddons();
+    const addons = await Addon.find(showArchived ? { active: false } : { active: true }).sort({ name: 1 }).lean();
     res.json({ success: true, data: addons });
   } catch (err) {
     console.error('Error fetching add-ons:', err);
@@ -421,7 +422,7 @@ app.delete('/api/addons/:id', async (req, res) => {
   try {
     const addon = await Addon.findByIdAndUpdate(
       req.params.id,
-      { active: false },
+      { active: false, archivedAt: new Date() },
       { returnDocument: 'after' }
     );
 
@@ -436,25 +437,35 @@ app.delete('/api/addons/:id', async (req, res) => {
 
     await logSystemAudit({
       module: 'Add-ons',
-      action: 'Deleted',
+      action: 'Archived',
       entityId: addon._id,
       entityName: addon.name,
-      details: 'Add-on removed from the master list',
+      details: 'Add-on archived from the master list',
       changes: { name: addon.name, price: addon.price },
     });
 
-    res.json({ success: true, message: `${addon.name} removed` });
+    res.json({ success: true, message: `${addon.name} archived` });
   } catch (err) {
     console.error('Error deleting add-on:', err);
     res.status(500).json({ message: 'Failed to delete add-on' });
   }
 });
 
+app.post('/api/addons/:id/restore', async (req, res) => {
+  try {
+    const addon = await Addon.findOneAndUpdate({ _id: req.params.id, active: false }, { active: true, archivedAt: null }, { returnDocument: 'after' });
+    if (!addon) return res.status(404).json({ message: 'Archived add-on not found' });
+    await logSystemAudit({ module: 'Add-ons', action: 'Restored', entityId: addon._id, entityName: addon.name, details: 'Add-on restored to the master list', changes: { name: addon.name, price: addon.price } });
+    res.json({ success: true, addon });
+  } catch (err) { res.status(500).json({ message: 'Failed to restore add-on' }); }
+});
+
 // --- Discount Routes ---
 app.get('/api/discounts', async (req, res) => {
   try {
-    await seedDefaultDiscounts();
-    const discounts = await Discount.find({ active: true }).sort({ name: 1 }).lean();
+    const showArchived = req.query.archived === 'true';
+    if (!showArchived) await seedDefaultDiscounts();
+    const discounts = await Discount.find(showArchived ? { active: false } : { active: true }).sort({ name: 1 }).lean();
     res.json({
       success: true,
       data: discounts.map(discount => ({
@@ -573,7 +584,7 @@ app.delete('/api/discounts/:id', async (req, res) => {
 
     const discount = await Discount.findByIdAndUpdate(
       req.params.id,
-      { active: false },
+      { active: false, archivedAt: new Date() },
       { returnDocument: 'after' }
     );
 
@@ -583,32 +594,44 @@ app.delete('/api/discounts/:id', async (req, res) => {
 
     await logSystemAudit({
       module: 'Discounts',
-      action: 'Deleted',
+      action: 'Archived',
       entityId: discount._id,
       entityName: discount.name,
-      details: 'Discount removed from the master list',
+      details: 'Discount archived from the master list',
       changes: { name: discount.name, percentage: discount.percentage },
     });
 
-    res.json({ success: true, message: `${discount.name} removed` });
+    res.json({ success: true, message: `${discount.name} archived` });
   } catch (err) {
     console.error('Error deleting discount:', err);
     res.status(500).json({ message: err.message || 'Failed to delete discount' });
   }
 });
 
+app.post('/api/discounts/:id/restore', async (req, res) => {
+  try {
+    const discount = await Discount.findOneAndUpdate({ _id: req.params.id, active: false }, { active: true, archivedAt: null }, { returnDocument: 'after' });
+    if (!discount) return res.status(404).json({ message: 'Archived discount not found' });
+    await logSystemAudit({ module: 'Discounts', action: 'Restored', entityId: discount._id, entityName: discount.name, details: 'Discount restored to the master list', changes: { name: discount.name, percentage: discount.percentage } });
+    res.json({ success: true, discount });
+  } catch (err) { res.status(500).json({ message: 'Failed to restore discount' }); }
+});
+
 // --- Product Routes ---
 app.get('/api/products', async (req, res) => {
   try {
-    const { category, includeImages } = req.query;
-    let query = {};
+    const { category, includeImages, archived } = req.query;
+    let query = archived === 'true' ? { archived: true } : { archived: { $ne: true } };
 
     if (category && String(category).trim().toUpperCase() !== ALL_CATEGORY_NAME) {
       const categoryName = String(category).trim();
       const cat = await Category.findOne({ name: { $regex: `^${categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } });
-      query = cat
-        ? { $or: [{ category: categoryName }, { categoryId: cat._id }] }
-        : { category: categoryName };
+      query = {
+        ...query,
+        ...(cat
+          ? { $or: [{ category: categoryName }, { categoryId: cat._id }] }
+          : { category: categoryName }),
+      };
     }
 
     // Only include image when explicitly requested
@@ -871,61 +894,59 @@ app.put('/api/products/:id', async (req, res) => {
   }
 });
 
-// Delete Product
+// Archive Product. Products must remain available for history and can be restored.
 app.delete('/api/products/:id', async (req, res) => {
   try {
-    const deletedProduct = await Product.findByIdAndDelete(req.params.id);
+    const archivedProduct = await Product.findOneAndUpdate(
+      { _id: req.params.id, archived: { $ne: true } },
+      { archived: true, archivedAt: new Date() },
+      { returnDocument: 'after' }
+    );
 
-    if (!deletedProduct) {
-      return res.status(404).json({ message: 'Product not found' });
+    if (!archivedProduct) {
+      return res.status(404).json({ message: 'Product not found or is already archived' });
     }
 
-    console.log(`✅ Product deleted: ${deletedProduct.name}`);
+    console.log(`✅ Product archived: ${archivedProduct.name}`);
     await logSystemAudit({
       module: 'Products',
-      action: 'Deleted',
-      entityId: deletedProduct._id,
-      entityName: deletedProduct.name,
-      details: 'Product removed from menu',
-      changes: { category: deletedProduct.category, soloPrice: deletedProduct.soloPrice },
+      action: 'Archived',
+      entityId: archivedProduct._id,
+      entityName: archivedProduct.name,
+      details: 'Product archived and removed from the active menu',
+      changes: { category: archivedProduct.category, soloPrice: archivedProduct.soloPrice, archivedAt: archivedProduct.archivedAt },
     });
-    res.json({ success: true, message: 'Product deleted successfully' });
+    res.json({ success: true, message: 'Product archived successfully', product: archivedProduct });
   } catch (err) {
-    console.error('Error deleting product:', err);
-    res.status(500).json({ message: 'Failed to delete product' });
+    console.error('Error archiving product:', err);
+    res.status(500).json({ message: 'Failed to archive product' });
   }
 });
 
-// Verify identity for forgot password
-app.post('/api/auth/verify-identity', async (req, res) => {
+app.post('/api/products/:id/restore', async (req, res) => {
   try {
-    const { email, userId } = req.body;
+    const restoredProduct = await Product.findOneAndUpdate(
+      { _id: req.params.id, archived: true },
+      { archived: false, archivedAt: null },
+      { returnDocument: 'after' }
+    );
 
-    const user = await User.findOne({
-      email: email.toLowerCase(),
-      userId: userId
-    });
-
-    if (!user) {
-      return res.json({ verified: false });
+    if (!restoredProduct) {
+      return res.status(404).json({ message: 'Archived product not found' });
     }
 
-    res.json({ verified: true });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ verified: false });
-  }
-});
-
-// Reset password
-app.post('/api/auth/reset-password', async (req, res) => {
-  const { email, newPassword } = req.body;
-  try {
-    const hashed = await bcrypt.hash(newPassword, 10);
-    await User.findOneAndUpdate({ email }, { password: hashed });
-    res.json({ success: true });
+    await logSystemAudit({
+      module: 'Products',
+      action: 'Restored',
+      entityId: restoredProduct._id,
+      entityName: restoredProduct.name,
+      details: 'Product restored to the active menu',
+      changes: { category: restoredProduct.category, soloPrice: restoredProduct.soloPrice },
+    });
+    res.json({ success: true, message: 'Product restored successfully', product: restoredProduct });
   } catch (err) {
-    res.status(500).json({ message: 'Server Error' });
+    console.error('Error restoring product:', err);
+    res.status(500).json({ message: 'Failed to restore product' });
   }
 });
 
@@ -1828,8 +1849,9 @@ app.post('/api/orders/:id/cancel-items', async (req, res) => {
 // Get inventory
 app.get('/api/inventory', async (req, res) => {
     try {
-        await autoDeductExpiredInventory();
-        const inventory = await Inventory.find({}).sort({ category: 1, name: 1 });
+        const showArchived = req.query.archived === 'true';
+        if (!showArchived) await autoDeductExpiredInventory();
+        const inventory = await Inventory.find(showArchived ? { archived: true } : { archived: { $ne: true } }).sort({ category: 1, name: 1 });
         res.json(inventory);
     } catch (err) {
         res.status(500).json({ message: 'Server Error' });
@@ -2118,11 +2140,33 @@ app.put('/api/inventory/:id/stock-out', async (req, res) => {
     }
 });
 
-// Delete inventory item
+// Archive an ingredient only once its on-hand stock is zero. This keeps stock
+// balances auditable and prevents supplies from disappearing from the ledger.
 app.delete('/api/inventory/:id', async (req, res) => {
-    return res.status(403).json({
-        message: 'Inventory records cannot be deleted. Keep the record for audit history.'
-    });
+    try {
+        const item = await Inventory.findOne({ _id: req.params.id, archived: { $ne: true } });
+        if (!item) return res.status(404).json({ message: 'Inventory item not found or already archived.' });
+        if (Number(item.stock || 0) > 0) return res.status(400).json({ message: 'Stock must be zero before this ingredient can be archived.' });
+        item.archived = true;
+        item.archivedAt = new Date();
+        await item.save();
+        await logSystemAudit({ module: 'Inventory', action: 'Archived', entityId: item._id, entityName: item.name, details: 'Ingredient archived from active inventory', changes: { unit: item.unit, stock: item.stock, archivedAt: item.archivedAt } });
+        res.json({ success: true, message: `${item.name} archived`, item });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to archive inventory item.' });
+    }
+});
+
+app.post('/api/inventory/:id/restore', async (req, res) => {
+    try {
+        const item = await Inventory.findOneAndUpdate({ _id: req.params.id, archived: true }, { archived: false, archivedAt: null }, { returnDocument: 'after' });
+        if (!item) return res.status(404).json({ message: 'Archived inventory item not found.' });
+        await logSystemAudit({ module: 'Inventory', action: 'Restored', entityId: item._id, entityName: item.name, details: 'Ingredient restored to active inventory', changes: { unit: item.unit, stock: item.stock } });
+        res.json({ success: true, item });
+    } catch (err) {
+        res.status(500).json({ message: 'Failed to restore inventory item.' });
+    }
+});
     /*
     try {
         const { actor, actorEmail } = req.body || {};
@@ -2146,7 +2190,6 @@ app.delete('/api/inventory/:id', async (req, res) => {
         res.status(500).json({ message: 'Failed to delete item' });
     }
     */
-});
 
 // Get inventory stats/KPIs
 app.get('/api/inventory-stats', async (req, res) => {

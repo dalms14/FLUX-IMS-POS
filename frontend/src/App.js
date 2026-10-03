@@ -39,14 +39,28 @@ function App() {
       try {
         await axios.post('http://localhost:5000/api/auth/heartbeat', { email: user.email });
       } catch (err) {
+        if ([403, 404].includes(err.response?.status)) {
+          localStorage.removeItem('user');
+          window.location.replace('/login');
+          return;
+        }
         console.error('Error updating online status:', err);
       }
     };
 
     sendHeartbeat();
-    const heartbeatTimer = setInterval(sendHeartbeat, 30000);
+    const heartbeatTimer = setInterval(sendHeartbeat, 10000);
+    const checkWhenReturningToApp = () => {
+      if (!document.hidden) sendHeartbeat();
+    };
+    document.addEventListener('visibilitychange', checkWhenReturningToApp);
+    window.addEventListener('focus', sendHeartbeat);
 
-    return () => clearInterval(heartbeatTimer);
+    return () => {
+      clearInterval(heartbeatTimer);
+      document.removeEventListener('visibilitychange', checkWhenReturningToApp);
+      window.removeEventListener('focus', sendHeartbeat);
+    };
   }, []);
 
   return (
