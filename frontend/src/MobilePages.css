@@ -89,6 +89,36 @@
   .mobile-page-content [style*="minmax(200px, 1fr)"] {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
+
+  .staff-list-head,
+  .staff-list-row {
+    min-width: 900px !important;
+  }
+
+  .staff-table-card {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* iPad Safari uses a desktop-width viewport. These controls need two
+   comfortable columns before the phone breakpoint is reached. */
+@media (min-width: 769px) and (max-width: 1400px) {
+  .transaction-filter-grid,
+  .sales-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .settings-account-fields,
+  .settings-form-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  .sales-analysis-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 
 @media (max-width: 768px) {

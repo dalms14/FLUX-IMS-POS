@@ -562,7 +562,7 @@ const SalesPage = () => {
         />
 
         <section style={{ ...cardStyle, marginBottom: '20px', padding: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', alignItems: 'end' }}>
+          <div className="sales-filter-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', alignItems: 'end' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase' }}>Preset</label>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -593,7 +593,7 @@ const SalesPage = () => {
 
         {error && <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '8px', fontSize: '13px', fontWeight: '700' }}>{error}</div>}
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 390px) minmax(0, 1fr)', gap: '18px', alignItems: 'stretch', marginBottom: '20px' }}>
+        <section className="sales-analysis-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 390px) minmax(0, 1fr)', gap: '18px', alignItems: 'stretch', marginBottom: '20px' }}>
           <div style={{ display: 'grid', gap: '14px' }}>
             <MetricCard title="Net Sales" value={money(sales.netSales)} detail={`${money(sales.grossSales)} gross minus refunds`} icon={<LuPhilippinePeso size={22} />} color={metricColors.netSales} />
             <MetricCard title="Orders" value={sales.orders.toLocaleString()} detail={`${sales.itemCount.toLocaleString()} items sold`} icon={<FiShoppingBag size={22} />} color={metricColors.orders} />
@@ -603,7 +603,7 @@ const SalesPage = () => {
           <SalesTrendChart data={salesTrend} />
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(260px, 1fr)', gap: '18px' }}>
+        <section className="sales-analysis-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(260px, 1fr)', gap: '18px' }}>
           <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
             <div style={{ padding: '16px 18px', borderBottom: '1px solid #E0D5CB' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>Product Sales</h2>

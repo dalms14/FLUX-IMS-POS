@@ -1,5 +1,26 @@
 @import "tailwindcss";
 
+/* Prevent Safari's rubber-band area from showing the default white page
+   behind the application when an iPad user reaches the top or bottom. */
+html,
+body,
+#root {
+  min-height: 100%;
+  background: #F5F0EB;
+}
+
+body {
+  min-height: 100vh;
+  overscroll-behavior-y: none;
+}
+
+@supports (min-height: 100dvh) {
+  body,
+  #root {
+    min-height: 100dvh;
+  }
+}
+
 @theme {
   --color-coffee-brown: #8B5E3C;
   --color-coffee-dark: #3C2A21;
