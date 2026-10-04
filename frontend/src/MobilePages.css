@@ -123,6 +123,21 @@
   .settings-form-layout {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+
+  /* Purchase-order and report tables are wider than an iPad content area.
+     Keep their columns intact and let the card itself receive horizontal swipes. */
+  .mobile-page-content section[style*="overflow: hidden"] {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+    touch-action: pan-x pan-y !important;
+  }
+
+  .mobile-page-content section[style*="overflow: hidden"] > div[style*="min-width: 900px"] {
+    width: 900px !important;
+    max-width: none !important;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1180px) {
