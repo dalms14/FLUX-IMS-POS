@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
-import { FiPackage, FiShoppingCart, FiCheck, FiSettings, FiBarChart2, FiBell, FiTruck, FiX } from 'react-icons/fi';
+import { FiPackage, FiShoppingCart, FiCheck, FiTag, FiBarChart2, FiBell, FiTruck, FiX } from 'react-icons/fi';
 import { LuPhilippinePeso } from 'react-icons/lu';
 import { hasPermission } from '../utils/roles';
 
@@ -345,7 +345,7 @@ const Dashboard = () => {
                 <a href="/items" style={{ backgroundColor: '#8B5E3C', color: '#fff', padding: '16px', borderRadius: '12px', textDecoration: 'none', textAlign: 'center', fontWeight: '700', transition: 'all 0.2s', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#6B4423'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#8B5E3C'; e.currentTarget.style.transform = 'translateY(0)'; }}><FiPackage /> Start Order</a>
               )}
               {canViewProducts && (
-                <a href="/products" style={{ backgroundColor: '#38A169', color: '#fff', padding: '16px', borderRadius: '12px', textDecoration: 'none', textAlign: 'center', fontWeight: '700', transition: 'all 0.2s', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#2D6A4F'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#38A169'; e.currentTarget.style.transform = 'translateY(0)'; }}><FiSettings /> Products</a>
+                <a href="/products" style={{ backgroundColor: '#38A169', color: '#fff', padding: '16px', borderRadius: '12px', textDecoration: 'none', textAlign: 'center', fontWeight: '700', transition: 'all 0.2s', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#2D6A4F'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#38A169'; e.currentTarget.style.transform = 'translateY(0)'; }}><FiTag /> Products</a>
               )}
               {canViewInventory && (
                 <a href="/inventory" style={{ backgroundColor: '#D69E2E', color: '#fff', padding: '16px', borderRadius: '12px', textDecoration: 'none', textAlign: 'center', fontWeight: '700', transition: 'all 0.2s', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#A97D1A'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#D69E2E'; e.currentTarget.style.transform = 'translateY(0)'; }}><FiBarChart2 /> Inventory</a>
