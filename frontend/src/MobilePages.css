@@ -423,6 +423,42 @@
   .mobile-page-content [style*="width: 280px"] {
     width: 100% !important;
   }
+
+  /* Reports: keep each report category readable rather than squeezing two
+     desktop tables beside each other on a phone. */
+  .reports-two-column,
+  .reports-login-filters {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Purchase-order forms and delivery receipts use one clear field per row
+     on a phone. Desktop and tablet layouts remain unchanged. */
+  .purchase-order-modal {
+    width: calc(100% - 20px) !important;
+    max-height: calc(100vh - 20px) !important;
+    border-radius: 10px !important;
+  }
+
+  .purchase-order-form-grid,
+  .purchase-order-assignment-grid,
+  .purchase-order-item-row,
+  .mobile-app-shell [style*="repeat(2, minmax(0, 1fr))"],
+  .mobile-app-shell [style*="grid-template-columns: 1.4fr"],
+  .mobile-app-shell [style*="grid-template-columns: 1.2fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .purchase-order-modal [style*="minmax(180px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Wide report, inventory, and purchase-order tables stay usable through
+     horizontal swipe instead of being cut off by their cards. */
+  .mobile-page-content section[style*="overflow: hidden"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+  }
 }
 
 @media (max-width: 339px) {

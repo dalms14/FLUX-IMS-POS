@@ -139,6 +139,9 @@ const ReportsPage = () => {
   const [systemAudit, setSystemAudit] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [activeReport, setActiveReport] = useState('overview');
+  const [loginQuery, setLoginQuery] = useState('');
+  const [loginRole, setLoginRole] = useState('all');
 
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -181,6 +184,13 @@ const ReportsPage = () => {
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  // Keep the reporting period valid even when a date is typed or restored by the browser.
+  useEffect(() => {
+    if (startDate && endDate && startDate > endDate) {
+      setEndDate(startDate);
+    }
+  }, [startDate, endDate]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -361,6 +371,28 @@ const ReportsPage = () => {
     setEndDate(presets[key].end);
   };
 
+  const updateStartDate = (value) => {
+    setPreset('custom');
+    setStartDate(value);
+    if (value && endDate && value > endDate) setEndDate(value);
+  };
+
+  const updateEndDate = (value) => {
+    setPreset('custom');
+    setEndDate(value);
+    if (value && startDate && value < startDate) setStartDate(value);
+  };
+
+  const filteredLoginActivity = useMemo(() => {
+    const query = loginQuery.trim().toLowerCase();
+    return loginActivity.filter((row) => {
+      const matchesQuery = !query || [row.name, row.email, row.staffId, row.role]
+        .some((value) => String(value || '').toLowerCase().includes(query));
+      const matchesRole = loginRole === 'all' || String(row.role || '').toLowerCase() === loginRole;
+      return matchesQuery && matchesRole;
+    });
+  }, [loginActivity, loginQuery, loginRole]);
+
   const exportCsv = () => {
     const rows = [
       ['FLUX Reports'],
@@ -483,11 +515,11 @@ const ReportsPage = () => {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '900', textTransform: 'uppercase' }}>Start Date</label>
-              <input type="date" value={startDate} onChange={e => { setPreset('custom'); setStartDate(e.target.value); }} style={{ width: '100%', padding: '10px', border: '1px solid #D4B89A', borderRadius: '7px', boxSizing: 'border-box' }} />
+              <input type="date" value={startDate} onChange={e => updateStartDate(e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #D4B89A', borderRadius: '7px', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '900', textTransform: 'uppercase' }}>End Date</label>
-              <input type="date" value={endDate} onChange={e => { setPreset('custom'); setEndDate(e.target.value); }} style={{ width: '100%', padding: '10px', border: '1px solid #D4B89A', borderRadius: '7px', boxSizing: 'border-box' }} />
+              <input type="date" value={endDate} min={startDate || undefined} onChange={e => updateEndDate(e.target.value)} style={{ width: '100%', padding: '10px', border: '1px solid #D4B89A', borderRadius: '7px', boxSizing: 'border-box' }} />
             </div>
             <button onClick={fetchReports} disabled={loading} style={{ padding: '11px 14px', borderRadius: '8px', border: 'none', backgroundColor: '#8B5E3C', color: '#fff', fontWeight: '900', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               <FiRefreshCw size={15} /> {loading ? 'Loading' : 'Apply'}
@@ -497,6 +529,26 @@ const ReportsPage = () => {
 
         {error && <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '8px', fontSize: '13px', fontWeight: '800' }}>{error}</div>}
 
+        <section style={{ ...cardStyle, padding: '12px', marginBottom: '18px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+            <span style={{ marginRight: '4px', color: '#6F4A2F', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Report area</span>
+            {[
+              ['overview', 'Overview'],
+              ['sales', 'Sales & Finance'],
+              ['inventory', 'Inventory'],
+              ['activity', 'Activity Logs'],
+            ].map(([key, label]) => (
+              <button key={key} onClick={() => setActiveReport(key)} style={{ padding: '9px 13px', borderRadius: '7px', border: `1px solid ${activeReport === key ? '#1A1208' : '#D4B89A'}`, backgroundColor: activeReport === key ? '#1A1208' : '#fff', color: activeReport === key ? '#fff' : '#6F4A2F', fontSize: '12px', fontWeight: '900', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <p style={{ margin: '10px 2px 0', fontSize: '12px', color: '#777' }}>
+            {activeReport === 'activity' ? 'Find sign-ins and system changes without scrolling through sales and inventory reports.' : 'Choose a report area to keep the page focused on the information you need.'}
+          </p>
+        </section>
+
+        {activeReport === 'overview' && <>
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(205px, 1fr))', gap: '14px', marginBottom: '18px' }}>
           <MetricCard title="Net Sales" value={money(report.netSales)} detail={`${money(report.grossSales)} gross minus ${money(report.refundTotal)} refunds`} icon={<LuPhilippinePeso size={21} />} color="#276749" />
           <MetricCard title="Orders" value={report.salesTransactions.length.toLocaleString()} detail={`${report.itemCount.toLocaleString()} total items sold`} icon={<FiShoppingBag size={21} />} color="#8B5E3C" />
@@ -507,7 +559,7 @@ const ReportsPage = () => {
           <MetricCard title="System Changes" value={systemAudit.length.toLocaleString()} detail="Menu, inventory, staff, recipe, and refund changes" icon={<FiFileText size={21} />} color="#2C5282" />
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
+        <section className="reports-two-column" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
           <Section title="Financial Report">
             <DataTable
               headers={['Metric', 'Value']}
@@ -548,8 +600,10 @@ const ReportsPage = () => {
             />
           </Section>
         </section>
+        </>}
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
+        {activeReport === 'sales' && <>
+        <section className="reports-two-column" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
           <Section title="Sales Report By Product">
             <DataTable
               headers={['Product', 'Category', 'Qty Sold', 'Gross Sales']}
@@ -583,7 +637,10 @@ const ReportsPage = () => {
           </Section>
         </section>
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
+        </>}
+
+        {activeReport === 'inventory' && <>
+        <section className="reports-two-column" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
           <Section title="Inventory Category Report">
             <DataTable
               headers={['Category', 'Items', 'Total Stock', 'Low', 'Out']}
@@ -641,8 +698,10 @@ const ReportsPage = () => {
             />
           </Section>
         </div>
+        </>}
 
-        <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
+        {activeReport === 'sales' && <>
+        <section className="reports-two-column" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '18px', marginBottom: '18px' }}>
           <Section title="Customer And Discount Report">
             <DataTable
               headers={['Customer Type', 'Orders', 'Gross', 'Discounts']}
@@ -695,12 +754,23 @@ const ReportsPage = () => {
             />
           </Section>
         </div>
+        </>}
 
-        <Section title="Login Activity Report">
+        {activeReport === 'activity' && <>
+        <Section title="Login Activity Report" action={<span style={{ padding: '6px 9px', borderRadius: '99px', backgroundColor: '#F0E9FF', color: '#6B46C1', fontSize: '11px', fontWeight: '900' }}>{filteredLoginActivity.length} result{filteredLoginActivity.length === 1 ? '' : 's'}</span>}>
+          <div className="reports-login-filters" style={{ padding: '14px 16px', backgroundColor: '#FCFAFF', borderBottom: '1px solid #E0D5CB', display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) minmax(150px, 190px)', gap: '10px' }}>
+            <input value={loginQuery} onChange={(event) => setLoginQuery(event.target.value)} placeholder="Search name, email, staff ID, or role..." style={{ padding: '10px 12px', border: '1px solid #CDB9E8', borderRadius: '7px', fontSize: '13px' }} />
+            <select value={loginRole} onChange={(event) => setLoginRole(event.target.value)} style={{ padding: '10px 12px', border: '1px solid #CDB9E8', borderRadius: '7px', fontSize: '13px', backgroundColor: '#fff' }}>
+              <option value="all">All roles</option>
+              <option value="owner">Owner</option>
+              <option value="admin">Admin</option>
+              <option value="staff">Staff</option>
+            </select>
+          </div>
           <DataTable
             headers={['Login Time', 'Name', 'Email', 'Role', 'Staff ID', 'Device']}
-            rows={loginActivity}
-            emptyText="No login activity for this period."
+            rows={filteredLoginActivity}
+            emptyText={loginQuery || loginRole !== 'all' ? 'No login activity matches those filters.' : 'No login activity for this period.'}
             renderRow={(row, index) => (
               <tr key={row._id || index} style={{ backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
                 <td style={tdStyle}>{formatDateTime(row.createdAt)}</td>
@@ -767,6 +837,7 @@ const ReportsPage = () => {
             )}
           />
         </Section>
+        </>}
       </main>
     </div>
   );
