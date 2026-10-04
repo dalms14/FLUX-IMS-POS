@@ -643,7 +643,7 @@ const TransactionPage = () => {
 
         {/* Error Message */}
         {error && (
-          <div style={{
+          <div className="transaction-table-card" style={{
             backgroundColor: '#FEE',
             color: '#C53030',
             padding: '16px',
@@ -671,7 +671,7 @@ const TransactionPage = () => {
             borderRadius: '8px',
             overflow: 'hidden',
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="transaction-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#F5F0EB' }}>
                   {['Date', 'Slip No', 'Items', 'Total', 'Cashier', 'Payment', 'Status', 'Action'].map(h => (

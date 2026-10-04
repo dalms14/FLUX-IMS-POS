@@ -429,7 +429,7 @@ const HistoryPage = () => {
     <div className="mobile-app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#F5F0EB' }}>
       <Sidebar />
 
-      <div className="mobile-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
+      <div className="mobile-page-content history-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px', backgroundColor: '#F5F0EB' }}>
         <div style={{ display: 'flex', gap: '10px', marginBottom: '28px', flexWrap: 'wrap' }}>
           {tabs.map(tab => (
             <button

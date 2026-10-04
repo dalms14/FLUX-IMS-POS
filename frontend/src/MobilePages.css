@@ -99,6 +99,16 @@
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
+
+  .transaction-table-card {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-x: contain !important;
+  }
+
+  .transaction-table {
+    min-width: 980px !important;
+  }
 }
 
 /* iPad Safari uses a desktop-width viewport. These controls need two
@@ -119,6 +129,11 @@
   .sales-analysis-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+
+/* The iPad browser can reveal the parent behind a short History list. */
+.history-page-content {
+  background: #F5F0EB !important;
 }
 
 @media (max-width: 768px) {
@@ -488,6 +503,15 @@
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-x: contain !important;
+  }
+
+  .transaction-table-card {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .transaction-table {
+    min-width: 980px !important;
   }
 }
 
