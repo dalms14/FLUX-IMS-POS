@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import './ChangePasswordPage.css';
 
 const API = 'http://localhost:5000/api/auth';
 
@@ -40,14 +41,14 @@ const ChangePasswordPage = () => {
   const labelStyle = { fontSize: '13px', fontWeight: '700', color: '#555' };
   const buttonStyle = { width: '100%', padding: '12px', backgroundColor: loading ? '#c4a882' : '#8B5E3C', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '800', cursor: loading ? 'not-allowed' : 'pointer', marginBottom: '12px' };
 
-  return <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
-    <div style={{ width: '50%', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: '280px', height: '280px', backgroundColor: '#fff', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-        <img src="/eli-coffee-logo.png" alt="Eli Coffee Logo" style={{ width: '220px', height: '220px', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+  return <div className="password-reset-page">
+    <div className="password-reset-brand-panel">
+      <div className="password-reset-logo-card">
+        <img className="password-reset-logo" src="/eli-coffee-logo.png" alt="Eli Coffee Logo" onError={e => { e.target.style.display = 'none'; }} />
       </div>
     </div>
-    <div style={{ width: '50%', backgroundColor: '#C4A87A', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px' }}>
-      <div style={{ backgroundColor: '#FDF8F2', borderRadius: '16px', padding: '34px 40px', width: '100%', maxWidth: '400px', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}>
+    <div className="password-reset-form-panel">
+      <div className="password-reset-card">
         <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1a1a1a', margin: '0 0 4px', textAlign: 'center' }}>Reset Password</h2>
         <p style={{ margin: '0 0 20px', textAlign: 'center', color: '#8A7A6B', fontSize: '13px', lineHeight: 1.5 }}>
           {step === 'request' ? 'We will send a one-time code to the email already saved on your account.' : step === 'verify' ? `Enter the code sent to ${form.email}. It expires in 10 minutes.` : 'Your password was changed successfully.'}
