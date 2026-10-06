@@ -208,7 +208,7 @@ export default function Sidebar() {
               {user.name || 'User'}
             </div>
             <div style={{ fontSize: '10px', color: '#8B5E3C', textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: '600', marginTop: '1px' }}>
-              {user.role || 'staff'}
+              {user.role === 'custom' && user.jobRole ? user.jobRole : (user.role || 'staff')}
             </div>
           </div>
       </div>
@@ -310,7 +310,7 @@ export default function Sidebar() {
                 </span>
                 <span className="flux-mobile-user-text">
                   <span>{user.name || 'User'}</span>
-                  <small>{user.role || 'staff'}</small>
+                  <small>{user.role === 'custom' && user.jobRole ? user.jobRole : (user.role || 'staff')}</small>
                 </span>
               </button>
               <button

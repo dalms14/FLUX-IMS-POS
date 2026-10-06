@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import ReceiptViewModal from '../components/ReceiptViewModal';
-import { FiRefreshCw } from 'react-icons/fi';
+import { FiCheck, FiChevronDown, FiCreditCard, FiRefreshCw } from 'react-icons/fi';
+import './TransactionPage.css';
 
 const TRANSACTION_REFRESH_MS = 5000;
 
@@ -47,6 +48,75 @@ const buildReceiptProps = (transaction) => ({
   discountInfo: transaction.discountInfo,
   createdAt: transaction.createdAt,
 });
+
+const PAYMENT_OPTIONS = [
+  { value: '', label: 'All methods', description: 'Show every transaction' },
+  { value: 'Cash', label: 'Cash', description: 'Cash payments only' },
+  { value: 'GCash', label: 'GCash', description: 'GCash payments only' },
+  { value: 'Cancelled', label: 'Cancelled', description: 'Cancelled checkouts only' },
+];
+
+const PaymentMethodFilter = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  const selected = PAYMENT_OPTIONS.find(option => option.value === value) || PAYMENT_OPTIONS[0];
+
+  useEffect(() => {
+    const closeOnOutsidePress = event => {
+      if (!rootRef.current?.contains(event.target)) setOpen(false);
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePress);
+  }, []);
+
+  return (
+    <div className={`transaction-payment-select ${open ? 'is-open' : ''}`} ref={rootRef}>
+      <button
+        type="button"
+        className="transaction-payment-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen(current => !current)}
+        onKeyDown={event => {
+          if (event.key === 'Escape') setOpen(false);
+        }}
+      >
+        <span className="transaction-payment-trigger-icon" aria-hidden="true"><FiCreditCard /></span>
+        <span className="transaction-payment-trigger-copy">
+          <strong>{selected.label}</strong>
+          <small>{selected.description}</small>
+        </span>
+        <FiChevronDown className="transaction-payment-chevron" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className="transaction-payment-menu" role="listbox" aria-label="Payment method">
+          {PAYMENT_OPTIONS.map(option => (
+            <button
+              key={option.value || 'all'}
+              type="button"
+              role="option"
+              aria-selected={value === option.value}
+              className={`transaction-payment-option ${value === option.value ? 'is-selected' : ''}`}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              <span className={`transaction-payment-option-dot method-${option.value.toLowerCase() || 'all'}`} aria-hidden="true" />
+              <span>
+                <strong>{option.label}</strong>
+                <small>{option.description}</small>
+              </span>
+              {value === option.value && <FiCheck className="transaction-payment-check" aria-hidden="true" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TransactionDetailsModal = ({ transaction, onClose, formatDate }) => {
   const [proofPreviewOpen, setProofPreviewOpen] = useState(false);
@@ -491,23 +561,7 @@ const TransactionPage = () => {
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', fontSize: '12px', color: '#666' }}>
               Filter by Payment Method
             </label>
-            <select
-              value={filterPayment}
-              onChange={(e) => setFilterPayment(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '6px',
-                border: '1.5px solid #D4B89A',
-                fontSize: '13px',
-                boxSizing: 'border-box',
-              }}
-            >
-              <option value="">All Methods</option>
-              <option value="Cash">Cash</option>
-              <option value="GCash">GCash</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
+            <PaymentMethodFilter value={filterPayment} onChange={setFilterPayment} />
           </div>
 
           <div>
@@ -665,11 +719,13 @@ const TransactionPage = () => {
             No transactions found
           </div>
         ) : (
-          <div style={{
+          <div className="transaction-table-region">
+            <div className="transaction-table-swipe-hint" aria-hidden="true">
+            </div>
+          <div className="transaction-table-card" style={{
             backgroundColor: '#fff',
             border: '1.5px solid #D4B89A',
             borderRadius: '8px',
-            overflow: 'hidden',
           }}>
             <table className="transaction-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -791,6 +847,7 @@ const TransactionPage = () => {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         )}
       </div>

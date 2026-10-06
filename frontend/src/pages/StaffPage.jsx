@@ -27,7 +27,7 @@ const AccessEditModal = ({ user, permissions, saving, error, onToggle, onSave, o
           <div>
             <p style={{ margin: '0 0 5px', fontSize: '11px', color: '#8B5E3C', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Edit Page Access</p>
             <h2 style={{ margin: 0, fontSize: '21px', color: '#1a1a1a', fontWeight: '900' }}>{user.name || 'Unnamed User'}</h2>
-            <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#777' }}>{user.email} - {user.role}</p>
+            <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#777' }}>{user.email} - {user.jobRole || user.role}</p>
           </div>
           <button
             onClick={onClose}
@@ -267,7 +267,8 @@ const StaffPage = () => {
       (user.name || '').toLowerCase().includes(query) ||
       (user.email || '').toLowerCase().includes(query) ||
       (user.userId || '').toLowerCase().includes(query) ||
-      (user.role || '').toLowerCase().includes(query)
+      (user.role || '').toLowerCase().includes(query) ||
+      (user.jobRole || '').toLowerCase().includes(query)
     ));
   }, [searchQuery, users]);
 
@@ -514,7 +515,7 @@ const StaffPage = () => {
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: '13px', color: '#1a1a1a', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name || 'Unnamed User'}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{user.role}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{user.jobRole || user.role}</p>
                   </div>
                 </div>
                 <p style={{ margin: 0, fontSize: '13px', color: '#555', wordBreak: 'break-word' }}>{user.email || '-'}</p>

@@ -403,7 +403,7 @@ router.post('/users', async (req, res) => {
     const normalizedEmail = normalizeEmail(email);
     const normalizedRole = normalizeRole(role);
     const normalizedUserId = String(userId || '').trim().toUpperCase();
-    const normalizedJobRole = String(jobRole || '').trim().toLowerCase();
+    const normalizedJobRole = String(jobRole || '').trim();
 
     if (!name?.trim() || !normalizedEmail || !password || !normalizedRole) {
         return res.status(400).json({ message: 'Name, email, password, and role are required' });
@@ -413,8 +413,12 @@ router.post('/users', async (req, res) => {
         return res.status(400).json({ message: 'Role must be custom or staff' });
     }
 
-    if (normalizedRole === 'custom' && !['finance', 'operations', 'hr'].includes(normalizedJobRole)) {
-        return res.status(400).json({ message: 'Custom role must be Finance, Operations, or HR' });
+    if (normalizedRole === 'custom' && !normalizedJobRole) {
+        return res.status(400).json({ message: 'Custom role name is required' });
+    }
+
+    if (normalizedRole === 'custom' && normalizedJobRole.length > 40) {
+        return res.status(400).json({ message: 'Custom role name must be 40 characters or fewer' });
     }
 
     if (password.length < 6) {

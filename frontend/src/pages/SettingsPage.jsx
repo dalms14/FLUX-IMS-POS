@@ -1440,12 +1440,6 @@ const DiscountSettings = () => {
     );
 };
 
-const CUSTOM_ROLE_PRESETS = {
-    finance: { label: 'Finance', permissions: ['dashboard', 'sales', 'transactions', 'reports', 'purchase_orders'] },
-    operations: { label: 'Operations', permissions: ['dashboard', 'items', 'products', 'inventory', 'transactions', 'history'] },
-    hr: { label: 'HR', permissions: ['dashboard', 'staff', 'history', 'reports', 'purchase_orders'] },
-};
-
 const UserAccountSettings = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const canCreateUsers = isOwnerRole(currentUser.role) || hasPermission(currentUser, 'users');
@@ -1456,7 +1450,7 @@ const UserAccountSettings = () => {
         userId: '',
         pin: '',
         role: 'staff',
-        jobRole: 'finance',
+        jobRole: '',
         permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'],
     });
     const [saving, setSaving] = useState(false);
@@ -1490,23 +1484,15 @@ const UserAccountSettings = () => {
                 return {
                     ...prev,
                     role: value,
+                    jobRole: value === 'custom' ? prev.jobRole : '',
                     permissions: value === 'custom'
-                        ? CUSTOM_ROLE_PRESETS.finance.permissions
+                        ? ['dashboard']
                         : ['dashboard', 'items', 'transactions', 'history', 'settings'],
                 };
             }
 
             return { ...prev, [field]: value };
         });
-        setMessage(null);
-    };
-
-    const updateCustomRole = (jobRole) => {
-        setForm(prev => ({
-            ...prev,
-            jobRole,
-            permissions: CUSTOM_ROLE_PRESETS[jobRole].permissions,
-        }));
         setMessage(null);
     };
 
@@ -1529,6 +1515,11 @@ const UserAccountSettings = () => {
 
         if (!form.name.trim() || !accountEmail || !form.password || !form.role) {
             setMessage({ type: 'error', text: 'Please fill in name, email, password, and role.' });
+            return;
+        }
+
+        if (form.role === 'custom' && !form.jobRole.trim()) {
+            setMessage({ type: 'error', text: 'Enter a name for the custom role.' });
             return;
         }
 
@@ -1556,7 +1547,7 @@ const UserAccountSettings = () => {
                 type: 'success',
                 text: `Created ${res.data.user.name} as ${res.data.user.jobRole || res.data.user.role}. User ID: ${res.data.user.userId}`,
             });
-            setForm({ name: '', email: '', password: '', userId: '', pin: '', role: 'staff', jobRole: 'finance', permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'] });
+            setForm({ name: '', email: '', password: '', userId: '', pin: '', role: 'staff', jobRole: '', permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'] });
         } catch (err) {
             const serverMessage = err.response?.data?.message;
             const fallbackMessage = err.response?.status === 404
@@ -1638,16 +1629,20 @@ const UserAccountSettings = () => {
                     </div>
                     {form.role === 'custom' && (
                         <div style={{ gridColumn: '1/-1' }}>
-                            <label style={labelStyle}>Custom Role</label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
-                                {Object.entries(CUSTOM_ROLE_PRESETS).map(([jobRole, preset]) => (
-                                    <button key={jobRole} type="button" onClick={() => updateCustomRole(jobRole)}
-                                        style={{ padding: '11px 10px', border: `1.5px solid ${form.jobRole === jobRole ? '#8B5E3C' : '#ddd'}`, borderRadius: '8px', backgroundColor: form.jobRole === jobRole ? '#FDF5EE' : '#fff', color: form.jobRole === jobRole ? '#8B5E3C' : '#555', cursor: 'pointer', fontSize: '12px', fontWeight: '800' }}>
-                                        {preset.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <label style={labelStyle}>{CUSTOM_ROLE_PRESETS[form.jobRole].label} Access</label>
+                            <label style={labelStyle}>Custom Role Name *</label>
+                            <input
+                                required
+                                maxLength="40"
+                                style={{ ...inputStyle, marginBottom: '6px' }}
+                                value={form.jobRole}
+                                onChange={e => updateField('jobRole', e.target.value)}
+                                placeholder="e.g. Finance"
+                                autoComplete="off"
+                            />
+                            <p style={{ margin: '0 0 14px', color: '#777', fontSize: '11px', lineHeight: 1.45 }}>
+                                Choose any job title, then select exactly which FLUX pages this account can use.
+                            </p>
+                            <label style={labelStyle}>{form.jobRole.trim() || 'Custom Role'} Access</label>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
                                 {PERMISSIONS.map(permission => (
                                     <label
@@ -1714,7 +1709,7 @@ const UserAccountSettings = () => {
             <aside style={{ backgroundColor: '#F0E8E0', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '18px' }}>
                 <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: '900', color: '#3D1F0D' }}>New account setup</h3>
                 <p style={{ margin: '0 0 10px', fontSize: '12px', lineHeight: 1.5, color: '#6B5A4C' }}>
-                    Staff accounts use daily POS workflows. Custom accounts use Finance, Operations, or HR access presets; you can fine-tune the listed page access before creating the account.
+                    Staff accounts use the standard daily POS workflow. For a custom account, enter your own role name and choose exactly which pages that person can access.
                 </p>
                 <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: '#8B5E3C', fontWeight: '700' }}>
                     Leave User ID blank to assign the next ELI number automatically.
