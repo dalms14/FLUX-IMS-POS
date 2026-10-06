@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
+import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiTrash2 } from 'react-icons/fi';
 
 const normalizeAccountEmail = (value = '') => value.toLowerCase().trim();
@@ -35,18 +36,34 @@ const normalizeVariants = (variants = []) =>
         .map(variant => String(variant || '').trim())
         .filter(Boolean);
 
-const buildVariantRows = (variants = []) => {
-    const normalized = normalizeVariants(variants);
-    return normalized.length > 0 ? normalized : [''];
-};
-
 const normalizeVariantGroups = (product = {}) => {
     const groups = Array.isArray(product.variantGroups) ? product.variantGroups : [];
+    const categoryPreset = getProductCategoryPreset(product.categoryId?.name || product.category);
     const normalizedGroups = groups
-        .map(group => ({
-            name: String(group?.name || 'Variant').trim() || 'Variant',
-            options: buildVariantRows(group?.options),
-        }))
+        .map(group => {
+            const rawOptions = Array.isArray(group?.options) ? group.options : [];
+            const presetGroup = categoryPreset?.variantGroups.find(preset => (
+                preset.name.toLowerCase() === String(group?.name || '').trim().toLowerCase()
+            ));
+            const rows = rawOptions
+                .map((option, index) => ({
+                    name: String(option || '').trim(),
+                    price: Math.max(0, Number(
+                        group?.optionPrices?.[index] ??
+                        presetGroup?.optionPrices?.[presetGroup.options.findIndex(presetOption => (
+                            presetOption.toLowerCase() === String(option || '').trim().toLowerCase()
+                        ))] ??
+                        0
+                    ) || 0),
+                }))
+                .filter(option => option.name);
+
+            return {
+                name: String(group?.name || 'Variant').trim() || 'Variant',
+                options: rows.length > 0 ? rows.map(option => option.name) : [''],
+                optionPrices: rows.length > 0 ? rows.map(option => option.price) : [0],
+            };
+        })
         .filter(group => normalizeVariants(group.options).length > 0);
 
     if (normalizedGroups.length > 0) return normalizedGroups;
@@ -55,6 +72,7 @@ const normalizeVariantGroups = (product = {}) => {
     return [{
         name: 'Flavor',
         options: legacyVariants.length > 0 ? legacyVariants : [''],
+        optionPrices: legacyVariants.length > 0 ? legacyVariants.map(() => 0) : [0],
     }];
 };
 
@@ -63,10 +81,20 @@ const flattenVariantGroups = (groups = []) =>
 
 const prepareVariantGroups = (groups = []) =>
     groups
-        .map(group => ({
-            name: String(group.name || 'Variant').trim() || 'Variant',
-            options: normalizeVariants(group.options),
-        }))
+        .map(group => {
+            const rows = group.options
+                .map((option, index) => ({
+                    name: String(option || '').trim(),
+                    price: Math.max(0, Number(group.optionPrices?.[index]) || 0),
+                }))
+                .filter(option => option.name);
+
+            return {
+                name: String(group.name || 'Variant').trim() || 'Variant',
+                options: rows.map(option => option.name),
+                optionPrices: rows.map(option => option.price),
+            };
+        })
         .filter(group => group.options.length > 0);
 
 const mergeAddonOptions = (availableAddons = [], productAddons = []) => {
@@ -116,6 +144,8 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
     const [showIngredientPicker, setShowIngredientPicker] = useState(false);
     const [ingredientSearch, setIngredientSearch] = useState('');
     const [saving, setSaving] = useState(false);
+    const [presetNotice, setPresetNotice] = useState('');
+    const [showAllAddons, setShowAllAddons] = useState(false);
     const fileRef = useRef();
 
     useEffect(() => {
@@ -176,6 +206,25 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
         });
     };
 
+    const applyCategoryPreset = (category) => {
+        const addonSource = availableAddons.length > 0 ? availableAddons : AVAILABLE_ADDONS;
+        const preset = getProductCategoryPreset(category, addonSource);
+
+        setForm(current => ({
+            ...current,
+            category,
+            variantGroups: preset?.variantGroups || [{ name: 'Variant', options: [''], optionPrices: [0] }],
+            addons: preset?.addons || [],
+        }));
+
+        setPresetNotice(
+            preset
+                ? `${preset.label} options and compatible add-ons were filled in automatically. You can still edit them.`
+                : 'This category has no saved preset yet. Add the variants and add-ons manually.'
+        );
+        setShowAllAddons(false);
+    };
+
     const toggleIngredient = (ingredient) => {
         setForm(f => {
             const exists = f.recipeIngredients.some(item => item.inventoryId === ingredient._id);
@@ -233,17 +282,35 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
         }));
     };
 
+    const updateVariantPrice = (groupIndex, optionIndex, value) => {
+        setForm(f => ({
+            ...f,
+            variantGroups: f.variantGroups.map((group, index) =>
+                index === groupIndex
+                    ? {
+                        ...group,
+                        optionPrices: group.options.map((_, currentOptionIndex) =>
+                            currentOptionIndex === optionIndex
+                                ? Math.max(0, Number(value) || 0)
+                                : (Number(group.optionPrices?.[currentOptionIndex]) || 0)
+                        ),
+                    }
+                    : group
+            ),
+        }));
+    };
+
     const addVariantGroup = () => {
         setForm(f => ({
             ...f,
-            variantGroups: [...f.variantGroups, { name: 'Variant Type', options: [''] }],
+            variantGroups: [...f.variantGroups, { name: 'Variant Type', options: [''], optionPrices: [0] }],
         }));
     };
 
     const removeVariantGroup = (groupIndex) => {
         setForm(f => {
             const nextGroups = f.variantGroups.filter((_, index) => index !== groupIndex);
-            return { ...f, variantGroups: nextGroups.length > 0 ? nextGroups : [{ name: 'Flavor', options: [''] }] };
+            return { ...f, variantGroups: nextGroups.length > 0 ? nextGroups : [{ name: 'Flavor', options: [''], optionPrices: [0] }] };
         });
     };
 
@@ -251,7 +318,13 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
         setForm(f => ({
             ...f,
             variantGroups: f.variantGroups.map((group, index) =>
-                index === groupIndex ? { ...group, options: [...group.options, ''] } : group
+                index === groupIndex
+                    ? {
+                        ...group,
+                        options: [...group.options, ''],
+                        optionPrices: [...(group.optionPrices || group.options.map(() => 0)), 0],
+                    }
+                    : group
             ),
         }));
     };
@@ -262,7 +335,13 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
             variantGroups: f.variantGroups.map((group, index) => {
                 if (index !== groupIndex) return group;
                 const nextOptions = group.options.filter((_, currentOptionIndex) => currentOptionIndex !== optionIndex);
-                return { ...group, options: nextOptions.length > 0 ? nextOptions : [''] };
+                const nextPrices = (group.optionPrices || group.options.map(() => 0))
+                    .filter((_, currentOptionIndex) => currentOptionIndex !== optionIndex);
+                return {
+                    ...group,
+                    options: nextOptions.length > 0 ? nextOptions : [''],
+                    optionPrices: nextPrices.length > 0 ? nextPrices : [0],
+                };
             }),
         }));
     };
@@ -342,7 +421,14 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
     };
 
     const selectedIngredientIds = new Set(form.recipeIngredients.map(ingredient => ingredient.inventoryId));
-    const addonOptions = mergeAddonOptions(availableAddons.length > 0 ? availableAddons : AVAILABLE_ADDONS, form.addons);
+    const allAddonOptions = availableAddons.length > 0 ? availableAddons : AVAILABLE_ADDONS;
+    const activeCategoryPreset = getProductCategoryPreset(form.category, allAddonOptions);
+    const recommendedAddonOptions = activeCategoryPreset
+        ? mergeAddonOptions(activeCategoryPreset.addons, form.addons)
+        : mergeAddonOptions(allAddonOptions, form.addons);
+    const addonOptions = showAllAddons
+        ? mergeAddonOptions(allAddonOptions, form.addons)
+        : recommendedAddonOptions;
     const selectedIngredients = form.recipeIngredients
         .map(ingredient => ({
             ...ingredient,
@@ -417,12 +503,21 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Category *</label>
                         <select style={{ ...inputStyle, backgroundColor: '#fff' }}
-                            value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+                            value={form.category} onChange={e => applyCategoryPreset(e.target.value)}>
                             <option value="">Select category...</option>
                             {productCategoriesOnly(categories).map(cat => (
                                 <option key={cat._id} value={cat.name}>{cat.name}</option>
                             ))}
                         </select>
+                        {presetNotice && (
+                            <div style={{
+                                marginTop: '8px', padding: '9px 11px', borderRadius: '8px',
+                                backgroundColor: '#FDF5EE', border: '1px solid #E8D5C1',
+                                color: '#7A4D2D', fontSize: '11px', lineHeight: 1.45,
+                            }}>
+                                {presetNotice}
+                            </div>
+                        )}
                     </div>
 
                     <div>
@@ -474,13 +569,13 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                             x
                                         </button>
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '48px 1fr 40px', gap: '10px', padding: '9px 12px', backgroundColor: '#FBF8F5', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
-                                        {['No.', 'Option Name', ''].map(header => (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '48px minmax(0, 1fr) 132px 40px', gap: '10px', padding: '9px 12px', backgroundColor: '#FBF8F5', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
+                                        {['No.', 'Option Name', 'Price Add-on', ''].map(header => (
                                             <p key={header || 'action'} style={{ margin: 0, fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
                                         ))}
                                     </div>
                                     {group.options.map((variant, optionIndex) => (
-                                        <div key={`variant-${groupIndex}-${optionIndex}`} style={{ display: 'grid', gridTemplateColumns: '48px 1fr 40px', gap: '10px', padding: '10px 12px', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
+                                        <div key={`variant-${groupIndex}-${optionIndex}`} style={{ display: 'grid', gridTemplateColumns: '48px minmax(0, 1fr) 132px 40px', gap: '10px', padding: '10px 12px', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
                                             <p style={{ margin: 0, fontSize: '12px', color: '#8A7A6B', fontWeight: '800' }}>{optionIndex + 1}</p>
                                             <input
                                                 style={inputStyle}
@@ -488,6 +583,18 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                                 onChange={e => updateVariant(groupIndex, optionIndex, e.target.value)}
                                                 placeholder={groupIndex === 0 ? 'e.g. Garlic Parmesan' : 'e.g. Breast'}
                                             />
+                                            <div style={{ position: 'relative' }}>
+                                                <span style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#8B5E3C', fontSize: '12px', fontWeight: '800', pointerEvents: 'none' }}>+₱</span>
+                                                <input
+                                                    style={{ ...inputStyle, paddingLeft: '32px' }}
+                                                    type="number"
+                                                    min="0"
+                                                    step="1"
+                                                    value={group.optionPrices?.[optionIndex] ?? 0}
+                                                    onChange={e => updateVariantPrice(groupIndex, optionIndex, e.target.value)}
+                                                    aria-label={`${variant || `Option ${optionIndex + 1}`} price add-on`}
+                                                />
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={() => removeVariant(groupIndex, optionIndex)}
@@ -507,7 +614,22 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                     </div>
 
                     <div style={{ gridColumn: '1/-1' }}>
-                        <label style={labelStyle}>Allowed Add-ons</label>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '6px' }}>
+                            <label style={{ ...labelStyle, marginBottom: 0 }}>Allowed Add-ons</label>
+                            {activeCategoryPreset && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllAddons(current => !current)}
+                                    style={{
+                                        border: 'none', background: 'transparent', color: '#8B5E3C',
+                                        padding: '3px 0', cursor: 'pointer', fontSize: '11px', fontWeight: '800',
+                                    }}
+                                >
+                                    {showAllAddons ? 'Show recommended only' : 'Show all add-ons'}
+                                </button>
+                            )}
+                        </div>
+                        {addonOptions.length > 0 ? (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
                             {addonOptions.map(addon => {
                                 const selected = form.addons.some(a => a.name === addon.name);
@@ -533,6 +655,14 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                 );
                             })}
                         </div>
+                        ) : (
+                            <div style={{
+                                padding: '12px 14px', border: '1px dashed #D8CABB', borderRadius: '8px',
+                                backgroundColor: '#FBF8F5', color: '#8A7A6B', fontSize: '12px', lineHeight: 1.45,
+                            }}>
+                                No standard add-ons are recommended for {activeCategoryPreset?.label || 'this category'}.
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ gridColumn: '1/-1' }}>

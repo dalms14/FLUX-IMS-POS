@@ -53,6 +53,10 @@ const ProductSchema = new mongoose.Schema(
       options: {
         type: [String],
         default: []
+      },
+      optionPrices: {
+        type: [Number],
+        default: []
       }
     }],
 

@@ -39,6 +39,12 @@ const TransactionSchema = new mongoose.Schema({
         category:        String,
         size:            String,
         selectedVariant: String,
+        selectedVariantGroups: {
+            type: Map,
+            of: String,
+            default: {},
+        },
+        variantPrice:    { type: Number, default: 0 },
         upgrades: [{
             name:        String,
             price:       Number,

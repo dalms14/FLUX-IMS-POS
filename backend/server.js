@@ -252,6 +252,29 @@ function parseAddonPayload(body = {}) {
   return { addon: { name, nameKey: normalizeAddonKey(name), price } };
 }
 
+function normalizeVariantGroupsPayload(variantGroups) {
+  if (!Array.isArray(variantGroups)) return undefined;
+
+  return variantGroups
+    .map(group => {
+      const rows = Array.isArray(group?.options)
+        ? group.options
+            .map((option, index) => ({
+              name: String(option || '').trim(),
+              price: Math.max(0, Number(group?.optionPrices?.[index]) || 0),
+            }))
+            .filter(option => option.name)
+        : [];
+
+      return {
+        name: String(group?.name || 'Variant').trim() || 'Variant',
+        options: rows.map(option => option.name),
+        optionPrices: rows.map(option => option.price),
+      };
+    })
+    .filter(group => group.options.length > 0);
+}
+
 async function seedDefaultAddons() {
   const count = await Addon.countDocuments({});
   if (count > 0) return;
@@ -788,16 +811,7 @@ app.post('/api/products', async (req, res) => {
             price: Number(addon.price) || 0,
           }))
       : [];
-    const normalizedVariantGroups = Array.isArray(variantGroups)
-      ? variantGroups
-          .map(group => ({
-            name: String(group?.name || 'Variant').trim() || 'Variant',
-            options: Array.isArray(group?.options)
-              ? group.options.map(option => String(option || '').trim()).filter(Boolean)
-              : [],
-          }))
-          .filter(group => group.options.length > 0)
-      : [];
+    const normalizedVariantGroups = normalizeVariantGroupsPayload(variantGroups) || [];
     const normalizedVariants = normalizedVariantGroups.length > 0
       ? normalizedVariantGroups.flatMap(group => group.options)
       : Array.isArray(variants) ? variants : [];
@@ -860,16 +874,7 @@ app.put('/api/products/:id', async (req, res) => {
             price: Number(addon.price) || 0,
           }))
       : undefined;
-    const normalizedVariantGroups = Array.isArray(variantGroups)
-      ? variantGroups
-          .map(group => ({
-            name: String(group?.name || 'Variant').trim() || 'Variant',
-            options: Array.isArray(group?.options)
-              ? group.options.map(option => String(option || '').trim()).filter(Boolean)
-              : [],
-          }))
-          .filter(group => group.options.length > 0)
-      : undefined;
+    const normalizedVariantGroups = normalizeVariantGroupsPayload(variantGroups);
     const normalizedVariants = normalizedVariantGroups
       ? normalizedVariantGroups.flatMap(group => group.options)
       : Array.isArray(variants) ? variants : [];

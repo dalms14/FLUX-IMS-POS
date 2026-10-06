@@ -4,6 +4,7 @@ import axios from 'axios';
 import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiPrinter, FiRefreshCw, FiImage, FiPlus, FiTag, FiX } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
 import ReceiptViewModal from '../components/ReceiptViewModal';
+import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 
 const ALL_CATEGORY = 'ALL';
 const CASHIER_SESSION_KEY = 'fluxCashierSession';
@@ -101,13 +102,32 @@ const getCartItemUnitPrice = (item) => toMoneyNumber(item?.price);
 
 const normalizeProductVariantGroups = (product = {}) => {
   const groups = Array.isArray(product.variantGroups) ? product.variantGroups : [];
+  const categoryPreset = getProductCategoryPreset(product.categoryId?.name || product.category);
   const normalizedGroups = groups
-    .map(group => ({
-      name: String(group?.name || 'Variant').trim() || 'Variant',
-      options: Array.isArray(group?.options)
-        ? group.options.map(option => String(option || '').trim()).filter(Boolean)
-        : [],
-    }))
+    .map(group => {
+      const presetGroup = categoryPreset?.variantGroups.find(preset => (
+        preset.name.toLowerCase() === String(group?.name || '').trim().toLowerCase()
+      ));
+      const rows = Array.isArray(group?.options)
+        ? group.options
+            .map((option, index) => ({
+              name: String(option || '').trim(),
+              price: Math.max(0, toMoneyNumber(
+                group?.optionPrices?.[index] ??
+                presetGroup?.optionPrices?.[presetGroup.options.findIndex(presetOption => (
+                  presetOption.toLowerCase() === String(option || '').trim().toLowerCase()
+                ))]
+              )),
+            }))
+            .filter(option => option.name)
+        : [];
+
+      return {
+        name: String(group?.name || 'Variant').trim() || 'Variant',
+        options: rows.map(option => option.name),
+        optionPrices: rows.map(option => option.price),
+      };
+    })
     .filter(group => group.options.length > 0);
 
   if (normalizedGroups.length > 0) return normalizedGroups;
@@ -116,7 +136,9 @@ const normalizeProductVariantGroups = (product = {}) => {
     ? product.variants.map(variant => String(variant || '').trim()).filter(Boolean)
     : [];
 
-  return legacyVariants.length > 0 ? [{ name: 'Flavor', options: legacyVariants }] : [];
+  return legacyVariants.length > 0
+    ? [{ name: 'Flavor', options: legacyVariants, optionPrices: legacyVariants.map(() => 0) }]
+    : [];
 };
 
 const formatVariantSelections = (selectedVariantGroups = {}) =>
@@ -124,6 +146,20 @@ const formatVariantSelections = (selectedVariantGroups = {}) =>
     .filter(([, value]) => value)
     .map(([name, value]) => `${name}: ${value}`)
     .join(', ');
+
+const getVariantPriceAdjustment = (product, selectedVariantGroups = {}, fallback = 0) => {
+  if (!selectedVariantGroups || Object.keys(selectedVariantGroups).length === 0) {
+    return toMoneyNumber(fallback);
+  }
+
+  return normalizeProductVariantGroups(product).reduce((sum, group) => {
+    const selectedOption = selectedVariantGroups[group.name];
+    const selectedIndex = group.options.indexOf(selectedOption);
+    return selectedIndex >= 0
+      ? sum + toMoneyNumber(group.optionPrices?.[selectedIndex])
+      : sum;
+  }, 0);
+};
 
 const getCartItemLineTotal = (item) => (
   getCartItemUnitPrice(item) * (Number(item?.quantity) || 0)
@@ -137,8 +173,13 @@ const getConfiguredProductPrice = (product, cartItem = {}) => {
   const upgradesPrice = (product.addons || []).reduce((sum, addon) => (
     upgradeNames.has(addon.name) ? sum + toMoneyNumber(addon.price) : sum
   ), 0);
+  const variantPrice = getVariantPriceAdjustment(
+    product,
+    cartItem.selectedVariantGroups,
+    cartItem.variantPrice
+  );
 
-  return toMoneyNumber(basePrice) + upgradesPrice;
+  return toMoneyNumber(basePrice) + variantPrice + upgradesPrice;
 };
 
 const sanitizeCartItem = (item) => ({
@@ -149,6 +190,8 @@ const sanitizeCartItem = (item) => ({
   categoryId: item.categoryId,
   size: item.size,
   selectedVariant: item.selectedVariant,
+  selectedVariantGroups: item.selectedVariantGroups || {},
+  variantPrice: toMoneyNumber(item.variantPrice),
   upgrades: item.upgrades || [],
   price: toMoneyNumber(item.price),
   quantity: Number(item.quantity) || 1,
@@ -507,7 +550,8 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
   const canUseUpgrades = availableAddons.length > 0;
   const basePrice = size === 'solo' ? (product.soloPrice ?? product.price) : product.platterPrice;
   const upgradesPrice = canUseUpgrades ? selectedUpgrades.reduce((sum, u) => sum + toMoneyNumber(u.price), 0) : 0;
-  const finalPrice = toMoneyNumber(basePrice) + upgradesPrice;
+  const variantPrice = getVariantPriceAdjustment(product, selectedVariantGroups);
+  const finalPrice = toMoneyNumber(basePrice) + variantPrice + upgradesPrice;
   const selectedVariant = formatVariantSelections(selectedVariantGroups);
 
   const toggleUpgrade = (upgrade) => {
@@ -538,11 +582,14 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
           <React.Fragment key={group.name}>
             <p style={{ fontSize: '11px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 10px' }}>{group.name}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '24px' }}>
-              {group.options.map(v => (
-                <button key={`${group.name}-${v}`} onClick={() => setSelectedVariantGroups(prev => ({ ...prev, [group.name]: v }))} style={{ padding: '9px 16px', border: `2px solid ${selectedVariantGroups[group.name] === v ? '#8B5E3C' : '#eee'}`, borderRadius: '20px', backgroundColor: selectedVariantGroups[group.name] === v ? '#FDF5EE' : '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: selectedVariantGroups[group.name] === v ? '#8B5E3C' : '#999' }}>
-                  {v}
-                </button>
-              ))}
+              {group.options.map((v, optionIndex) => {
+                const priceAdjustment = toMoneyNumber(group.optionPrices?.[optionIndex]);
+                return (
+                  <button key={`${group.name}-${v}`} onClick={() => setSelectedVariantGroups(prev => ({ ...prev, [group.name]: v }))} style={{ padding: '9px 16px', border: `2px solid ${selectedVariantGroups[group.name] === v ? '#8B5E3C' : '#eee'}`, borderRadius: '20px', backgroundColor: selectedVariantGroups[group.name] === v ? '#FDF5EE' : '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: selectedVariantGroups[group.name] === v ? '#8B5E3C' : '#999' }}>
+                    {v}{priceAdjustment > 0 ? ` (+₱${priceAdjustment.toLocaleString()})` : ''}
+                  </button>
+                );
+              })}
             </div>
           </React.Fragment>
         ))}
@@ -563,7 +610,7 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
           </>
         )}
 
-        <button onClick={() => onConfirm({ ...product, selectedVariant, size, price: finalPrice, upgrades: canUseUpgrades ? selectedUpgrades : [] })} style={{ width: '100%', padding: '14px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}>
+        <button onClick={() => onConfirm({ ...product, selectedVariant, selectedVariantGroups, variantPrice, size, price: finalPrice, upgrades: canUseUpgrades ? selectedUpgrades : [] })} style={{ width: '100%', padding: '14px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}>
           Add to Order - ₱{finalPrice?.toLocaleString()}
         </button>
       </div>
@@ -1398,12 +1445,19 @@ const Items = () => {
           ));
           if (!latestProduct) return sanitizeCartItem(cartItem);
 
+          const latestVariantPrice = getVariantPriceAdjustment(
+            latestProduct,
+            cartItem.selectedVariantGroups,
+            cartItem.variantPrice
+          );
+
           return {
             ...sanitizeCartItem(cartItem),
             name: latestProduct.name || cartItem.name,
             category: latestProduct.category || latestProduct.categoryId?.name || cartItem.category,
             categoryId: latestProduct.categoryId || cartItem.categoryId,
             price: getConfiguredProductPrice(latestProduct, cartItem),
+            variantPrice: latestVariantPrice,
             soloPrice: latestProduct.soloPrice,
             platterPrice: latestProduct.platterPrice,
           };
@@ -1604,6 +1658,8 @@ const Items = () => {
     addToCart({
       ...latestProduct,
       selectedVariant: null,
+      selectedVariantGroups: {},
+      variantPrice: 0,
       size: 'solo',
       price: latestProduct.soloPrice ?? latestProduct.price,
       upgrades: [],
@@ -1753,6 +1809,8 @@ const Items = () => {
     category: item.category,
     size: item.size,
     selectedVariant: item.selectedVariant,
+    selectedVariantGroups: item.selectedVariantGroups,
+    variantPrice: item.variantPrice,
     upgrades: item.upgrades,
     price: getCartItemUnitPrice(item),
     quantity: item.quantity,
