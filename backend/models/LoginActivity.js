@@ -5,7 +5,7 @@ const LoginActivitySchema = new mongoose.Schema({
     name: { type: String, required: true },
     email: { type: String, required: true },
     role: { type: String, required: true },
-    action: { type: String, enum: ['login', 'logout'], default: 'login' },
+    action: { type: String, enum: ['login', 'logout', 'login_blocked_archived'], default: 'login' },
     staffId: { type: String, default: '' },
     ipAddress: { type: String, default: '' },
     userAgent: { type: String, default: '' },

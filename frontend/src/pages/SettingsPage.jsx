@@ -1584,6 +1584,12 @@ const UserAccountSettings = () => {
         permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'],
     });
     const [saving, setSaving] = useState(false);
+    const [resendingCode, setResendingCode] = useState(false);
+    const [verification, setVerification] = useState({
+        pending: false,
+        email: '',
+        code: '',
+    });
     const [message, setMessage] = useState(null);
 
     const inputStyle = {
@@ -1658,26 +1664,70 @@ const UserAccountSettings = () => {
             return;
         }
 
+        if (form.password.length < 6) {
+            setMessage({ type: 'error', text: 'Temporary password must be at least 6 characters.' });
+            return;
+        }
+
+        if (verification.email === accountEmail) {
+            setVerification(prev => ({ ...prev, pending: true, code: '' }));
+            setMessage({ type: 'success', text: `Enter the verification code already sent to ${accountEmail}.` });
+            return;
+        }
+
+        setSaving(true);
+        setMessage(null);
+
+        try {
+            const res = await axios.post('http://localhost:5000/api/auth/users/verification/request', {
+                email: accountEmail,
+            });
+
+            setVerification({ pending: true, email: accountEmail, code: '' });
+            setMessage({
+                type: 'success',
+                text: res.data.message || `Verification code sent to ${accountEmail}.`,
+            });
+        } catch (err) {
+            setMessage({
+                type: 'error',
+                text: err.response?.data?.message || 'Failed to send the verification code. Please try again.',
+            });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleVerifyAndCreateUser = async (e) => {
+        e.preventDefault();
+
+        if (verification.code.length !== 6) {
+            setMessage({ type: 'error', text: 'Enter the complete six-digit verification code.' });
+            return;
+        }
+
         setSaving(true);
         setMessage(null);
 
         try {
             const res = await axios.post('http://localhost:5000/api/auth/users', {
                 name: form.name.trim(),
-                email: accountEmail,
+                email: verification.email,
                 password: form.password,
                 role: form.role,
                 jobRole: form.role === 'custom' ? form.jobRole : undefined,
                 permissions: form.role === 'custom' ? form.permissions : undefined,
                 userId: form.userId.trim(),
                 pin: form.pin.trim(),
+                verificationCode: verification.code,
             });
 
             setMessage({
                 type: 'success',
-                text: `Created ${res.data.user.name} as ${res.data.user.jobRole || res.data.user.role}. User ID: ${res.data.user.userId}`,
+                text: `Email verified. Created ${res.data.user.name} as ${res.data.user.jobRole || res.data.user.role}. User ID: ${res.data.user.userId}`,
             });
             setForm({ name: '', email: '', password: '', userId: '', pin: '', role: 'staff', jobRole: '', permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'] });
+            setVerification({ pending: false, email: '', code: '' });
         } catch (err) {
             const serverMessage = err.response?.data?.message;
             const fallbackMessage = err.response?.status === 404
@@ -1693,6 +1743,31 @@ const UserAccountSettings = () => {
         }
     };
 
+    const handleResendVerification = async () => {
+        setResendingCode(true);
+        setMessage(null);
+
+        try {
+            const res = await axios.post('http://localhost:5000/api/auth/users/verification/request', {
+                email: verification.email,
+            });
+            setVerification(prev => ({ ...prev, code: '' }));
+            setMessage({ type: 'success', text: res.data.message || 'A new verification code was sent.' });
+        } catch (err) {
+            setMessage({
+                type: 'error',
+                text: err.response?.data?.message || 'Failed to resend the verification code.',
+            });
+        } finally {
+            setResendingCode(false);
+        }
+    };
+
+    const handleChangeAccountDetails = () => {
+        setVerification(prev => ({ ...prev, pending: false, code: '' }));
+        setMessage(null);
+    };
+
     if (!canCreateUsers) {
         return (
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', color: '#7A6A5D', fontSize: '14px' }}>
@@ -1703,7 +1778,8 @@ const UserAccountSettings = () => {
 
     return (
         <div className="settings-form-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: '20px', alignItems: 'start' }}>
-            <form onSubmit={handleCreateUser} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
+            <form onSubmit={verification.pending ? handleVerifyAndCreateUser : handleCreateUser} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
+                <fieldset disabled={verification.pending} style={{ margin: 0, padding: 0, border: 0, minWidth: 0, opacity: verification.pending ? 0.58 : 1 }}>
                 <div className="settings-account-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Full Name *</label>
@@ -1803,6 +1879,38 @@ const UserAccountSettings = () => {
                         </div>
                     )}
                 </div>
+                </fieldset>
+
+                {verification.pending && (
+                    <div style={{ marginTop: '18px', padding: '18px', border: '1px solid #D8CABB', borderRadius: '10px', backgroundColor: '#FBF8F5' }}>
+                        <p style={{ margin: '0 0 5px', color: '#3D1F0D', fontSize: '14px', fontWeight: '900' }}>Verify personal email</p>
+                        <p style={{ margin: '0 0 14px', color: '#7A6A5D', fontSize: '12px', lineHeight: 1.5 }}>
+                            Enter the six-digit code sent to <strong>{verification.email}</strong>. The account will not be created until the email is verified.
+                        </p>
+                        <label style={labelStyle}>Verification Code *</label>
+                        <input
+                            style={{ ...inputStyle, textAlign: 'center', letterSpacing: '8px', fontSize: '18px', fontWeight: '900' }}
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            maxLength="6"
+                            value={verification.code}
+                            onChange={e => {
+                                setVerification(prev => ({ ...prev, code: e.target.value.replace(/\D/g, '').slice(0, 6) }));
+                                setMessage(null);
+                            }}
+                            placeholder="000000"
+                            autoFocus
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
+                            <button type="button" onClick={handleChangeAccountDetails} disabled={saving || resendingCode} style={{ padding: 0, border: 'none', background: 'transparent', color: '#7A6A5D', fontSize: '11px', fontWeight: '800', cursor: 'pointer' }}>
+                                Change account details
+                            </button>
+                            <button type="button" onClick={handleResendVerification} disabled={saving || resendingCode} style={{ padding: 0, border: 'none', background: 'transparent', color: '#8B5E3C', fontSize: '11px', fontWeight: '900', cursor: 'pointer' }}>
+                                {resendingCode ? 'Sending…' : 'Resend code'}
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {message && (
                     <div style={{
@@ -1819,27 +1927,29 @@ const UserAccountSettings = () => {
                     </div>
                 )}
 
-                <button type="submit" disabled={saving}
+                <button type="submit" disabled={saving || resendingCode}
                     style={{
                         marginTop: '18px',
                         width: '100%',
                         padding: '13px',
-                        backgroundColor: saving ? '#C4A87A' : '#8B5E3C',
+                        backgroundColor: saving || resendingCode ? '#C4A87A' : '#8B5E3C',
                         color: '#fff',
                         border: 'none',
                         borderRadius: '8px',
                         fontSize: '13px',
                         fontWeight: '800',
-                        cursor: saving ? 'not-allowed' : 'pointer',
+                        cursor: saving || resendingCode ? 'not-allowed' : 'pointer',
                     }}>
-                    {saving ? 'Creating User...' : 'Create User'}
+                    {saving
+                        ? (verification.pending ? 'Verifying Email...' : 'Sending Verification Code...')
+                        : (verification.pending ? 'Verify Email & Create User' : 'Create User & Send Verification Code')}
                 </button>
             </form>
 
             <aside style={{ backgroundColor: '#F0E8E0', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '18px' }}>
                 <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: '900', color: '#3D1F0D' }}>New account setup</h3>
                 <p style={{ margin: '0 0 10px', fontSize: '12px', lineHeight: 1.5, color: '#6B5A4C' }}>
-                    Staff accounts use the standard daily POS workflow. For a custom account, enter your own role name and choose exactly which pages that person can access.
+                    Staff accounts use the standard daily POS workflow. Each new account must verify its personal email with a six-digit code before it is created.
                 </p>
                 <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5, color: '#8B5E3C', fontWeight: '700' }}>
                     Leave User ID blank to assign the next ELI number automatically.

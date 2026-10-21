@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const EmailVerification = require('../models/EmailVerification');
 const LoginActivity = require('../models/LoginActivity');
 const SystemAudit = require('../models/SystemAudit');
 const bcrypt = require('bcryptjs');
@@ -221,6 +222,28 @@ router.post('/login', async (req, res) => {
             });
         }
 
+        if (user.archived) {
+            loginAttempts.delete(attemptKey);
+            try {
+                await LoginActivity.create({
+                    userId: user._id,
+                    name: user.name || 'Unnamed User',
+                    email: user.email,
+                    role: user.role,
+                    action: 'login_blocked_archived',
+                    staffId: user.userId || '',
+                    ipAddress: getClientIp(req),
+                    userAgent: req.headers['user-agent'] || '',
+                });
+            } catch (auditError) {
+                console.error('Failed to record archived login attempt:', auditError.message);
+            }
+            return res.status(403).json({
+                code: 'ACCOUNT_ARCHIVED',
+                message: 'You cannot sign in because your account has been archived. Please contact the owner or an administrator to restore your account.',
+            });
+        }
+
         loginAttempts.delete(attemptKey);
 
         user.isOnline = true;
@@ -398,12 +421,68 @@ router.get('/users', async (req, res) => {
     }
 });
 
+router.post('/users/verification/request', async (req, res) => {
+    const email = normalizeEmail(req.body.email);
+
+    if (!email) {
+        return res.status(400).json({ message: 'Enter the staff member\'s email address.' });
+    }
+
+    try {
+        const existingUser = await User.findOne({ email }).select('archived').lean();
+        if (existingUser?.archived) {
+            return res.status(409).json({ message: 'This email belongs to an archived account. Restore that account instead.' });
+        }
+        if (existingUser) {
+            return res.status(409).json({ message: 'A user with that email already exists.' });
+        }
+
+        const existingRequest = await EmailVerification.findOne({ email }).select('+otpHash');
+        if (
+            existingRequest?.expiresAt &&
+            existingRequest.expiresAt.getTime() - Date.now() > OTP_LIFETIME_MS - OTP_RESEND_COOLDOWN_MS
+        ) {
+            return res.status(429).json({ message: 'Please wait one minute before requesting another code.' });
+        }
+
+        const otp = createOtp();
+        await EmailVerification.findOneAndUpdate(
+            { email },
+            {
+                email,
+                otpHash: hashOtp(otp),
+                expiresAt: new Date(Date.now() + OTP_LIFETIME_MS),
+                attempts: 0,
+            },
+            { upsert: true, returnDocument: 'after', runValidators: true }
+        );
+
+        try {
+            await sendAccountVerificationEmail(email, otp);
+        } catch (emailError) {
+            await EmailVerification.deleteOne({ email });
+            console.error('Account verification email failed:', emailError.message);
+            return res.status(503).json({ message: 'We could not send the verification code. Please try again later.' });
+        }
+
+        res.json({
+            success: true,
+            message: 'A six-digit verification code was sent to the personal email address.',
+            expiresInMinutes: OTP_LIFETIME_MS / 60000,
+        });
+    } catch (err) {
+        console.error('Account verification request failed:', err);
+        res.status(500).json({ message: 'Unable to send the verification code. Please try again.' });
+    }
+});
+
 router.post('/users', async (req, res) => {
-    const { name, email, password, role, jobRole, userId, pin, permissions } = req.body;
+    const { name, email, password, role, jobRole, userId, pin, permissions, verificationCode } = req.body;
     const normalizedEmail = normalizeEmail(email);
     const normalizedRole = normalizeRole(role);
     const normalizedUserId = String(userId || '').trim().toUpperCase();
     const normalizedJobRole = String(jobRole || '').trim();
+    const normalizedVerificationCode = String(verificationCode || '').replace(/\D/g, '');
 
     if (!name?.trim() || !normalizedEmail || !password || !normalizedRole) {
         return res.status(400).json({ message: 'Name, email, password, and role are required' });
@@ -429,6 +508,10 @@ router.post('/users', async (req, res) => {
         return res.status(400).json({ message: 'PIN must be exactly 6 digits' });
     }
 
+    if (normalizedVerificationCode.length !== 6) {
+        return res.status(400).json({ message: 'Enter the six-digit code sent to the personal email address.' });
+    }
+
     try {
         const existingEmail = await User.findOne({ email: normalizedEmail });
         if (existingEmail) {
@@ -436,6 +519,23 @@ router.post('/users', async (req, res) => {
                 return res.status(409).json({ message: 'This email belongs to an archived account. Restore the account from Users instead of creating a duplicate.' });
             }
             return res.status(409).json({ message: 'A user with that email already exists' });
+        }
+
+        const verification = await EmailVerification.findOne({ email: normalizedEmail }).select('+otpHash');
+        if (!verification || !verification.expiresAt || verification.expiresAt <= new Date()) {
+            return res.status(400).json({ message: 'This verification code is invalid or has expired. Request a new code.' });
+        }
+
+        if (verification.attempts >= OTP_MAX_ATTEMPTS) {
+            return res.status(429).json({ message: 'Too many incorrect attempts. Request a new verification code.' });
+        }
+
+        if (hashOtp(normalizedVerificationCode) !== verification.otpHash) {
+            verification.attempts += 1;
+            await verification.save();
+            return res.status(400).json({
+                message: `Incorrect verification code. ${OTP_MAX_ATTEMPTS - verification.attempts} attempt(s) remaining.`,
+            });
         }
 
         const finalUserId = normalizedUserId || await generateUserId();
@@ -460,6 +560,8 @@ router.post('/users', async (req, res) => {
             user,
             details: `${user.role} account created`,
         });
+
+        await EmailVerification.deleteOne({ email: normalizedEmail });
 
         res.status(201).json({
             success: true,
@@ -804,6 +906,24 @@ async function sendResetOtpEmail(to, otp) {
             to: [to],
             subject: 'Your FLUX password reset code',
             text: `Your FLUX password reset code is ${otp}. It expires in 10 minutes. Do not share this code with anyone.`,
+        }),
+    });
+    if (!response.ok) throw new Error(`Email provider rejected the request (${response.status})`);
+}
+
+async function sendAccountVerificationEmail(to, otp) {
+    const apiKey = String(process.env.RESEND_API_KEY || '').trim();
+    const from = String(process.env.RESEND_FROM || '').trim();
+    if (!apiKey || !from) throw new Error('Email service is not configured');
+
+    const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            from,
+            to: [to],
+            subject: 'Verify your FLUX staff account',
+            text: `Your FLUX account verification code is ${otp}. It expires in 10 minutes. Do not share this code with anyone.`,
         }),
     });
     if (!response.ok) throw new Error(`Email provider rejected the request (${response.status})`);

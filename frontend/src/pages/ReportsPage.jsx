@@ -13,6 +13,8 @@ import {
 } from 'react-icons/fi';
 import { LuPhilippinePeso } from 'react-icons/lu';
 
+const loginActivityLabel = (action) => action === 'login_blocked_archived' ? 'Blocked — Archived account' : action === 'logout' ? 'Signed out' : 'Signed in';
+
 const today = new Date();
 const toDateInput = (date) => {
   const year = date.getFullYear();
@@ -318,10 +320,10 @@ const ReportsPage = () => {
       })),
       ...loginActivity.map(row => ({
         date: row.createdAt,
-        type: 'Login',
+        type: row.action === 'login_blocked_archived' ? 'Blocked Login' : row.action === 'logout' ? 'Logout' : 'Login',
         reference: row.staffId || row.email,
         actor: row.name,
-        detail: `${row.role} signed in`,
+        detail: `${row.role}: ${loginActivityLabel(row.action)}`,
         amount: '',
       })),
       ...systemAudit.map(row => ({
@@ -386,7 +388,7 @@ const ReportsPage = () => {
   const filteredLoginActivity = useMemo(() => {
     const query = loginQuery.trim().toLowerCase();
     return loginActivity.filter((row) => {
-      const matchesQuery = !query || [row.name, row.email, row.staffId, row.role]
+      const matchesQuery = !query || [row.name, row.email, row.staffId, row.role, loginActivityLabel(row.action)]
         .some((value) => String(value || '').toLowerCase().includes(query));
       const matchesRole = loginRole === 'all' || String(row.role || '').toLowerCase() === loginRole;
       return matchesQuery && matchesRole;
@@ -436,8 +438,8 @@ const ReportsPage = () => {
       ['Activity Date', 'Type', 'Reference', 'Actor', 'Detail', 'Amount'],
       ...report.activityRows.map(row => [formatDateTime(row.date), row.type, row.reference, row.actor, row.detail, row.amount]),
       [],
-      ['Login Time', 'Name', 'Email', 'Role', 'Staff ID', 'Device'],
-      ...loginActivity.map(row => [formatDateTime(row.createdAt), row.name, row.email, row.role, row.staffId, row.userAgent]),
+      ['Activity Time', 'Name', 'Email', 'Role', 'Staff ID', 'Status', 'Device'],
+      ...loginActivity.map(row => [formatDateTime(row.createdAt), row.name, row.email, row.role, row.staffId, loginActivityLabel(row.action), row.userAgent]),
       [],
       ['System Change Time', 'Module', 'Action', 'Record', 'Actor', 'Details'],
       ...systemAudit.map(row => [formatDateTime(row.createdAt), row.module, row.action, row.entityName || row.entityId, row.actor, row.details]),
@@ -555,7 +557,7 @@ const ReportsPage = () => {
           <MetricCard title="Finance Flow" value={money(report.grossSales)} detail={`${money(report.discounts)} discounts, ${money(report.tax)} tax`} icon={<FiBarChart2 size={21} />} color="#2B6CB0" />
           <MetricCard title="Cancelled Checkouts" value={report.cancelledTransactions.length.toLocaleString()} detail="Recorded from checkout summary cancel" icon={<FiFileText size={21} />} color="#C53030" />
           <MetricCard title="Inventory Alerts" value={report.lowStockRows.length.toLocaleString()} detail={`${inventory.length.toLocaleString()} total ingredients monitored`} icon={<FiArchive size={21} />} color="#C53030" />
-          <MetricCard title="Logins" value={loginActivity.length.toLocaleString()} detail="Owner and staff sign-ins in this period" icon={<FiLogIn size={21} />} color="#6B46C1" />
+          <MetricCard title="Logins" value={loginActivity.filter(row => !row.action || row.action === 'login').length.toLocaleString()} detail="Owner and staff sign-ins in this period" icon={<FiLogIn size={21} />} color="#6B46C1" />
           <MetricCard title="System Changes" value={systemAudit.length.toLocaleString()} detail="Menu, inventory, staff, recipe, and refund changes" icon={<FiFileText size={21} />} color="#2C5282" />
         </section>
 
@@ -768,7 +770,7 @@ const ReportsPage = () => {
             </select>
           </div>
           <DataTable
-            headers={['Login Time', 'Name', 'Email', 'Role', 'Staff ID', 'Device']}
+            headers={['Activity Time', 'Name', 'Email', 'Role', 'Staff ID', 'Status', 'Device']}
             rows={filteredLoginActivity}
             emptyText={loginQuery || loginRole !== 'all' ? 'No login activity matches those filters.' : 'No login activity for this period.'}
             renderRow={(row, index) => (
@@ -778,6 +780,7 @@ const ReportsPage = () => {
                 <td style={tdStyle}>{row.email || '-'}</td>
                 <td style={{ ...tdStyle, textTransform: 'capitalize', fontWeight: '900', color: row.role === 'admin' ? '#6B46C1' : '#8B5E3C' }}>{row.role || '-'}</td>
                 <td style={tdStyle}>{row.staffId || '-'}</td>
+                <td style={tdStyle}><span style={{ display: 'inline-block', padding: '5px 9px', borderRadius: '999px', whiteSpace: 'nowrap', fontWeight: '800', fontSize: '12px', backgroundColor: row.action === 'login_blocked_archived' ? '#FEF2F2' : '#F0FDF4', color: row.action === 'login_blocked_archived' ? '#B91C1C' : '#166534' }}>{loginActivityLabel(row.action)}</span></td>
                 <td style={{ ...tdStyle, minWidth: '280px', color: '#666' }}>{row.userAgent || '-'}</td>
               </tr>
             )}

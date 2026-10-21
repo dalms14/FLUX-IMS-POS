@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
@@ -17,6 +17,12 @@ const LoginPage = () => {
   const [lockoutTime, setLockoutTime] = useState(0);
   const [attemptsRemaining, setAttemptsRemaining] = useState(3);
   const navigate = useNavigate();
+  const [archivedMessage, setArchivedMessage] = useState('');
+  const archivedDialog = useRef(null);
+
+  useEffect(() => {
+    if (archivedMessage) archivedDialog.current?.showModal();
+  }, [archivedMessage]);
 
   const checkLockoutStatus = useCallback(async (emailAddr) => {
     try {
@@ -103,7 +109,10 @@ const LoginPage = () => {
         const status = err.response?.status;
         const message = err.response?.data?.message;
         
-        if (status === 423) {
+        if (status === 403 && err.response?.data?.code === 'ACCOUNT_ARCHIVED') {
+          setAttemptsRemaining(3);
+          setArchivedMessage(message);
+        } else if (status === 423) {
           // Account locked
           setLocked(true);
           setLockoutTime(err.response.data.remainingSeconds);
@@ -125,6 +134,22 @@ const LoginPage = () => {
 
   return (
     <div className="loginPageShell" style={{ display: 'flex', height: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
+
+      <dialog
+        ref={archivedDialog}
+        aria-labelledby="archived-account-title"
+        aria-describedby="archived-account-message"
+        onClose={() => setArchivedMessage('')}
+        style={{ position: 'fixed', inset: 0, margin: 'auto', width: 'min(420px, calc(100vw - 48px))', maxHeight: 'calc(100dvh - 48px)', overflowY: 'auto', boxSizing: 'border-box', padding: '28px', border: '1px solid #e0d8d0', borderRadius: '16px', background: '#FFFDF9', color: '#2a1a0e', boxShadow: '0 16px 48px #0003' }}
+      >
+        <FiAlertTriangle size={30} color="#8B5E3C" aria-hidden="true" />
+        <h2 id="archived-account-title" style={{ margin: '16px 0 12px' }}>Account archived</h2>
+        <p id="archived-account-message" style={{ lineHeight: 1.6 }}>{archivedMessage}</p>
+        <button type="button" autoFocus onClick={() => archivedDialog.current.close()}
+          style={{ width: '100%', marginTop: '12px', padding: '12px', border: 0, borderRadius: '8px', background: '#8B5E3C', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+          Back to sign in
+        </button>
+      </dialog>
 
       {/* LEFT — Form */}
       <div className="loginFormPanel" style={{
