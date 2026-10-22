@@ -246,6 +246,14 @@ router.post('/login', async (req, res) => {
 
         loginAttempts.delete(attemptKey);
 
+        if (user.mustChangePassword) {
+            const token = crypto.randomBytes(32).toString('hex');
+            user.firstLoginTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+            user.firstLoginTokenExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+            await user.save();
+            return res.json({ mustChangePassword: true, email: user.email, passwordChangeToken: token });
+        }
+
         user.isOnline = true;
         user.lastSeenAt = new Date();
         await user.save();
@@ -276,6 +284,39 @@ router.post('/login', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: "Server error" });
+    }
+});
+
+router.post('/first-login-password', async (req, res) => {
+    const { token, newPassword, confirmPassword } = req.body;
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
+        return res.status(401).json({ message: 'Please sign in again with your temporary password.' });
+    }
+    if (typeof newPassword !== 'string' || !isStrongPassword(newPassword)) {
+        return res.status(400).json({ message: 'Use at least 8 characters, including uppercase, lowercase, and a number.' });
+    }
+    if (newPassword !== confirmPassword) {
+        return res.status(400).json({ message: 'New passwords do not match.' });
+    }
+    try {
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+        const filter = { firstLoginTokenHash: tokenHash, firstLoginTokenExpiresAt: { $gt: new Date() }, mustChangePassword: true, archived: { $ne: true } };
+        const user = await User.findOne(filter);
+        if (!user) return res.status(401).json({ message: 'This password-change request expired or was already used. Sign in again.' });
+        if (await bcrypt.compare(newPassword, user.password)) {
+            return res.status(400).json({ message: 'Choose a password different from your temporary password.' });
+        }
+        // Consume the challenge atomically so concurrent submissions cannot reuse it.
+        const updated = await User.findOneAndUpdate({ ...filter, _id: user._id }, {
+            $set: { password: await bcrypt.hash(newPassword, 10), mustChangePassword: false, firstLoginTokenHash: null, firstLoginTokenExpiresAt: null, isOnline: true, lastSeenAt: new Date() },
+        }, { returnDocument: 'after' });
+        if (!updated) return res.status(401).json({ message: 'This request is no longer valid. Please sign in again.' });
+        await logAuthAudit({ action: 'First Login Password Changed', user: updated, details: 'Temporary password replaced on first sign-in' });
+        await LoginActivity.create({ userId: updated._id, name: updated.name || 'Unnamed User', email: updated.email, role: updated.role, action: 'login', staffId: updated.userId || '', ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] || '' });
+        return res.json({ success: true, user: serializeUser(updated) });
+    } catch (err) {
+        console.error('First login password change failed:', err.message);
+        return res.status(500).json({ message: 'Unable to change password. Please try again.' });
     }
 });
 
@@ -548,6 +589,7 @@ router.post('/users', async (req, res) => {
             name: name.trim(),
             email: normalizedEmail,
             password,
+            mustChangePassword: true,
             role: normalizedRole,
             jobRole: normalizedRole === 'custom' ? normalizedJobRole : undefined,
             permissions: ['admin', 'custom'].includes(normalizedRole) ? normalizePermissions(permissions) : undefined,
@@ -754,6 +796,9 @@ router.post('/change-password', async (req, res) => {
         }
 
         user.password = newPassword;
+        user.mustChangePassword = false;
+        user.firstLoginTokenHash = null;
+        user.firstLoginTokenExpiresAt = null;
         await user.save();
 
         res.json({ success: true, message: 'Password changed successfully' });
@@ -792,6 +837,9 @@ router.post('/recover-password', async (req, res) => {
         }
 
         user.password = newPassword;
+        user.mustChangePassword = false;
+        user.firstLoginTokenHash = null;
+        user.firstLoginTokenExpiresAt = null;
         await user.save();
 
         res.json({ success: true, message: 'Password recovered successfully' });
@@ -987,6 +1035,9 @@ router.post('/password-reset/confirm', async (req, res) => {
         if (await bcrypt.compare(newPassword, user.password)) return res.status(400).json({ message: 'Use a password different from your current password.' });
 
         user.password = newPassword;
+        user.mustChangePassword = false;
+        user.firstLoginTokenHash = null;
+        user.firstLoginTokenExpiresAt = null;
         user.passwordResetOtpHash = null;
         user.passwordResetOtpExpiresAt = null;
         user.passwordResetOtpAttempts = 0;

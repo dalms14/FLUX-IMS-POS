@@ -3,12 +3,14 @@ const EXPIRY_KEY = 'sessionExpiresAt';
 export const SESSION_CHANGED_EVENT = 'flux-session-changed';
 
 export const clearSession = () => {
+  sessionStorage.removeItem('firstLoginChallenge');
   localStorage.removeItem('user');
   localStorage.removeItem(EXPIRY_KEY);
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 };
 
 export const startSession = (user) => {
+  sessionStorage.removeItem('firstLoginChallenge');
   localStorage.setItem(EXPIRY_KEY, String(Date.now() + SESSION_DURATION_MS));
   localStorage.setItem('user', JSON.stringify(user));
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));

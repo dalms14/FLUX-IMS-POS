@@ -1803,6 +1803,7 @@ const UserAccountSettings = () => {
                     <div>
                         <label style={labelStyle}>Temporary Password *</label>
                         <input type="password" style={inputStyle} value={form.password} onChange={e => updateField('password', e.target.value)} placeholder="Minimum 6 characters" />
+                        <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#777' }}>The user must replace this temporary password on their first sign-in.</p>
                     </div>
                     <div>
                         <label style={labelStyle}>PIN</label>

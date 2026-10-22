@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import LoginPage from './pages/LoginPage';
+import FirstLoginPasswordPage from './pages/FirstLoginPasswordPage';
 import Dashboard from './pages/Dashboard';
 import ProfilePage from './components/ProfilePage';
 import HistoryPage from './components/HistoryPage';
@@ -90,6 +91,7 @@ function App() {
       <div className="App">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/first-login-password" element={<FirstLoginPasswordPage />} />
 
           <Route
             path="/dashboard"

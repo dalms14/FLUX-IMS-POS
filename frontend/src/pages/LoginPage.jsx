@@ -3,7 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
 import { getLandingPath } from '../utils/roles';
-import { getSessionUser, startSession } from '../utils/session';
+import { clearSession, getSessionUser, startSession } from '../utils/session';
 import './LoginPage.module.css';
 
 const normalizeLoginEmail = (value = '') => value.toLowerCase().trim();
@@ -89,6 +89,15 @@ const LoginPage = () => {
             email: loginEmail, password,
         });
         if (response.data) {
+            if (response.data.mustChangePassword) {
+                clearSession();
+                sessionStorage.setItem('firstLoginChallenge', JSON.stringify({
+                    email: response.data.email,
+                    token: response.data.passwordChangeToken,
+                }));
+                navigate('/first-login-password', { replace: true });
+                return;
+            }
             const user = {
                 name: response.data.name,
                 email: response.data.email,

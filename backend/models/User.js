@@ -5,6 +5,9 @@ const UserSchema = new mongoose.Schema({
     name: String,
     email: String,
     password: String,
+    mustChangePassword: { type: Boolean, default: false },
+    firstLoginTokenHash: { type: String, default: null, select: false },
+    firstLoginTokenExpiresAt: { type: Date, default: null, select: false },
     role: String,
     jobRole: String,
     permissions: {
