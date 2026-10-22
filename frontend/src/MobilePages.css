@@ -35,10 +35,6 @@
     gap: 10px !important;
   }
 
-  .items-active-orders-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
   .items-order-summary {
     width: 280px !important;
   }
@@ -304,10 +300,6 @@
     min-height: 244px !important;
     padding: 9px !important;
     gap: 8px !important;
-  }
-
-  .items-active-orders-grid {
-    grid-template-columns: 1fr !important;
   }
 
   .items-order-summary {

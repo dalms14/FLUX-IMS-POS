@@ -1,7 +1,7 @@
 // Items.jsx
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiPrinter, FiRefreshCw, FiImage, FiPlus, FiTag, FiX } from 'react-icons/fi';
+import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiImage, FiPlus, FiTag } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
 import './Cashier.css';
 import ReceiptViewModal from '../components/ReceiptViewModal';
@@ -9,7 +9,6 @@ import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 
 const ALL_CATEGORY = 'ALL';
 const CASHIER_SESSION_KEY = 'fluxCashierSession';
-const ORDER_REFRESH_MS = 5000;
 const VALID_CUSTOMER_TYPES = new Set(['customer', 'elite', 'pagibig', 'pwd_senior', 'custom_discount']);
 const SERVICE_TYPES = ['Dine In', 'Dine Out'];
 const SYSTEM_DISCOUNTS = [
@@ -72,31 +71,6 @@ const getItemScopedDiscountName = (discount, type) => {
 const toMoneyNumber = (value) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
-};
-
-const orderMoney = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
-
-const orderStatusMeta = {
-  pending: { label: 'Pending', color: '#975A16', bg: '#FFFAF0', border: '#FEEBC8' },
-  preparing: { label: 'Preparing', color: '#2B6CB0', bg: '#EBF8FF', border: '#BEE3F8' },
-  ready: { label: 'Ready', color: '#276749', bg: '#F0FFF4', border: '#C6F6D5' },
-};
-
-const getOrderActor = () => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    return {
-      actor: user.name || user.email || 'System',
-      actorEmail: user.email || '',
-    };
-  } catch {
-    return { actor: 'System', actorEmail: '' };
-  }
-};
-
-const formatOrderTime = (value) => {
-  if (!value) return '-';
-  return new Date(value).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
 const getCartItemUnitPrice = (item) => toMoneyNumber(item?.price);
@@ -1094,227 +1068,6 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
   );
 };
 
-const OrderReasonModal = ({ mode, order, item, busy, onConfirm, onClose }) => {
-  const defaultReason = mode === 'cancel'
-    ? 'Customer cancelled before preparation'
-    : 'Customer refunded item before preparation';
-  const [reason, setReason] = useState(defaultReason);
-  const [error, setError] = useState('');
-
-  const title = mode === 'cancel' ? 'Cancel Order' : 'Refund Item';
-  const summary = mode === 'cancel'
-    ? `Order ${order?.orderNo || order?.receiptNo || ''}`
-    : `${item?.name || 'Item'} x${item?.quantity || 0}`;
-  const note = mode === 'cancel'
-    ? 'This will cancel the pending order and record it in transaction history.'
-    : 'This will remove the item from the pending order and mark it as refunded.';
-
-  const handleConfirm = () => {
-    if (!reason.trim()) {
-      setError('Please provide a reason.');
-      return;
-    }
-    onConfirm(reason.trim());
-  };
-
-  if (!order) return null;
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(26,18,8,0.52)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3200, padding: '18px' }}>
-      <div style={{ width: 'min(430px, 100%)', backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 24px 64px rgba(0,0,0,0.24)', border: '1px solid #E8DDD0', overflow: 'hidden', fontFamily: 'Segoe UI, sans-serif' }}>
-        <div style={{ padding: '20px 22px 14px', borderBottom: '1px solid #F0E8E0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
-            <div>
-              <p style={{ margin: '0 0 5px', color: '#8B5E3C', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.8px' }}>{summary}</p>
-              <h2 style={{ margin: 0, color: '#1a1a1a', fontSize: '20px', fontWeight: '950' }}>{title}</h2>
-            </div>
-            <button type="button" onClick={onClose} disabled={busy} title="Close" style={{ width: '32px', height: '32px', border: '1px solid #E0D5CB', borderRadius: '8px', backgroundColor: '#fff', color: '#8A7A6B', cursor: busy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <FiX size={16} />
-            </button>
-          </div>
-          <p style={{ margin: '10px 0 0', color: '#7A6A5A', fontSize: '12px', lineHeight: 1.45 }}>{note}</p>
-        </div>
-
-        <div style={{ padding: '18px 22px 20px' }}>
-          <label style={{ display: 'block', marginBottom: '7px', color: '#6B5A4C', fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Reason</label>
-          <textarea
-            value={reason}
-            onChange={event => { setReason(event.target.value); setError(''); }}
-            disabled={busy}
-            rows={3}
-            autoFocus
-            style={{ width: '100%', resize: 'vertical', minHeight: '84px', padding: '11px 12px', border: '1.5px solid #D8CABB', borderRadius: '8px', outline: 'none', boxSizing: 'border-box', fontFamily: 'Segoe UI, sans-serif', fontSize: '13px', color: '#1a1a1a' }}
-          />
-          {error && <p style={{ margin: '8px 0 0', color: '#C53030', fontSize: '12px', fontWeight: '800' }}>{error}</p>}
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '18px' }}>
-            <button type="button" onClick={onClose} disabled={busy} style={{ flex: 1, minHeight: '42px', border: '1px solid #D4B89A', borderRadius: '8px', backgroundColor: '#fff', color: '#6F4A2F', fontSize: '13px', fontWeight: '900', cursor: busy ? 'not-allowed' : 'pointer' }}>Keep Order</button>
-            <button type="button" onClick={handleConfirm} disabled={busy} style={{ flex: 1.35, minHeight: '42px', border: 'none', borderRadius: '8px', backgroundColor: busy ? '#D6D0C8' : '#C53030', color: '#fff', fontSize: '13px', fontWeight: '900', cursor: busy ? 'not-allowed' : 'pointer' }}>
-              {busy ? 'Saving...' : mode === 'cancel' ? 'Cancel Order' : 'Refund Item'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const orderActionStyle = (color, disabled) => ({
-  flex: 1,
-  minWidth: '92px',
-  minHeight: '32px',
-  padding: '8px 10px',
-  border: 'none',
-  borderRadius: '8px',
-  backgroundColor: disabled ? '#D6D0C8' : color,
-  color: '#fff',
-  fontSize: '11px',
-  fontWeight: '900',
-  cursor: disabled ? 'not-allowed' : 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '6px',
-});
-
-const ActiveOrderCard = ({ order, busy, onStatus, onCancel, onRemoveItem, onReceipt }) => {
-  const status = order.orderStatus || 'pending';
-  const meta = orderStatusMeta[status] || orderStatusMeta.pending;
-  const itemCount = (order.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  const displayTotal = order.activeTotal ?? order.total;
-  const refundedItems = order.cancelledItems || [];
-
-  return (
-    <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '8px', padding: '12px', display: 'grid', gap: '10px', boxShadow: '0 3px 12px rgba(26,18,8,0.05)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-        <div>
-          <p style={{ margin: '0 0 3px', fontSize: '10px', color: '#8B5E3C', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Order No</p>
-          <h3 style={{ margin: 0, fontSize: '26px', lineHeight: 1, color: '#1a1a1a', fontWeight: '950' }}>{order.orderNo || '---'}</h3>
-        </div>
-        <span style={{ padding: '5px 8px', borderRadius: '999px', backgroundColor: meta.bg, color: meta.color, border: `1px solid ${meta.border}`, fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          {meta.label}
-        </span>
-      </div>
-
-      <div style={{ display: 'grid', gap: '5px', fontSize: '11px', color: '#6B5A4C', fontWeight: '700' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><span>Slip</span><strong style={{ color: '#1a1a1a' }}>{order.receiptNo}</strong></div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><span>Service</span><strong style={{ color: '#1a1a1a' }}>{order.serviceType || 'Dine In'}</strong></div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><span>Items</span><strong style={{ color: '#1a1a1a' }}>{itemCount.toLocaleString()}</strong></div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><span>Total</span><strong style={{ color: '#8B5E3C' }}>{orderMoney(displayTotal)}</strong></div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><span>Created</span><strong style={{ color: '#1a1a1a' }}>{formatOrderTime(order.createdAt)}</strong></div>
-      </div>
-
-      <div style={{ borderTop: '1px solid #F0E8E0', paddingTop: '9px', display: 'grid', gap: '6px', maxHeight: '108px', overflowY: 'auto' }}>
-        {(order.items || []).map((item, index) => (
-          <div key={`${item.originalIndex ?? index}-${item.name}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '7px', fontSize: '11px', color: '#333' }}>
-            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-            <strong style={{ flexShrink: 0 }}>x{item.quantity}</strong>
-            {status === 'pending' && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onRemoveItem(order, item)}
-                title={`Refund ${item.name}`}
-                style={{ width: '22px', height: '22px', borderRadius: '6px', border: '1px solid #FED7D7', backgroundColor: '#FFF5F5', color: '#C53030', cursor: busy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-              >
-                <FiX size={12} />
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {refundedItems.length > 0 && (
-        <div style={{ borderTop: '1px solid #FED7D7', paddingTop: '8px', display: 'grid', gap: '5px' }}>
-          <p style={{ margin: 0, fontSize: '10px', color: '#C53030', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Refunded</p>
-          {refundedItems.map((item, index) => (
-            <div key={`${item.refundId || index}-${item.name}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontSize: '11px', color: '#742A2A', fontWeight: '800' }}>
-              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
-              <span style={{ flexShrink: 0 }}>x{item.quantity}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
-        {status === 'pending' && (
-          <>
-            <button type="button" disabled={busy} onClick={() => onStatus(order, 'preparing')} style={orderActionStyle('#2B6CB0', busy)}>Prepare</button>
-            <button type="button" disabled={busy} onClick={() => onCancel(order)} style={orderActionStyle('#C53030', busy)}>Cancel</button>
-          </>
-        )}
-        {status === 'preparing' && (
-          <button type="button" disabled={busy} onClick={() => onStatus(order, 'ready')} style={orderActionStyle('#276749', busy)}>Ready</button>
-        )}
-        {status === 'ready' && (
-          <>
-            <button type="button" disabled={busy} onClick={() => onReceipt(order)} style={orderActionStyle('#2B6CB0', busy)}>
-              <FiPrinter size={13} /> Receipt
-            </button>
-            <button type="button" disabled={busy} onClick={() => onStatus(order, 'completed')} style={orderActionStyle('#8B5E3C', busy)}>Complete</button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const ActiveOrdersBoard = ({ groupedOrders, loading, error, busyId, onRefresh, onStatus, onCancel, onRemoveItem, onReceipt }) => (
-  <section style={{ marginBottom: '18px', border: '1px solid #E4D7CA', borderRadius: '8px', backgroundColor: '#F8F3EE', padding: '14px', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.72)' }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-      <div>
-        <p style={{ fontSize: '11px', fontWeight: '900', color: '#8A7A6B', textTransform: 'uppercase', letterSpacing: '1.4px', margin: '0 0 3px' }}>Active Orders</p>
-        <h2 style={{ margin: 0, fontSize: '18px', color: '#1a1a1a', fontWeight: '900' }}>Pending, Preparing, Ready</h2>
-      </div>
-      <button type="button" onClick={onRefresh} style={{ minHeight: '34px', padding: '0 12px', border: 'none', borderRadius: '8px', backgroundColor: '#8B5E3C', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '12px', fontWeight: '900' }}>
-        <FiRefreshCw size={14} /> Refresh
-      </button>
-    </div>
-
-    {error && (
-      <div style={{ padding: '10px 12px', border: '1px solid #FED7D7', borderRadius: '8px', backgroundColor: '#FFF5F5', color: '#C53030', fontSize: '12px', fontWeight: '800', marginBottom: '12px' }}>
-        {error}
-      </div>
-    )}
-
-    {loading ? (
-      <div style={{ padding: '24px', textAlign: 'center', color: '#9B8A7A', fontSize: '13px', fontWeight: '800' }}>Loading active orders...</div>
-    ) : (
-      <div className="items-active-orders-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))', gap: '12px', alignItems: 'start' }}>
-        {[
-          ['pending', 'Pending'],
-          ['preparing', 'Preparing'],
-          ['ready', 'Ready'],
-        ].map(([key, label]) => (
-          <div key={key} style={{ display: 'grid', gap: '9px', minWidth: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-              <h3 style={{ margin: 0, fontSize: '14px', color: '#1a1a1a', fontWeight: '900' }}>{label}</h3>
-              <span style={{ fontSize: '12px', fontWeight: '900', color: '#8B5E3C' }}>{groupedOrders[key].length}</span>
-            </div>
-            {groupedOrders[key].length === 0 ? (
-              <div style={{ backgroundColor: '#fff', border: '1px dashed #D9C9BA', borderRadius: '8px', padding: '18px', textAlign: 'center', color: '#B8A090', fontSize: '12px', fontWeight: '800' }}>
-                No {label.toLowerCase()} orders
-              </div>
-            ) : (
-              groupedOrders[key].map(order => (
-                <ActiveOrderCard
-                  key={order._id}
-                  order={order}
-                  busy={busyId === order._id}
-                  onStatus={onStatus}
-                  onCancel={onCancel}
-                  onRemoveItem={onRemoveItem}
-                  onReceipt={onReceipt}
-                />
-              ))
-            )}
-          </div>
-        ))}
-      </div>
-    )}
-  </section>
-);
-
 const Items = () => {
   const [savedCashierSession] = useState(loadCashierSession);
   const [products, setProducts] = useState([]);
@@ -1336,12 +1089,6 @@ const Items = () => {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
-  const [activeOrders, setActiveOrders] = useState([]);
-  const [ordersLoading, setOrdersLoading] = useState(true);
-  const [orderBusyId, setOrderBusyId] = useState('');
-  const [ordersError, setOrdersError] = useState('');
-  const [posView, setPosView] = useState('items');
-  const [orderReasonModal, setOrderReasonModal] = useState(null);
   const [categoryCollapsed, setCategoryCollapsed] = useState(false);
 
   const addNotification = useCallback((notice) => {
@@ -1368,25 +1115,6 @@ const Items = () => {
   const scopedDiscountName = getItemScopedDiscountName(activeDiscount, customerType);
   const defaultItemScopedDiscount = normalizedDiscounts.find(discount => discount.code !== 'elite' && isItemScopedDiscount(discount));
   const canUseItemDiscount = customerType !== 'elite' && ((!discountApplied && Boolean(defaultItemScopedDiscount)) || isScopedDiscount);
-
-  const fetchActiveOrders = useCallback(async () => {
-    try {
-      const res = await axios.get('http://localhost:5000/api/orders/active');
-      setActiveOrders(res.data.orders || []);
-      setOrdersError('');
-    } catch (err) {
-      console.error('Error loading active orders:', err);
-      setOrdersError('Failed to load active orders.');
-    } finally {
-      setOrdersLoading(false);
-    }
-  }, []);
-
-  const groupedActiveOrders = useMemo(() => ({
-    pending: activeOrders.filter(order => (order.orderStatus || 'pending') === 'pending'),
-    preparing: activeOrders.filter(order => order.orderStatus === 'preparing'),
-    ready: activeOrders.filter(order => order.orderStatus === 'ready'),
-  }), [activeOrders]);
 
   const enrichProductStockStatus = useCallback(async (product) => {
     try {
@@ -1426,12 +1154,6 @@ const Items = () => {
       alive = false;
     };
   }, []);
-
-  useEffect(() => {
-    fetchActiveOrders();
-    const timer = window.setInterval(fetchActiveOrders, ORDER_REFRESH_MS);
-    return () => window.clearInterval(timer);
-  }, [fetchActiveOrders]);
 
   // Fetch products only (derive categories from products)
   useEffect(() => {
@@ -1530,95 +1252,6 @@ const Items = () => {
       discountEligibility: cleanedEligibility,
     }));
   }, [cart, customerType, eliteMember, discountApplied, discountEligibility, selectedDiscount]);
-
-  const updateOrderStatus = async (order, status) => {
-    setOrderBusyId(order._id);
-    try {
-      await axios.patch(`http://localhost:5000/api/orders/${order._id}/status`, {
-        status,
-        ...getOrderActor(),
-      });
-      await fetchActiveOrders();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update order status');
-    } finally {
-      setOrderBusyId('');
-    }
-  };
-
-  const cancelActiveOrder = (order) => {
-    setOrderReasonModal({ mode: 'cancel', order });
-  };
-
-  const confirmCancelActiveOrder = async (order, reason) => {
-    setOrderBusyId(order._id);
-    try {
-      await axios.post(`http://localhost:5000/api/orders/${order._id}/cancel`, {
-        reason: reason.trim() || 'Order cancelled before preparation',
-        ...getOrderActor(),
-      });
-      await fetchActiveOrders();
-      setOrderReasonModal(null);
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to cancel order');
-    } finally {
-      setOrderBusyId('');
-    }
-  };
-
-  const openReadyOrderReceipt = (order) => {
-    if ((order.orderStatus || 'pending') !== 'ready') return;
-
-    setReceiptData({
-      receiptNo: order.receiptNo,
-      orderNo: order.orderNo,
-      serviceType: order.serviceType,
-      cart: (order.items || []).map(item => ({
-        ...item,
-        price: getCartItemUnitPrice(item),
-        quantity: Number(item.quantity) || 0,
-        discountEligibleQuantity: Number(item.discountEligibleQuantity) || 0,
-      })),
-      subtotal: order.activeSubtotal ?? order.subtotal,
-      discount: order.activeDiscount ?? order.discount,
-      total: order.activeTotal ?? order.total,
-      paymentMethod: order.paymentMethod,
-      amountTendered: order.amountTendered,
-      change: order.change,
-      gcashReference: order.gcashReference,
-      gcashProofImage: order.gcashProofImage,
-      cashier: order.cashier,
-      customerType: order.customerType,
-      eliteMember: order.eliteMember,
-      selectedDiscount: order.discountInfo,
-      createdAt: order.createdAt,
-      closeLabel: 'Close Receipt',
-    });
-  };
-
-  const removeActiveOrderItem = (order, item) => {
-    setOrderReasonModal({ mode: 'refund-item', order, item });
-  };
-
-  const confirmRemoveActiveOrderItem = async (order, item, reason) => {
-    setOrderBusyId(order._id);
-    try {
-      await axios.post(`http://localhost:5000/api/orders/${order._id}/cancel-items`, {
-        items: [{
-          originalIndex: item.originalIndex,
-          quantity: item.quantity,
-        }],
-        reason: reason.trim() || 'Customer refunded item before preparation',
-        ...getOrderActor(),
-      });
-      await fetchActiveOrders();
-      setOrderReasonModal(null);
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to remove item');
-    } finally {
-      setOrderBusyId('');
-    }
-  };
 
   const handleAddToCart = async (product) => {
     if (product.stockStatus?.level === 'out') {
@@ -1887,10 +1520,15 @@ const Items = () => {
             throw new Error(response.data?.message || 'Order was not saved.');
         }
 
-        await fetchActiveOrders();
         setShowReceipt(false);
         clearCart();
-        setPosView('orders');
+        setReceiptData({
+          ...response.data,
+          cart: buildTransactionItems(),
+          subtotal, discount, total, serviceType, paymentMethod, amountTendered, change,
+          gcashReference, cashier: user.name || 'Staff', customerType, eliteMember,
+          selectedDiscount: activeDiscount,
+        });
         return response.data;
     } catch (err) {
         if (err.response?.data?.code === 'INSUFFICIENT_STOCK') {
@@ -1981,48 +1619,6 @@ const Items = () => {
 
       {/* Main Content */}
       <div className="items-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'inline-flex', padding: '5px', border: '1px solid #E4D7CA', borderRadius: '8px', backgroundColor: '#F8F3EE', gap: '5px' }}>
-            {[
-              ['items', 'POS Items'],
-              ['orders', 'Active Orders'],
-            ].map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setPosView(key)}
-                style={{
-                  minHeight: '36px',
-                  padding: '0 16px',
-                  border: 'none',
-                  borderRadius: '7px',
-                  backgroundColor: posView === key ? '#8B5E3C' : 'transparent',
-                  color: posView === key ? '#fff' : '#6F5E4D',
-                  cursor: 'pointer',
-                  fontSize: '13px',
-                  fontWeight: '900',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {posView === 'orders' ? (
-          <ActiveOrdersBoard
-            groupedOrders={groupedActiveOrders}
-            loading={ordersLoading}
-            error={ordersError}
-            busyId={orderBusyId}
-            onRefresh={fetchActiveOrders}
-            onStatus={updateOrderStatus}
-            onCancel={cancelActiveOrder}
-            onRemoveItem={removeActiveOrderItem}
-            onReceipt={openReadyOrderReceipt}
-          />
-        ) : (
-          <>
         {/* Category Tabs */}
         <div style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', marginBottom: '10px' }}>
@@ -2106,8 +1702,6 @@ const Items = () => {
             filteredProducts.map(product => <ProductCard key={product._id} product={product} onAdd={handleAddToCart} />)
           )}
         </div>
-          </>
-        )}
       </div>
 
       {/* Order Summary */}
@@ -2232,23 +1826,6 @@ const Items = () => {
       {selectedProduct && <ProductModal product={selectedProduct} onConfirm={addToCart} onClose={() => setSelectedProduct(null)} />}
       {showEliteModal && <EliteVerificationModal onConfirm={handleEliteConfirm} onCancel={() => { setShowEliteModal(false); setCustomerType('customer'); setEliteMember(null); setDiscountEligibility({}); setDiscountApplied(false); setSelectedDiscount(null); }} />}
       {showDiscountTypeModal && <DiscountTypeModal discounts={availableDiscounts} onSelect={handleDiscountTypeSelect} onCancel={() => setShowDiscountTypeModal(false)} />}
-      {orderReasonModal && (
-        <OrderReasonModal
-          mode={orderReasonModal.mode}
-          order={orderReasonModal.order}
-          item={orderReasonModal.item}
-          busy={orderBusyId === orderReasonModal.order?._id}
-          onClose={() => setOrderReasonModal(null)}
-          onConfirm={(reason) => {
-            if (orderReasonModal.mode === 'cancel') {
-              confirmCancelActiveOrder(orderReasonModal.order, reason);
-            } else {
-              confirmRemoveActiveOrderItem(orderReasonModal.order, orderReasonModal.item, reason);
-            }
-          }}
-        />
-      )}
-
       {showReceipt && (
     <ReceiptModal cart={cart.map(item => ({
           ...item,

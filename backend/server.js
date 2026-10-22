@@ -1419,7 +1419,7 @@ app.post('/api/transactions', async (req, res) => {
         const receiptNo = await generateReceiptNo();
         const orderNo = await generateOrderNo();
         const transaction = await Transaction.create({
-            receiptNo, orderNo, orderStatus: 'pending', statusUpdatedAt: new Date(),
+            receiptNo, orderNo, orderStatus: 'completed', statusUpdatedAt: new Date(),
             cashier, cashierEmail, customerType, serviceType: normalizedServiceType, eliteMember, discountInfo,
             items, subtotal, tax, discount, total, paymentMethod, amountTendered, change, gcashReference,
             gcashProofImage: paymentMethod === 'GCash' ? gcashProofImage || null : null,

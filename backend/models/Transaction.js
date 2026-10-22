@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const TransactionSchema = new mongoose.Schema({
     receiptNo:     { type: String, required: true, unique: true },
     orderNo:       { type: String, default: '' },
-    orderStatus:   { type: String, enum: ['pending', 'preparing', 'ready', 'completed', 'cancelled'], default: 'pending' },
+    orderStatus:   { type: String, enum: ['pending', 'preparing', 'ready', 'completed', 'cancelled'], default: 'completed' },
     statusUpdatedAt: { type: Date, default: Date.now },
     cancelledAt:   { type: Date, default: null },
     cancelledBy:   { type: String, default: '' },
