@@ -252,9 +252,9 @@ const HistoryPage = () => {
               <td style={{ ...tableCellStyle, color: '#8B5E3C', fontWeight: '800' }}>{row.receiptNo || '-'}</td>
               <td style={{ ...tableCellStyle, fontWeight: '900', color: '#1A1208' }}>{formatMoney(row.total)}</td>
               <td style={tableCellStyle}>{row.cashier || '-'}</td>
-              <td style={tableCellStyle}>{statusBadge(row.paymentMethod || 'Unknown', 'info')}</td>
+              <td style={tableCellStyle}>{statusBadge((row.paymentMethod || 'Unknown').toUpperCase(), 'info')}</td>
               <td style={tableCellStyle}>{statusBadge(
-                row.orderStatus || 'completed',
+                (row.orderStatus || 'completed').toUpperCase(),
                 row.orderStatus === 'cancelled' ? 'danger' : 'success'
               )}</td>
             </tr>

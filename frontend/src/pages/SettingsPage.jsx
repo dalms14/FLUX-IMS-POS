@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
+import AccountRoleTemplates from '../components/AccountRoleTemplates';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiTrash2 } from 'react-icons/fi';
@@ -1570,9 +1571,11 @@ const DiscountSettings = () => {
     );
 };
 
-const UserAccountSettings = () => {
+export const UserAccountSettings = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const canCreateUsers = isOwnerRole(currentUser.role) || hasPermission(currentUser, 'users');
+    const [selectedTemplateId, setSelectedTemplateId] = useState('');
+    const [templatesVersion, setTemplatesVersion] = useState(0);
     const [form, setForm] = useState({
         name: '',
         email: '',
@@ -1615,6 +1618,7 @@ const UserAccountSettings = () => {
     };
 
     const updateField = (field, value) => {
+        if (['role', 'jobRole'].includes(field)) setSelectedTemplateId('');
         setForm(prev => {
             if (field === 'role') {
                 return {
@@ -1633,6 +1637,7 @@ const UserAccountSettings = () => {
     };
 
     const togglePermission = (permission) => {
+        setSelectedTemplateId('');
         setForm(prev => {
             const exists = prev.permissions.includes(permission);
             return {
@@ -1727,6 +1732,8 @@ const UserAccountSettings = () => {
                 text: `Email verified. Created ${res.data.user.name} as ${res.data.user.jobRole || res.data.user.role}. User ID: ${res.data.user.userId}`,
             });
             setForm({ name: '', email: '', password: '', userId: '', pin: '', role: 'staff', jobRole: '', permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'] });
+            setSelectedTemplateId('');
+            setTemplatesVersion(value => value + 1);
             setVerification({ pending: false, email: '', code: '' });
         } catch (err) {
             const serverMessage = err.response?.data?.message;
@@ -1780,6 +1787,11 @@ const UserAccountSettings = () => {
         <div className="settings-form-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: '20px', alignItems: 'start' }}>
             <form onSubmit={verification.pending ? handleVerifyAndCreateUser : handleCreateUser} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
                 <fieldset disabled={verification.pending} style={{ margin: 0, padding: 0, border: 0, minWidth: 0, opacity: verification.pending ? 0.58 : 1 }}>
+                <AccountRoleTemplates selectedId={selectedTemplateId} refreshKey={templatesVersion} onApply={template => {
+                    setForm(previous => ({ ...previous, role: template.role, jobRole: template.jobRole, permissions: [...template.permissions] }));
+                    setSelectedTemplateId(template.id);
+                    setMessage(null);
+                }} />
                 <div className="settings-account-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Full Name *</label>
