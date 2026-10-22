@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import AccountRoleTemplates from '../components/AccountRoleTemplates';
+import BackupExportModal from '../components/BackupExportModal';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiTrash2 } from 'react-icons/fi';
@@ -2127,9 +2128,11 @@ const ChangePasswordSettings = () => {
     );
 };
 
-const SystemBackupSettings = () => {
+export const SystemBackupSettings = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const canExportBackup = isOwnerAccount(currentUser);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [exportError, setExportError] = useState('');
     const [exporting, setExporting] = useState(false);
     const [message, setMessage] = useState(null);
     const [lastBackup, setLastBackup] = useState(localStorage.getItem('lastBackupAt') || '');
@@ -2166,14 +2169,14 @@ const SystemBackupSettings = () => {
         URL.revokeObjectURL(url);
     };
 
-    const handleExportBackup = async () => {
+    const handleExportBackup = async (password) => {
         if (!canExportBackup) {
             setMessage({ type: 'error', text: 'Only the Owner can export database backups.' });
             return;
         }
-        const password = window.prompt('Enter your Owner password to export the database backup:');
-        if (!password) return;
+        if (!password || exporting) return;
         setExporting(true);
+        setExportError('');
         setMessage(null);
 
         try {
@@ -2184,9 +2187,12 @@ const SystemBackupSettings = () => {
             downloadBackup(backup);
             localStorage.setItem('lastBackupAt', createdAt);
             setLastBackup(createdAt);
+            setShowExportModal(false);
             setMessage({ type: 'success', text: 'Backup file exported successfully.' });
         } catch (err) {
-            setMessage({ type: 'error', text: 'Failed to export backup. Please try again.' });
+            setExportError(err.response?.status === 403
+                ? 'The owner password could not be verified. Please try again.'
+                : 'Could not export the backup. Please try again.');
         } finally {
             setExporting(false);
         }
@@ -2234,7 +2240,7 @@ const SystemBackupSettings = () => {
                 )}
 
                 <button
-                    onClick={handleExportBackup}
+                    onClick={() => { setExportError(''); setMessage(null); setShowExportModal(true); }}
                     disabled={exporting}
                     style={{
                         width: '100%',
@@ -2261,6 +2267,7 @@ const SystemBackupSettings = () => {
                     </div>
                 ))}
             </aside>
+            {showExportModal && <BackupExportModal busy={exporting} error={exportError} onConfirm={handleExportBackup} onClose={() => { if (!exporting) { setShowExportModal(false); setExportError(''); } }} />}
         </div>
     );
 };

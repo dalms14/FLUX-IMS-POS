@@ -1,0 +1,29 @@
+.backup-export-modal { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 28px; box-sizing: border-box; border: 1px solid #E0D5CB; border-radius: 12px; background: #fff; color: #1A1208; box-shadow: 0 24px 64px #1A120830; font-family: 'Segoe UI', sans-serif; overflow-y: auto; }
+.backup-export-modal { position: fixed; inset: 0; margin: auto; }
+.backup-export-modal::backdrop { background: rgba(26,18,8,.5); }
+.backup-export-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.backup-export-icon { width: 44px; height: 44px; border-radius: 10px; background: #F5F0EB; display: inline-flex; align-items: center; justify-content: center; color: #8B5E3C; font-size: 21px; }
+.backup-export-close { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid #E0D5CB; border-radius: 8px; background: #fff; color: #8A7A6B; cursor: pointer; }
+.backup-export-eyebrow { margin: 0 0 8px; font-size: 9px; letter-spacing: 1px; font-weight: 800; color: #8B5E3C; }
+.backup-export-modal h2 { margin: 0 0 10px; font-size: 22px; font-weight: 900; letter-spacing: -.3px; }
+.backup-export-modal #backup-export-description { margin: 0; font-size: 13px; line-height: 1.6; color: #8A7A6B; }
+.backup-export-file { display: flex; align-items: center; gap: 12px; padding: 14px; margin: 20px 0; background: #FAF7F4; border: 1px solid #E0D5CB; border-radius: 8px; }
+.backup-export-file > svg { flex-shrink: 0; color: #8B5E3C; font-size: 20px; }
+.backup-export-file strong { display: block; color: #6F4A2F; font-size: 12px; }
+.backup-export-file span { display: block; margin-top: 4px; color: #8A7A6B; font-size: 11px; line-height: 1.5; }
+.backup-export-modal label { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 800; color: #6B5A4C; }
+.backup-export-password { display: flex; border: 1px solid #D4B89A; border-radius: 8px; overflow: hidden; }
+.backup-export-password input { width: 100%; min-width: 0; padding: 12px; border: 0; background: #fff; font: inherit; font-size: 16px; color: #1A1208; }
+.backup-export-password button { padding: 0 13px; display: flex; align-items: center; border: 0; background: #fff; color: #8A7A6B; cursor: pointer; }
+.backup-export-password:focus-within { outline: 2px solid #8B5E3C; outline-offset: 2px; }
+.backup-export-password input:focus { outline: 0; }
+.backup-export-modal button:focus-visible { outline: 2px solid #8B5E3C; outline-offset: 2px; }
+.backup-export-actions { display: flex; gap: 10px; margin-top: 24px; }
+.backup-export-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 12px 16px; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.backup-export-cancel { flex: 1; border: 1px solid #D4B89A; background: #fff; color: #6F4A2F; }
+.backup-export-confirm { flex: 1.6; border: 1px solid #8B5E3C; background: #8B5E3C; color: #fff; }
+.backup-export-cancel:hover { background: #F5F0EB; }
+.backup-export-confirm:not(:disabled):hover { background: #6F4A2F; }
+.backup-export-modal button:disabled { opacity: .55; cursor: not-allowed; }
+.backup-export-error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #EDD4CF; border-radius: 7px; background: #FFF8F6; color: #9B3B2F; font-size: 12px; line-height: 1.5; }
+@media (max-width: 480px) { .backup-export-modal { padding: 22px; } .backup-export-modal h2 { font-size: 20px; } }
