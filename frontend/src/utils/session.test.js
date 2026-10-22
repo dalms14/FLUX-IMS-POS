@@ -1,9 +1,10 @@
-import { clearSession, getSessionUser, SESSION_DURATION_MS, startSession } from './session';
+import { clearSession, getSessionId, getSessionUser, SESSION_DURATION_MS, startSession } from './session';
 
 const user = { email: 'staff@example.com', role: 'staff', name: 'Staff' };
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   jest.spyOn(Date, 'now').mockReturnValue(1000000);
 });
 afterEach(() => jest.restoreAllMocks());
@@ -18,11 +19,11 @@ test('restores a saved login until exactly 24 hours after sign-in', () => {
 
 test('reading a session and updating a profile do not extend its lifetime', () => {
   startSession(user);
-  const expiry = localStorage.getItem('sessionExpiresAt');
+  const saved = JSON.parse(localStorage.getItem('user'));
   Date.now.mockReturnValue(1000000 + 60000);
-  localStorage.setItem('user', JSON.stringify({ ...user, name: 'Updated' }));
+  localStorage.setItem('user', JSON.stringify({ ...saved, name: 'Updated' }));
   expect(getSessionUser().name).toBe('Updated');
-  expect(localStorage.getItem('sessionExpiresAt')).toBe(expiry);
+  expect(JSON.parse(localStorage.getItem('user'))._session).toEqual(saved._session);
 });
 
 test('logout clears both saved identity and expiry', () => {
@@ -42,4 +43,32 @@ test('rejects legacy, malformed, and missing saved logins', () => {
   localStorage.setItem('sessionExpiresAt', String(1000000 + SESSION_DURATION_MS));
   localStorage.setItem('user', '{broken');
   expect(getSessionUser()).toBeNull();
+});
+
+test('publishes identity and expiry together so a second tab always sees a complete login', () => {
+  const original = Storage.prototype.setItem;
+  const observed = [];
+  jest.spyOn(Storage.prototype, 'setItem').mockImplementation(function (key, value) {
+    original.call(this, key, value);
+    if (this === localStorage) observed.push(getSessionUser());
+  });
+  startSession(user);
+  expect(observed).toEqual([user]);
+  expect(localStorage.getItem('sessionExpiresAt')).toBeNull();
+});
+
+test('preserves a still-valid session from the previous version without renewing it', () => {
+  const expiry = 1000000 + 60000;
+  localStorage.setItem('user', JSON.stringify(user));
+  localStorage.setItem('sessionExpiresAt', String(expiry));
+  expect(getSessionUser()).toEqual(user);
+  Date.now.mockReturnValue(expiry);
+  expect(getSessionUser()).toBeNull();
+});
+
+test('each login gets its own identity even for the same account', () => {
+  startSession(user);
+  const previous = getSessionId();
+  startSession(user);
+  expect(getSessionId()).not.toBe(previous);
 });

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
+import SalesForecast from '../components/SalesForecast';
 import { FiBarChart2, FiCreditCard, FiDownload, FiRefreshCw, FiShoppingBag } from 'react-icons/fi';
 import { LuPhilippinePeso } from 'react-icons/lu';
 
@@ -715,6 +716,7 @@ const SalesPage = () => {
             </div>
           </div>
         </section>
+        <SalesForecast />
       </main>
     </div>
   );

@@ -395,7 +395,7 @@ router.post('/heartbeat', async (req, res) => {
         );
 
         if (!user) {
-            return res.status(403).json({ message: 'This account is no longer active. Please sign in with an active account.' });
+            return res.status(403).json({ code: 'ACCOUNT_INACTIVE', message: 'This account is no longer active. Please sign in with an active account.' });
         }
 
         res.json({ success: true, user: serializeUser(user) });

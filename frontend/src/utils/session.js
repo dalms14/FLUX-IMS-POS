@@ -11,19 +11,36 @@ export const clearSession = () => {
 
 export const startSession = (user) => {
   sessionStorage.removeItem('firstLoginChallenge');
-  localStorage.setItem(EXPIRY_KEY, String(Date.now() + SESSION_DURATION_MS));
-  localStorage.setItem('user', JSON.stringify(user));
+  // One storage write publishes both identity and expiry to every tab together.
+  const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  localStorage.setItem('user', JSON.stringify({ ...user, _session: { id, expiresAt: Date.now() + SESSION_DURATION_MS } }));
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 };
 
-export const getSessionUser = () => {
+const readSession = () => {
   try {
-    const expiresAt = Number(localStorage.getItem(EXPIRY_KEY));
     const user = JSON.parse(localStorage.getItem('user') || 'null');
-    // Older saved logins have no reliable sign-in time; require a fresh login.
+    // Preserve still-valid 24-hour sessions created by the previous app version.
+    const expiresAt = user?._session ? user._session.expiresAt : Number(localStorage.getItem(EXPIRY_KEY));
     if (!user?.email || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
-    return user;
+    if (user._session && (typeof user._session.id !== 'string' || !user._session.id)) return null;
+    return { user, id: user._session?.id || `legacy:${user.email}:${expiresAt}` };
   } catch {
     return null;
   }
+};
+
+export const getSessionUser = () => {
+  const session = readSession();
+  if (!session) return null;
+  const { _session, ...user } = session.user;
+  return user;
+};
+
+export const getSessionId = () => readSession()?.id || null;
+
+export const clearSessionIfCurrent = id => {
+  if (!id || getSessionId() !== id) return false;
+  clearSession();
+  return true;
 };

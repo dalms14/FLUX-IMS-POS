@@ -17,6 +17,7 @@ const Addon = require('./models/Addon');
 const Discount = require('./models/Discount');
 const purchaseOrderRoutes = require('./Routes/purchaseOrderRoutes');
 const notificationRoutes = require('./Routes/notificationRoutes');
+const salesForecastRoutes = require('./Routes/salesForecastRoutes');
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api', historyRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/sales-forecast', salesForecastRoutes);
 
 // Backups contain sensitive business records, so exporting one requires the owner's
 // saved account email and a fresh password confirmation.

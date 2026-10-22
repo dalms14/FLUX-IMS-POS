@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import axios from 'axios';
 import LoginPage from './pages/LoginPage';
 import FirstLoginPasswordPage from './pages/FirstLoginPasswordPage';
 import Dashboard from './pages/Dashboard';
@@ -17,7 +16,9 @@ import SalesPage from './pages/SalesPage';
 import StaffPage from './pages/StaffPage';
 import ReportsPage from './pages/ReportsPage';
 import { getLandingPath, hasPermission } from './utils/roles';
-import { clearSession, getSessionUser, SESSION_CHANGED_EVENT } from './utils/session';
+import { getSessionUser } from './utils/session';
+import useSessionSync from './utils/useSessionSync';
+import { sendSessionHeartbeat } from './utils/sessionHeartbeat';
 import './App.css';
 
 // Protect routes that require login
@@ -33,42 +34,11 @@ const PermissionRoute = ({ children, permission }) => {
 };
 
 function App() {
-  const [, refreshSession] = useState(() => localStorage.getItem('user'));
-  useEffect(() => {
-    const checkSession = () => {
-      if (!getSessionUser() && (localStorage.getItem('user') || localStorage.getItem('sessionExpiresAt'))) {
-        clearSession();
-      }
-      refreshSession(localStorage.getItem('user'));
-    };
-    checkSession();
-    const timer = setInterval(checkSession, 1000);
-    window.addEventListener('storage', checkSession);
-    window.addEventListener('focus', checkSession);
-    window.addEventListener(SESSION_CHANGED_EVENT, checkSession);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener('storage', checkSession);
-      window.removeEventListener('focus', checkSession);
-      window.removeEventListener(SESSION_CHANGED_EVENT, checkSession);
-    };
-  }, []);
+  useSessionSync();
 
   useEffect(() => {
-    const sendHeartbeat = async () => {
-      const user = getSessionUser();
-      if (!user) return;
-
-      try {
-        await axios.post('http://localhost:5000/api/auth/heartbeat', { email: user.email });
-      } catch (err) {
-        if ([403, 404].includes(err.response?.status)) {
-          clearSession();
-          window.location.replace('/login');
-          return;
-        }
-        console.error('Error updating online status:', err);
-      }
+    const sendHeartbeat = () => {
+      if (!document.hidden) sendSessionHeartbeat();
     };
 
     sendHeartbeat();
