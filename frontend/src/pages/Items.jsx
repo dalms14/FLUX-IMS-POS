@@ -3,6 +3,7 @@ import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiPrinter, FiRefreshCw, FiImage, FiPlus, FiTag, FiX } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
+import './Cashier.css';
 import ReceiptViewModal from '../components/ReceiptViewModal';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 
@@ -626,16 +627,16 @@ const EliteVerificationModal = ({ onConfirm, onCancel }) => {
 
   const inputStyle = {
     width: '100%', padding: '10px 12px',
-    border: '1.5px solid #ddd', borderRadius: '8px',
+    border: '1px solid #D4B89A', borderRadius: '8px',
     fontSize: '14px', outline: 'none', boxSizing: 'border-box',
     marginTop: '6px',
   };
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-      <div className="mobile-modal-card" style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '28px', width: '340px', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
+      <div className="mobile-modal-card cashier-dialog" style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '28px', width: '340px', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
         <h3 style={{ fontSize: '17px', fontWeight: '700', margin: '0 0 4px', color: '#1a1a1a' }}>Elite Membership Verification</h3>
-        <div style={{ height: '2px', backgroundColor: '#1a1a1a', width: '100%', marginBottom: '20px' }} />
+        <div style={{ height: '1px', backgroundColor: '#E0D5CB', width: '100%', marginBottom: '20px' }} />
         <div style={{ marginBottom: '16px' }}>
           <label style={{ fontSize: '13px', fontWeight: '600', color: '#555' }}>Name:</label>
           <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="Enter member name" />
@@ -645,13 +646,13 @@ const EliteVerificationModal = ({ onConfirm, onCancel }) => {
           <input value={idNumber} onChange={e => setIdNumber(e.target.value)} style={inputStyle} placeholder="Enter card ID number" />
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={onCancel} style={{ flex: 1, padding: '12px', backgroundColor: '#E53E3E', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
+          <button className="cashier-secondary" onClick={onCancel} style={{ flex: 1, padding: '12px', backgroundColor: '#FAF7F4', color: '#6F4A2F', border: '1px solid #D4B89A', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
           <button
             onClick={() => {
               if (!name.trim() || !idNumber.trim()) { alert('Please fill in both Name and ID Number.'); return; }
               onConfirm({ name: name.trim(), idNumber: idNumber.trim() });
             }}
-            style={{ flex: 1, padding: '12px', backgroundColor: '#38A169', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}
+            style={{ flex: 1, padding: '12px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}
           >Confirm</button>
         </div>
       </div>
@@ -674,9 +675,9 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-      <div className="mobile-modal-card" style={{ 
+      <div className="mobile-modal-card cashier-dialog" style={{
         backgroundColor: '#fff', 
-        borderRadius: '20px', 
+        borderRadius: '12px',
         width: modalWidth,
         maxHeight: maxModalHeight,
         display: 'flex',
@@ -689,7 +690,7 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
           <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 12px', color: '#1a1a1a', letterSpacing: '0.5px' }}>
             Select Discount Type
           </h3>
-          <div style={{ height: '2px', backgroundColor: '#1a1a1a', width: '100%', marginBottom: '16px' }} />
+          <div style={{ height: '1px', backgroundColor: '#E0D5CB', width: '100%', marginBottom: '16px' }} />
           
           {/* Search input - only show if there are many discounts */}
           {discounts.length > 4 && (
@@ -743,9 +744,9 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
                 style={{
                   width: '100%',
                   padding: '14px 16px',
-                  backgroundColor: '#FDF5EE',
+                  backgroundColor: '#FAF7F4',
                   color: '#8B5E3C',
-                  border: '2px solid #8B5E3C',
+                  border: '1px solid #D4B89A',
                   borderRadius: '10px',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -760,11 +761,11 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#F7EDE1';
-                  e.currentTarget.style.transform = 'translateX(4px)';
+                  e.currentTarget.style.borderColor = '#8B5E3C';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#FDF5EE';
-                  e.currentTarget.style.transform = 'translateX(0)';
+                  e.currentTarget.style.backgroundColor = '#FAF7F4';
+                  e.currentTarget.style.borderColor = '#D4B89A';
                 }}
               >
                 <div style={{
@@ -808,11 +809,11 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
           flexShrink: 0,
         }}>
           <button
-            onClick={onCancel}
+            className="cashier-secondary" onClick={onCancel}
             style={{
               width: '100%',
               padding: '12px 16px',
-              backgroundColor: '#E53E3E',
+              backgroundColor: '#FAF7F4',
               color: '#fff',
               border: 'none',
               borderRadius: '10px',
@@ -822,10 +823,10 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
               transition: 'all 0.15s ease',
             }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#C53030';
+              e.currentTarget.style.backgroundColor = '#F5F0EB';
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#E53E3E';
+              e.currentTarget.style.backgroundColor = '#fff';
             }}
           >
             Cancel
@@ -2136,13 +2137,13 @@ const Items = () => {
             x
           </button>
           {eliteMember && (
-            <div style={{ marginTop: '6px', padding: '4px 12px', backgroundColor: '#F0FFF4', border: '1px solid #9AE6B4', borderRadius: '20px', display: 'inline-block' }}>
-              <p style={{ fontSize: '12px', fontWeight: '600', color: '#276749', margin: 0 }}>✓ Member: {eliteMember.name}</p>
+            <div style={{ marginTop: '6px', padding: '4px 12px', backgroundColor: '#F5F0EB', border: '1px solid #D4B89A', borderRadius: '20px', display: 'inline-block' }}>
+              <p style={{ fontSize: '12px', fontWeight: '600', color: '#6F4A2F', margin: 0 }}>✓ Member: {eliteMember.name}</p>
             </div>
           )}
           {!eliteMember && activeDiscountLabel && (
-            <div style={{ marginTop: '6px', padding: '4px 12px', backgroundColor: '#F0FFF4', border: '1px solid #9AE6B4', borderRadius: '20px', display: 'inline-block' }}>
-              <p style={{ fontSize: '12px', fontWeight: '600', color: '#276749', margin: 0 }}>{activeDiscountLabel}</p>
+            <div style={{ marginTop: '6px', padding: '4px 12px', backgroundColor: '#F5F0EB', border: '1px solid #D4B89A', borderRadius: '20px', display: 'inline-block' }}>
+              <p style={{ fontSize: '12px', fontWeight: '600', color: '#6F4A2F', margin: 0 }}>{activeDiscountLabel}</p>
             </div>
           )}
         </div>
@@ -2160,7 +2161,7 @@ const Items = () => {
         {/* Cart Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
           {cart.length === 0
-            ? <p style={{ textAlign: 'center', color: '#ccc', fontSize: '13px', marginTop: '32px' }}>No items added yet.</p>
+            ? <p style={{ textAlign: 'center', color: '#8A7A6B', fontSize: '13px', marginTop: '32px' }}>No items added yet.</p>
             : cart.map(item => (
               <div key={item.cartKey} style={{ padding: '10px 0', borderBottom: '1px solid #f5f5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
                 <div style={{ flex: 1 }}>
@@ -2199,7 +2200,7 @@ const Items = () => {
                       <FiTag size={13} />
                     </button>
                     )}
-                    <button onClick={() => removeFromCart(item.cartKey)} style={{ fontSize: '11px', color: '#e53e3e', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>✕</button>
+                    <button onClick={() => removeFromCart(item.cartKey)} style={{ fontSize: '11px', color: '#8B5E3C', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>✕</button>
                   </div>
                 </div>
               </div>
@@ -2208,23 +2209,23 @@ const Items = () => {
         </div>
 
         {/* Totals */}
-        <div style={{ borderTop: '1px solid #eee', padding: '14px', backgroundColor: '#FAFAFA' }}>
+        <div style={{ borderTop: '1px solid #eee', padding: '14px', backgroundColor: '#FAF7F4' }}>
           {[['Subtotal:', `₱${subtotal.toLocaleString()}`],
           ...(isScopedDiscount && discountApplied ? [[`${scopedDiscountName} eligible:`, `₱${eligibleDiscountSubtotal.toLocaleString()}`]] : []),
           [`Discount${activeDiscountLabel ? ` (${activeDiscountLabel})` : ''}:`, discount > 0 ? `-₱${discount.toLocaleString()}` : '₱0.00']]
           .map(([label, value]) => (
             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#666', marginBottom: '5px' }}>
-              <span>{label}</span><span style={{ color: label.includes('Discount') && discount > 0 ? '#E53E3E' : '#666' }}>{value}</span>
+              <span>{label}</span><span style={{ color: label.includes('Discount') && discount > 0 ? '#8B5E3C' : '#666' }}>{value}</span>
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: '800', color: '#1a1a1a', margin: '8px 0 14px' }}>
             <span>TOTAL:</span><span>₱{total.toLocaleString()}</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-            <button onClick={handleApplyDiscount} style={{ padding: '11px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '700', backgroundColor: discountApplied ? '#276749' : '#38A169', color: '#fff' }}>{discountApplied ? 'Discount ✓' : 'Apply Discount'}</button>
-            <button onClick={clearCart} style={{ padding: '11px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '700', backgroundColor: '#E53E3E', color: '#fff' }}>Clear</button>
+            <button className="cashier-discount" onClick={handleApplyDiscount} style={{ padding: '11px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '700', backgroundColor: discountApplied ? '#EDE1D4' : '#F5F0EB', color: '#6F4A2F' }}>{discountApplied ? 'Discount ✓' : 'Apply Discount'}</button>
+            <button className="cashier-secondary" onClick={clearCart} style={{ padding: '11px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '700', backgroundColor: '#fff', color: '#6F4A2F' }}>Clear</button>
           </div>
-          <button onClick={handleProceedToCheckout} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: 'none', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: '700', backgroundColor: cart.length === 0 ? '#ccc' : '#38A169', color: '#fff' }}>Proceed to Checkout</button>
+          <button className="cashier-checkout" disabled={cart.length === 0} onClick={handleProceedToCheckout} style={{ width: '100%', padding: '11px', borderRadius: '8px', border: 'none', cursor: cart.length === 0 ? 'not-allowed' : 'pointer', fontSize: '12px', fontWeight: '700', backgroundColor: cart.length === 0 ? '#E6DED5' : '#8B5E3C', color: cart.length === 0 ? '#746456' : '#fff' }}>Proceed to Checkout</button>
         </div>
       </div>
 

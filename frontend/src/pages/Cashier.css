@@ -1,0 +1,33 @@
+.cashier-dialog {
+  border: 1px solid #E0D5CB;
+  color: #1A1208;
+  font-family: 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+.cashier-dialog h3 { color: #1A1208 !important; font-weight: 800 !important; letter-spacing: 0 !important; }
+.cashier-dialog input { background: #FAF7F4 !important; border-color: #D4B89A !important; }
+.cashier-dialog button { min-height: 44px; border-radius: 8px !important; }
+.cashier-dialog .cashier-secondary,
+.items-order-summary .cashier-secondary {
+  background: #fff !important;
+  border: 1px solid #D4B89A !important;
+  color: #6F4A2F !important;
+}
+.cashier-dialog .cashier-secondary:hover,
+.items-order-summary .cashier-secondary:hover { background: #F5F0EB !important; }
+.items-order-summary > div:first-child { background: #FAF7F4; border-bottom-color: #E0D5CB !important; padding: 20px 16px !important; }
+.items-order-summary > div:first-child > p { color: #5F3A22; font-size: 15px !important; letter-spacing: .8px !important; }
+.items-order-summary > div:last-child { border-top-color: #E0D5CB !important; padding: 18px 16px !important; }
+.items-order-summary .cashier-discount { border: 1px solid #D4B89A !important; }
+.items-order-summary .cashier-discount:hover { background: #EDE1D4 !important; }
+.items-order-summary .cashier-checkout { min-height: 46px; }
+.items-order-summary .cashier-checkout:not(:disabled):hover { background: #6F4A2F !important; }
+.items-order-summary .cashier-checkout:disabled { cursor: not-allowed; }
+.items-order-summary button,
+.cashier-dialog button { transition: background-color .15s, border-color .15s; }
+.items-order-summary button:focus-visible,
+.cashier-dialog button:focus-visible,
+.cashier-dialog input:focus-visible { outline: 2px solid #8B5E3C !important; outline-offset: 3px; }
+@media (max-width: 768px) {
+  .cashier-dialog { max-height: calc(100dvh - 32px) !important; }
+}
