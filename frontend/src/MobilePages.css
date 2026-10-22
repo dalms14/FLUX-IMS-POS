@@ -140,9 +140,13 @@
   }
 }
 
-@media (min-width: 769px) and (max-width: 1180px) {
+@media (max-width: 1180px) {
   .sales-analysis-grid {
     grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .sales-analysis-grid > * {
+    min-width: 0;
   }
 }
 
@@ -152,6 +156,26 @@
 }
 
 @media (max-width: 768px) {
+  .sales-filter-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .sales-filter-grid > * {
+    min-width: 0;
+  }
+
+  .sales-trend-header {
+    flex-direction: column;
+  }
+
+  .sales-trend-legend {
+    justify-content: flex-start !important;
+  }
+
+  .sales-trend-legend > span {
+    white-space: nowrap;
+  }
+
   .mobile-app-shell {
     display: block !important;
     height: auto !important;

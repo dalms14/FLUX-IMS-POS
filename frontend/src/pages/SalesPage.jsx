@@ -210,12 +210,12 @@ const SalesTrendChart = ({ data }) => {
 
   return (
     <div style={{ ...cardStyle, padding: '18px', height: '100%', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '12px' }}>
+      <div className="sales-trend-header" style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '12px' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>Sales Trend</h2>
           <p style={{ margin: '5px 0 0', fontSize: '11px', color: '#999' }}>Daily comparison by metric</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="sales-trend-legend" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {series.map(item => (
             <span key={item.key} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#666', fontWeight: '800' }}>
               <span style={{ width: '18px', height: '3px', borderRadius: '999px', backgroundColor: item.color }} />

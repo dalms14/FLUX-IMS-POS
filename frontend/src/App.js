@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import LoginPage from './pages/LoginPage';
@@ -16,31 +16,53 @@ import SalesPage from './pages/SalesPage';
 import StaffPage from './pages/StaffPage';
 import ReportsPage from './pages/ReportsPage';
 import { getLandingPath, hasPermission } from './utils/roles';
+import { clearSession, getSessionUser, SESSION_CHANGED_EVENT } from './utils/session';
 import './App.css';
 
 // Protect routes that require login
 const PrivateRoute = ({ children }) => {
-  const user = localStorage.getItem('user');
+  const user = getSessionUser();
   return user ? children : <Navigate to="/login" />;
 };
 
 const PermissionRoute = ({ children, permission }) => {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  if (!user?.email && !user?.role) return <Navigate to="/login" />;
+  const user = getSessionUser();
+  if (!user) return <Navigate to="/login" replace />;
   return hasPermission(user, permission) ? children : <Navigate to={getLandingPath(user)} />;
 };
 
 function App() {
+  const [, refreshSession] = useState(() => localStorage.getItem('user'));
+  useEffect(() => {
+    const checkSession = () => {
+      if (!getSessionUser() && (localStorage.getItem('user') || localStorage.getItem('sessionExpiresAt'))) {
+        clearSession();
+      }
+      refreshSession(localStorage.getItem('user'));
+    };
+    checkSession();
+    const timer = setInterval(checkSession, 1000);
+    window.addEventListener('storage', checkSession);
+    window.addEventListener('focus', checkSession);
+    window.addEventListener(SESSION_CHANGED_EVENT, checkSession);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('storage', checkSession);
+      window.removeEventListener('focus', checkSession);
+      window.removeEventListener(SESSION_CHANGED_EVENT, checkSession);
+    };
+  }, []);
+
   useEffect(() => {
     const sendHeartbeat = async () => {
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      if (!user.email) return;
+      const user = getSessionUser();
+      if (!user) return;
 
       try {
         await axios.post('http://localhost:5000/api/auth/heartbeat', { email: user.email });
       } catch (err) {
         if ([403, 404].includes(err.response?.status)) {
-          localStorage.removeItem('user');
+          clearSession();
           window.location.replace('/login');
           return;
         }

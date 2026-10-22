@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
 import { getLandingPath } from '../utils/roles';
+import { getSessionUser, startSession } from '../utils/session';
 import './LoginPage.module.css';
 
 const normalizeLoginEmail = (value = '') => value.toLowerCase().trim();
@@ -99,7 +100,7 @@ const LoginPage = () => {
                 isOnline: response.data.isOnline,
                 lastSeenAt: response.data.lastSeenAt,
             };
-            localStorage.setItem('user', JSON.stringify(user));
+            startSession(user);
             // Clear lockout on success
             setLocked(false);
             setAttemptsRemaining(3);
@@ -131,6 +132,9 @@ const LoginPage = () => {
         setLoading(false);
     }
   };
+
+  const savedUser = getSessionUser();
+  if (savedUser) return <Navigate to={getLandingPath(savedUser)} replace />;
 
   return (
     <div className="loginPageShell" style={{ display: 'flex', height: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>

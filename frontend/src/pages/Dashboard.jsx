@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
-import { FiPackage, FiShoppingCart, FiCheck, FiTag, FiBarChart2, FiBell, FiTruck, FiX } from 'react-icons/fi';
+import './Dashboard.css';
+import { FiPackage, FiShoppingCart, FiCheck, FiTag, FiBell, FiTruck, FiX } from 'react-icons/fi';
 import { LuPhilippinePeso } from 'react-icons/lu';
 import { hasPermission } from '../utils/roles';
 
@@ -9,28 +10,14 @@ const DASHBOARD_REFRESH_MS = 5000;
 
 // KPI Card Component
 const KPICard = ({ icon, label, value, subtext, trend, color }) => (
-  <div style={{
-    backgroundColor: '#fff',
-    borderRadius: '16px',
-    padding: '24px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-    border: '1px solid #E0D5CB',
-    transition: 'all 0.3s ease',
-    cursor: 'pointer',
-  }}
-  onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; e.currentTarget.style.transform = 'translateY(0)'; }}>
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
-      <div style={{ fontSize: '32px' }}>{icon}</div>
-      {trend && (
-        <div style={{ fontSize: '12px', fontWeight: '700', color: trend > 0 ? '#22863A' : '#CB2431', backgroundColor: trend > 0 ? '#F0FFF4' : '#FFEEF0', padding: '4px 8px', borderRadius: '4px' }}>
-          {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%
-        </div>
-      )}
+  <div className="dashboard-metric" style={{ '--metric-color': color || '#8B5E3C' }}>
+    <div className="dashboard-metric-top">
+      <span className="dashboard-metric-icon">{icon}</span>
+      {trend && <span className="dashboard-metric-trend">{trend > 0 ? '\u2191' : '\u2193'} {Math.abs(trend)}%</span>}
     </div>
-    <p style={{ fontSize: '12px', fontWeight: '600', color: '#999', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px' }}>{label}</p>
-    <p style={{ fontSize: '32px', fontWeight: '900', color: color || '#1a1a1a', margin: '0 0 8px' }}>{value}</p>
-    {subtext && <p style={{ fontSize: '12px', color: '#bbb', margin: 0 }}>{subtext}</p>}
+    <p className="dashboard-metric-label">{label}</p>
+    <p className="dashboard-metric-value">{value}</p>
+    {subtext && <p className="dashboard-metric-detail">{subtext}</p>}
   </div>
 );
 
@@ -217,7 +204,7 @@ const Dashboard = () => {
   const dateString = now.toLocaleDateString('en-PH', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div className="mobile-app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#F5F0EB' }}>
+    <div className="mobile-app-shell dashboard-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#F5F0EB' }}>
       <Sidebar />
 
       <div className="dashboard-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -271,7 +258,7 @@ const Dashboard = () => {
           </div>
 
           {notificationAudience && (
-            <section style={{ marginBottom: '24px', backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #D8C8EE', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <section className="dashboard-notice dashboard-approvals" style={{ marginBottom: '24px', backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #D8C8EE', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ padding: '17px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', backgroundColor: '#FAF5FF', borderBottom: '1px solid #E9D8FD' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9px', backgroundColor: '#805AD5', color: '#fff' }}><FiBell size={18} /></span>
@@ -288,7 +275,7 @@ const Dashboard = () => {
           )}
 
           {assignedDeliveries.length > 0 && (
-            <section style={{ marginBottom: '24px', backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #BEE3F8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <section className="dashboard-notice dashboard-deliveries" style={{ marginBottom: '24px', backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #BEE3F8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ padding: '17px 20px', display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#EBF8FF', borderBottom: '1px solid #BEE3F8' }}><span style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9px', backgroundColor: '#2B6CB0', color: '#fff' }}><FiTruck size={18} /></span><div><h2 style={{ margin: 0, fontSize: '15px', color: '#2C5282' }}>My Assigned Deliveries</h2><p style={{ margin: '3px 0 0', fontSize: '11px', color: '#2B6CB0' }}>Verify the physical supplies, then record what actually arrived.</p></div></div>
               {assignedDeliveries.map(order => <div key={order._id} style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #E6F6FF' }}><div style={{ flex: 1, minWidth: 0 }}><p style={{ margin: 0, fontSize: '13px', color: '#1A202C', fontWeight: '900' }}>{order.purchaseOrderNo} — {order.supplierName}</p><p style={{ margin: '3px 0 0', fontSize: '11px', color: '#718096' }}>{order.items.length} item{order.items.length === 1 ? '' : 's'} · Expected: {order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-PH') : 'Not set'}</p></div><button onClick={() => setSelectedDelivery(order)} style={{ padding: '9px 11px', borderRadius: '8px', border: 'none', backgroundColor: '#2B6CB0', color: '#fff', fontSize: '12px', fontWeight: '900', cursor: 'pointer', whiteSpace: 'nowrap' }}>Record Delivery</button></div>)}
             </section>
@@ -297,7 +284,7 @@ const Dashboard = () => {
           {/* Bottom Section - Transactions */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
             {/* Recent Transactions */}
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #E0D5CB', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div className="dashboard-transactions" style={{ backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #E0D5CB', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               {/* Header */}
               <div style={{ padding: '20px 24px', borderBottom: '1px solid #E0D5CB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#1a1a1a', margin: 0 }}>Recent Transactions</h3>
@@ -340,17 +327,14 @@ const Dashboard = () => {
             </div>
 
             {/* Quick Actions */}
-            <div className="dashboard-actions-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-              {canStartOrder && (
-                <a href="/items" style={{ backgroundColor: '#8B5E3C', color: '#fff', padding: '16px', borderRadius: '12px', textDecoration: 'none', textAlign: 'center', fontWeight: '700', transition: 'all 0.2s', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#6B4423'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#8B5E3C'; e.currentTarget.style.transform = 'translateY(0)'; }}><FiPackage /> Start Order</a>
-              )}
-              {canViewProducts && (
-                <a href="/products" style={{ backgroundColor: '#38A169', color: '#fff', padding: '16px', borderRadius: '12px', textDecoration: 'none', textAlign: 'center', fontWeight: '700', transition: 'all 0.2s', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#2D6A4F'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#38A169'; e.currentTarget.style.transform = 'translateY(0)'; }}><FiTag /> Products</a>
-              )}
-              {canViewInventory && (
-                <a href="/inventory" style={{ backgroundColor: '#D69E2E', color: '#fff', padding: '16px', borderRadius: '12px', textDecoration: 'none', textAlign: 'center', fontWeight: '700', transition: 'all 0.2s', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#A97D1A'; e.currentTarget.style.transform = 'translateY(-2px)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = '#D69E2E'; e.currentTarget.style.transform = 'translateY(0)'; }}><FiBarChart2 /> Inventory</a>
-              )}
-            </div>
+            <section className="dashboard-quick-actions">
+              <div className="dashboard-section-heading"><h3>Quick Actions</h3><span>Your everyday tools</span></div>
+              <div className="dashboard-actions-grid">
+                {canStartOrder && <a href="/items" className="dashboard-action dashboard-action-primary"><span className="dashboard-action-icon"><FiShoppingCart /></span><span><strong>Start Order</strong><small>Create a new customer order</small></span><span className="dashboard-action-arrow" aria-hidden="true">&rarr;</span></a>}
+                {canViewProducts && <a href="/products" className="dashboard-action"><span className="dashboard-action-icon"><FiTag /></span><span><strong>Products</strong><small>Browse products and add-ons</small></span><span className="dashboard-action-arrow" aria-hidden="true">&rarr;</span></a>}
+                {canViewInventory && <a href="/inventory" className="dashboard-action"><span className="dashboard-action-icon"><FiPackage /></span><span><strong>Inventory</strong><small>Check stock and supplies</small></span><span className="dashboard-action-arrow" aria-hidden="true">&rarr;</span></a>}
+              </div>
+            </section>
           </div>
         </div>
       </div>
