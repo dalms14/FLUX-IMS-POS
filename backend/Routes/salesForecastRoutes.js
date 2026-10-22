@@ -1,6 +1,6 @@
 const express = require('express');
 const Transaction = require('../models/Transaction');
-const { MIN_HISTORY_DAYS, addDays, businessDate, validDate, demoHistory, createForecast } = require('../services/salesForecast');
+const { MIN_HISTORY_DAYS, MAX_HISTORY_DAYS, addDays, businessDate, validDate, demoHistory, createForecast } = require('../services/salesForecast');
 const router = express.Router();
 
 router.get('/', async (req, res) => {
@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
             if (!validDate(start) || closedWeekdays.some(day => !Number.isInteger(day) || day < 0 || day > 6) || closedDates.some(date => !validDate(date))) {
                 return res.status(503).json({ message: 'Real-sales forecast setup needs correction. Contact the system administrator.' });
             }
-            const firstDay = start > addDays(today, -28) ? start : addDays(today, -28);
+            const firstDay = start > addDays(today, -MAX_HISTORY_DAYS) ? start : addDays(today, -MAX_HISTORY_DAYS);
             const dates = [];
             for (let date = firstDay; date < today; date = addDays(date, 1)) dates.push(date);
             if (dates.length < MIN_HISTORY_DAYS) return res.json({ status: 'insufficient-history', source, historyDays: dates.length, minimumHistoryDays: MIN_HISTORY_DAYS });

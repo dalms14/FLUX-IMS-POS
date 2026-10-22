@@ -44,15 +44,15 @@ export default function SalesForecast() {
       </div>
     </div>
     <div className={`forecast-notice ${demo ? 'forecast-demo' : ''}`}>
-      <strong>{demo ? 'SAMPLE DATA' : 'REAL SALES'}</strong>
-      <span>{demo ? 'These estimates use sample data, not Eli Coffee sales. Your test transactions are not used.' : 'Uses completed client sales from the verified start date. Pre-handover test transactions are excluded.'}</span>
+      <strong>{demo ? 'ML DEMONSTRATION' : 'REAL SALES'}</strong>
+      <span>{demo ? 'Machine-learning demonstration using sample data, not Eli Coffee sales. Your test transactions are not used. Performance on real client sales has not been established.' : 'Uses completed client sales from the verified start date. Pre-handover test transactions are excluded.'}</span>
     </div>
     <div aria-live="polite">
       {loading && <p className="forecast-empty">Preparing the sales outlook...</p>}
       {error && <div className="forecast-empty" role="alert"><p>{error}</p><button type="button" onClick={() => setRefresh(value => value + 1)}>Try again</button></div>}
       {!loading && !error && current && !ready && <div className="forecast-empty">
         <h3>{current.status === 'insufficient-history' ? 'More sales history needed' : 'Real sales are not ready for forecasting'}</h3>
-        <p>{current.status === 'insufficient-history' ? `${current.historyDays} of ${current.minimumHistoryDays} completed days available. Four weeks of sales are needed for this estimate.` : current.message}</p>
+        <p>{current.status === 'insufficient-history' ? `${current.historyDays} of ${current.minimumHistoryDays} completed days available. More daily sales are needed to train and test the model.` : current.message}</p>
         <span>You can explore the feature with Demo data while preparing for client handover.</span>
       </div>}
     </div>
@@ -68,7 +68,13 @@ export default function SalesForecast() {
           <strong>{money(row.sales)}{row.closed && <small>Closed</small>}</strong>
         </div>)}
       </div>
-      <p className="forecast-explanation"><strong>How it works:</strong> Each day's estimate is the average sales from the same weekday over the past four weeks. For example, Monday uses the last four Mondays.</p>
+      <p className="forecast-explanation"><strong>How it works:</strong> A linear regression model learns weekday patterns and the sales trend from past daily sales, then estimates the coming week.</p>
+      {current.validation && <details className="forecast-model-check"><summary>Model check</summary>
+        <p>Trained on {current.historyDays} completed days. Tested on {current.validation.days} later days in two weekly checks, using only earlier sales for each prediction.</p>
+        <p>Average test error{demo ? ' on sample data' : ''}: <strong>{money(current.validation.modelMae)} per day</strong>. Four-week average comparison: <strong>{money(current.validation.baselineMae)} per day</strong>. Lower error is better.</p>
+        {current.validation.baselineIsBetter && <p>The four-week average had lower error in this check. The machine-learning model is not guaranteed to perform better.</p>}
+        {demo && <p>These results demonstrate the training and testing process; they do not establish accuracy for Eli Coffee.</p>}
+      </details>}
       <p className="forecast-footnote">Estimates may differ from actual sales. Amounts are after discounts, before refunds. History through {dateLabel(current.trainedThrough)} (Philippine time); date filters above do not change the forecast.</p>
     </>}
   </section>;
