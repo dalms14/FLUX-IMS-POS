@@ -1,4 +1,4 @@
-import { clearSession, getSessionId, getSessionUser, SESSION_DURATION_MS, startSession } from './session';
+import { clearSession, getSessionId, getSessionUser, SESSION_DURATION_MS, startSession, recordSessionActivity } from './session';
 
 const user = { email: 'staff@example.com', role: 'staff', name: 'Staff' };
 
@@ -9,7 +9,7 @@ beforeEach(() => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-test('restores a saved login until exactly 24 hours after sign-in', () => {
+test('restores a saved login until exactly 15 minutes without activity', () => {
   startSession(user);
   Date.now.mockReturnValue(1000000 + SESSION_DURATION_MS - 1);
   expect(getSessionUser()).toEqual(user);
@@ -57,13 +57,25 @@ test('publishes identity and expiry together so a second tab always sees a compl
   expect(localStorage.getItem('sessionExpiresAt')).toBeNull();
 });
 
-test('preserves a still-valid session from the previous version without renewing it', () => {
-  const expiry = 1000000 + 60000;
+test('old 24-hour sessions require a fresh login under the inactivity policy', () => {
   localStorage.setItem('user', JSON.stringify(user));
-  localStorage.setItem('sessionExpiresAt', String(expiry));
-  expect(getSessionUser()).toEqual(user);
-  Date.now.mockReturnValue(expiry);
+  localStorage.setItem('sessionExpiresAt', String(1000000 + 86400000));
   expect(getSessionUser()).toBeNull();
+  localStorage.setItem('user', JSON.stringify({ ...user, _session: { id: 'old', expiresAt: 1000000 + 86400000 } }));
+  expect(getSessionUser()).toBeNull();
+});
+
+test('activity extends the idle deadline without changing the login identity', () => {
+  startSession(user);
+  const id = getSessionId();
+  Date.now.mockReturnValue(1000000 + 10 * 60000);
+  expect(recordSessionActivity()).toBe(true);
+  expect(getSessionId()).toBe(id);
+  Date.now.mockReturnValue(1000000 + 24 * 60000);
+  expect(getSessionUser()).toEqual(user);
+  Date.now.mockReturnValue(1000000 + 25 * 60000);
+  expect(getSessionUser()).toBeNull();
+  expect(recordSessionActivity()).toBe(false);
 });
 
 test('each login gets its own identity even for the same account', () => {
