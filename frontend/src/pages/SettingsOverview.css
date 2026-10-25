@@ -1,0 +1,41 @@
+.settings-overview { color: #1A1208; min-width: 0; }
+.settings-feature-card { background: #fff; border: 1px solid #E0D5CB; border-radius: 14px; padding: 24px; min-width: 0; }
+.settings-feature-card h3 { margin: 0 0 9px; font-size: 17px; font-weight: 800; }
+.settings-feature-card p { margin: 0; color: #786A5E; font-size: 13px; line-height: 1.7; }
+.settings-eyebrow { color: #8B5E3C; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+.settings-overview-icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 11px; color: #8B5E3C; background: #F5F0EB; font-size: 21px; margin-bottom: 18px; }
+.settings-backup-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 300px); gap: 20px; align-items: start; }
+.settings-backup-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.settings-backup-tag { border: 1px solid #E0D5CB; border-radius: 30px; padding: 6px 10px; font-size: 10px; color: #6F4A2F; font-weight: 800; white-space: nowrap; background: #FAF7F3; }
+.settings-backup-sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 22px 0 16px; }
+.settings-backup-source { display: flex; gap: 9px; align-items: center; padding: 11px 12px; border: 1px solid #EAE1D8; border-radius: 8px; font-size: 12px; font-weight: 700; color: #5F4632; background: #FCFAF8; }
+.settings-backup-source svg { color: #8B5E3C; flex-shrink: 0; }
+.settings-backup-note { padding: 13px 15px; background: #F8F4EF; border-radius: 8px; margin-bottom: 20px; }
+.settings-backup-note p { font-size: 12px; }
+.settings-backup-export { display: inline-flex; justify-content: center; align-items: center; gap: 9px; width: 100%; min-height: 46px; border: 0; border-radius: 8px; background: #8B5E3C; color: #fff; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.settings-backup-export:disabled { opacity: .65; cursor: wait; }
+.settings-backup-status { margin: 16px 0; border: 1px solid #E0D5CB; border-radius: 8px; padding: 12px; color: #6F4A2F; font-size: 13px; background: #FAF7F3; }
+.settings-backup-status.is-error { color: #9B2C2C; border-color: #E8C3BD; }
+.settings-system-info { background: #F0E8E0; }
+.settings-system-info dl { margin: 4px 0 0; }
+.settings-system-info dl > div { padding: 15px 0; border-bottom: 1px solid #DFD2C5; }
+.settings-system-info dl > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.settings-system-info dt { color: #8B5E3C; font-size: 10px; text-transform: uppercase; letter-spacing: .7px; font-weight: 800; margin-bottom: 6px; }
+.settings-system-info dd { color: #503723; margin: 0; font-size: 12px; line-height: 1.6; font-weight: 700; overflow-wrap: anywhere; }
+.settings-about-hero { background: #F0E8E0; padding: 30px; margin-bottom: 18px; }
+.settings-about-brand { display: flex; align-items: center; gap: 15px; margin-bottom: 24px; }
+.settings-about-brand img { width: 58px; height: 58px; object-fit: contain; background: #fff; border: 1px solid #E0D5CB; border-radius: 13px; padding: 7px; box-sizing: border-box; }
+.settings-about-hero h3 { font-size: clamp(22px, 2.3vw, 30px); line-height: 1.25; max-width: 620px; }
+.settings-about-hero p { max-width: 630px; }
+.settings-site-link { display: inline-flex; align-items: center; gap: 7px; margin-top: 20px; color: #6F4A2F; font-size: 13px; font-weight: 800; text-underline-offset: 4px; }
+.settings-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.settings-about-footer { display: flex; flex-direction: column; gap: 6px; margin-top: 22px; color: #8A7A6B; font-size: 11px; line-height: 1.6; }
+.settings-about-footer strong { color: #6F4A2F; }
+.settings-backup-export:focus-visible, .settings-site-link:focus-visible { outline: 2px solid #6F4A2F; outline-offset: 3px; }
+@media (max-width: 1180px) { .settings-backup-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) {
+  .settings-feature-grid { grid-template-columns: minmax(0, 1fr); }
+  .settings-feature-card { padding: 19px; }
+  .settings-about-brand { align-items: flex-start; }
+  .settings-backup-heading { align-items: flex-start; }
+}

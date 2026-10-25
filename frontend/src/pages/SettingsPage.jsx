@@ -3,9 +3,11 @@ import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import AccountRoleTemplates from '../components/AccountRoleTemplates';
 import BackupExportModal from '../components/BackupExportModal';
+import AboutFluxSettings from '../components/AboutFluxSettings';
+import './SettingsOverview.css';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
-import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiTrash2 } from 'react-icons/fi';
+import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiTrash2, FiDownload, FiLock, FiCheck } from 'react-icons/fi';
 
 const normalizeAccountEmail = (value = '') => value.toLowerCase().trim();
 
@@ -2145,8 +2147,9 @@ export const SystemBackupSettings = () => {
     ];
 
     const formatBackupDate = (dateString) => {
-        if (!dateString) return 'No backup created yet';
+        if (!dateString) return 'No exports recorded in this browser';
         return new Date(dateString).toLocaleString('en-PH', {
+            timeZone: 'Asia/Manila',
             year: 'numeric',
             month: 'short',
             day: '2-digit',
@@ -2199,73 +2202,37 @@ export const SystemBackupSettings = () => {
     };
 
     const statusItems = [
-        ['Backup Format', 'JSON export'],
-        ['Last Backup', formatBackupDate(lastBackup)],
-        ['Server', 'http://localhost:5000'],
+        ['Backup Format', 'JSON file (.json)'],
+        ['Last Export (This Browser)', formatBackupDate(lastBackup)],
+        ['Website', window.location.origin],
+        ['Session Timeout', '15 minutes of inactivity'],
         ['Signed In As', currentUser.name || 'User'],
     ];
 
     if (!canExportBackup) return <div style={{ backgroundColor: '#FFF5F5', border: '1px solid #FED7D7', borderRadius: '12px', padding: '22px', color: '#9B2C2C', fontWeight: '700' }}>Database backups are restricted to the Owner because they contain sensitive business records.</div>;
 
     return (
-        <div className="settings-form-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 280px', gap: '20px', alignItems: 'start' }}>
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
-                <h3 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>Database Backup</h3>
-                <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#7A6A5D', lineHeight: 1.5 }}>
-                    Export a backup file containing the current products, categories, inventory, transactions, and refunds.
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginBottom: '18px' }}>
-                    {backupSources.map(source => (
-                        <div key={source.key} style={{ border: '1px solid #E8DDD0', borderRadius: '8px', padding: '12px', backgroundColor: '#FAFAF8' }}>
-                            <p style={{ margin: 0, fontSize: '12px', color: '#3D1F0D', fontWeight: '800' }}>{source.label}</p>
-                            <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#999' }}>Included</p>
-                        </div>
-                    ))}
+        <div className="settings-overview settings-backup-layout">
+            <section className="settings-feature-card">
+                <div className="settings-backup-heading">
+                    <span className="settings-overview-icon"><FiDownload aria-hidden="true" /></span>
+                    <span className="settings-backup-tag"><FiLock aria-hidden="true" /> Owner access</span>
                 </div>
-
-                {message && (
-                    <div style={{
-                        marginBottom: '16px',
-                        padding: '12px 14px',
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        backgroundColor: message.type === 'success' ? '#F0FFF4' : '#FFF5F5',
-                        color: message.type === 'success' ? '#276749' : '#C53030',
-                        border: `1px solid ${message.type === 'success' ? '#C6F6D5' : '#FED7D7'}`,
-                    }}>
-                        {message.text}
-                    </div>
-                )}
-
-                <button
-                    onClick={() => { setExportError(''); setMessage(null); setShowExportModal(true); }}
-                    disabled={exporting}
-                    style={{
-                        width: '100%',
-                        padding: '13px',
-                        backgroundColor: exporting ? '#C4A87A' : '#8B5E3C',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontSize: '13px',
-                        fontWeight: '800',
-                        cursor: exporting ? 'not-allowed' : 'pointer',
-                    }}
-                >
-                    {exporting ? 'Exporting Backup...' : 'Export Backup File'}
+                <h3>Keep a copy of your business records.</h3>
+                <p>Download the records listed below in a single backup file. Confirm your owner password before exporting.</p>
+                <div className="settings-backup-sources" aria-label="Included backup records">
+                    {backupSources.map(source => <div className="settings-backup-source" key={source.key}><FiCheck aria-hidden="true" />{source.label}</div>)}
+                </div>
+                <div className="settings-backup-note"><p>Save the downloaded file somewhere secure. This export covers the listed records; accounts, purchase orders, stock batches, and system audit logs are not included.</p></div>
+                {message && <div role={message.type === 'error' ? 'alert' : 'status'} className={'settings-backup-status ' + (message.type === 'error' ? 'is-error' : '')}>{message.text}</div>}
+                <button className="settings-backup-export" onClick={() => { setExportError(''); setMessage(null); setShowExportModal(true); }} disabled={exporting}>
+                    <FiDownload aria-hidden="true" />{exporting ? 'Exporting Backup...' : 'Export Backup File'}
                 </button>
-            </div>
-
-            <aside style={{ backgroundColor: '#F0E8E0', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '18px' }}>
-                <h3 style={{ margin: '0 0 12px', fontSize: '14px', fontWeight: '900', color: '#3D1F0D' }}>System Info</h3>
-                {statusItems.map(([label, value]) => (
-                    <div key={label} style={{ padding: '10px 0', borderBottom: label === 'Signed In As' ? 'none' : '1px solid #E0D5CB' }}>
-                        <p style={{ margin: '0 0 3px', fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{label}</p>
-                        <p style={{ margin: 0, fontSize: '12px', color: '#3D1F0D', fontWeight: '700', lineHeight: 1.4 }}>{value}</p>
-                    </div>
-                ))}
+            </section>
+            <aside className="settings-feature-card settings-system-info">
+                <span className="settings-eyebrow">Your workspace</span>
+                <h3 style={{ marginTop: '9px' }}>System information</h3>
+                <dl>{statusItems.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
             </aside>
             {showExportModal && <BackupExportModal busy={exporting} error={exportError} onConfirm={handleExportBackup} onClose={() => { if (!exporting) { setShowExportModal(false); setExportError(''); } }} />}
         </div>
@@ -2319,17 +2286,7 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
             case 'users': return hasPermission(currentUser, 'users') ? <UserAccountSettings /> : null;
             case 'password': return <ChangePasswordSettings />;
             case 'system': return isOwnerAccount(currentUser) ? <SystemBackupSettings /> : null;
-            case 'about': return (
-                <div style={{ marginTop: '20px', fontFamily: 'Segoe UI, sans-serif' }}>
-                    <div style={{ width: '76px', height: '76px', borderRadius: '16px', backgroundColor: '#fff', border: '1px solid #E0D5CB', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-                        <img src="/logo192.png" alt="FLUX Logo" style={{ width: '56px', height: '56px', objectFit: 'contain' }} />
-                    </div>
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1a1a1a', margin: '0 0 8px' }}>FLUX</h3>
-                    <p style={{ fontSize: '13px', color: '#888', margin: '0 0 4px' }}>Point-of-Sale & Inventory Management System</p>
-                    <p style={{ fontSize: '13px', color: '#888', margin: '0 0 4px' }}>Built for Eli Coffee & Tea, Antipolo</p>
-                    <p style={{ fontSize: '13px', color: '#8B5E3C', margin: '0', fontWeight: '600' }}>© 2026 CAPSTONE Inc.</p>
-                </div>
-            );
+            case 'about': return <AboutFluxSettings />;
             default: return null;
         }
     };
