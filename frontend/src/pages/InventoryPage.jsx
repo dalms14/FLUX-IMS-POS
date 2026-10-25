@@ -1010,14 +1010,14 @@ const InventoryPage = () => {
           </p>
         </section>
 
-        <section style={{ ...cardStyle, overflow: 'hidden' }}>
+        <section className="data-scroll-box data-scroll-box-grid" aria-label="Inventory items" tabIndex={0} style={{ ...cardStyle, overflow: 'hidden' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.1fr 0.9fr 0.7fr 1.35fr 1.1fr 132px', gap: '12px', padding: '14px 18px', backgroundColor: '#1A1208', minWidth: '980px' }}>
             {['Item', 'Category', 'Stock', 'Unit', 'Expiration', 'Status', 'Actions'].map(header => (
               <p key={header} style={{ ...tableHeaderStyle, textAlign: header === 'Actions' ? 'center' : 'left' }}>{header}</p>
             ))}
           </div>
 
-          <div style={{ overflow: 'auto' }}>
+          <div>
             {loading ? (
               <div style={{ padding: '42px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>Loading inventory...</div>
             ) : filteredItems.length === 0 ? (

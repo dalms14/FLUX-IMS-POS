@@ -697,7 +697,7 @@ const TransactionPage = () => {
 
         {/* Error Message */}
         {error && (
-          <div className="transaction-table-card" style={{
+          <div className="transaction-table-card data-scroll-box" role="region" aria-label="Transactions" tabIndex={0} style={{
             backgroundColor: '#FEE',
             color: '#C53030',
             padding: '16px',

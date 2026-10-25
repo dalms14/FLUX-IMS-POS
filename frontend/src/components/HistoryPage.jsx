@@ -156,7 +156,7 @@ const HistoryPage = () => {
         <div style={{ fontSize: '16px', fontWeight: '900', color: '#1A1208' }}>{title}</div>
         {subtitle && <div style={{ marginTop: '4px', fontSize: '12px', color: '#8A8178' }}>{subtitle}</div>}
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="data-scroll-box data-scroll-box-dark" role="region" aria-label={title} tabIndex={0}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth }}>
           <thead>
             <tr style={{ backgroundColor: '#1A1208' }}>

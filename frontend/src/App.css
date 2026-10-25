@@ -65,6 +65,59 @@ body {
   transform: translateY(0);
   transition-delay: 0.28s;
 }
+/* Long records scroll inside their card while page controls remain nearby. */
+.data-scroll-box.data-scroll-box {
+  max-height: min(60vh, 560px);
+  max-height: min(60dvh, 560px);
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto !important;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #B69A80 #F5F0EB;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-scroll-box:focus-visible {
+  outline: 2px solid #8B5E3C;
+  outline-offset: -2px;
+}
+
+/* Override legacy tablet rules that disable vertical section scrolling. */
+.mobile-page-content .data-scroll-box.data-scroll-box {
+  overflow: auto !important;
+}
+
+.data-scroll-box thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #F5F0EB;
+  box-shadow: 0 1px 0 #E0D5CB;
+}
+
+.data-scroll-box-dark thead {
+  background: #1A1208;
+}
+
+.data-scroll-box-grid > div:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+@media print {
+  .data-scroll-box.data-scroll-box,
+  .mobile-page-content .data-scroll-box.data-scroll-box {
+    max-height: none;
+    overflow: visible !important;
+  }
+  .data-scroll-box thead,
+  .data-scroll-box-grid > div:first-child {
+    position: static;
+  }
+}
+
 /* Keep the close icon centered in the dashboard delivery modal. */
 div[style*="z-index: 2200"] form > div:first-child > button[type="button"] {
   display: inline-flex;

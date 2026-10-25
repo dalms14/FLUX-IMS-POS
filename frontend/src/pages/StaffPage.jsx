@@ -476,7 +476,7 @@ const StaffPage = () => {
           </p>
         </div>
 
-        <div className="staff-table-card" style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div className="staff-table-card data-scroll-box data-scroll-box-grid" role="region" aria-label="User accounts" tabIndex={0} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           <div className="staff-list-head" style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1.15fr 1fr 190px', gap: '12px', padding: '14px 18px', backgroundColor: '#1A1208' }}>
             {['User', 'Email', 'User ID', 'Status', 'Created', 'Action'].map(header => (
               <p key={header} style={{ margin: 0, fontSize: '11px', color: '#C4894A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>

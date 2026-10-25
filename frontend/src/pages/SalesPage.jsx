@@ -609,7 +609,7 @@ const SalesPage = () => {
             <div style={{ padding: '16px 18px', borderBottom: '1px solid #E0D5CB' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>Product Sales</h2>
             </div>
-            <div style={{ overflow: 'auto' }}>
+            <div className="data-scroll-box" role="region" aria-label="Product sales" tabIndex={0}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>

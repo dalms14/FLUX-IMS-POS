@@ -88,7 +88,7 @@ const MetricCard = ({ title, value, detail, icon, color }) => (
 );
 
 const DataTable = ({ headers, rows, emptyText, renderRow }) => (
-  <div style={{ overflow: 'auto' }}>
+  <div className="data-scroll-box" role="region" aria-label={headers.join(', ')} tabIndex={0}>
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr>{headers.map(header => <th key={header} style={thStyle}>{header}</th>)}</tr>
