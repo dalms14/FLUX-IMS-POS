@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1190.55" height="841.89" viewBox="0 0 1190.55 841.89">
+<title>FLUX implemented database schema</title>
+<desc>MongoDB collections and application-level ObjectId references, exported from the Mongoose models.</desc>
+<rect x="0" y="0" width="1190.55" height="841.89" fill="#FFFFFF" stroke="none" stroke-width="0.8"/>
+<text x="44" y="37" fill="#1F6053" font-family="Arial, sans-serif" font-size="10" font-weight="700" text-anchor="start">FLUX / DATABASE DESIGN</text>
+<text x="44" y="73" fill="#18352F" font-family="Arial, sans-serif" font-size="25" font-weight="700" text-anchor="start">Figure 10B. Accounts and procurement</text>
+<text x="44" y="96" fill="#536760" font-family="Arial, sans-serif" font-size="10.5" font-weight="400" text-anchor="start">Receiver assignments, purchase-order lines, delivery receipts, notifications, and account activity.</text>
+<text x="1146.55" y="37" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">AS IMPLEMENTED  /  2026-10-30</text>
+<rect x="44" y="807.89" width="1102.55" height="0.7" fill="#CBD8D2" stroke="none" stroke-width="0.8"/>
+<text x="44" y="824.89" fill="#536760" font-family="Arial, sans-serif" font-size="8.5" font-weight="400" text-anchor="start">Arrows: stored reference -&gt; target collection. Rxx: relationship register on page 4. *: schema-required field.</text>
+<text x="1146.55" y="824.89" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">2 / 4</text>
+<rect x="44" y="126" width="304" height="198" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="44" y="126" width="304" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="56" y="147" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">users</text>
+<text x="56" y="177" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="336" y="177" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="56" y="192" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">userId * [unique]</text>
+<text x="336" y="192" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="207" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">name, email</text>
+<text x="336" y="207" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="222" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">password, pin (hashes)</text>
+<text x="336" y="222" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="237" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">role, jobRole</text>
+<text x="336" y="237" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="252" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">permissions[]</text>
+<text x="336" y="252" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String[]</text>
+<text x="56" y="267" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">isOnline, lastSeenAt</text>
+<text x="336" y="267" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Boolean / Date</text>
+<text x="56" y="282" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">mustChangePassword</text>
+<text x="336" y="282" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Boolean</text>
+<text x="56" y="297" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">recovery challenge fields</text>
+<text x="336" y="297" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Strings / Dates</text>
+<text x="56" y="312" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">archived, archivedAt</text>
+<text x="336" y="312" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Boolean / Date</text>
+<rect x="442" y="126" width="356" height="243" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="442" y="126" width="356" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="454" y="147" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">purchase_orders</text>
+<text x="454" y="177" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="786" y="177" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="454" y="192" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">purchaseOrderNo * [unique]</text>
+<text x="786" y="192" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="454" y="207" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">supplierName *</text>
+<text x="786" y="207" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="454" y="222" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">supplierContact</text>
+<text x="786" y="222" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="454" y="237" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">orderDate, expectedDeliveryDate</text>
+<text x="786" y="237" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Date</text>
+<text x="454" y="252" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">status, notes</text>
+<text x="786" y="252" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="454" y="267" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">assignedReceiver [R13]</text>
+<text x="786" y="267" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Object</text>
+<text x="454" y="282" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">items[] [R14]</text>
+<text x="786" y="282" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Document[]</text>
+<text x="454" y="297" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">receipts[] [R15]</text>
+<text x="786" y="297" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Document[]</text>
+<text x="454" y="312" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">pendingReceipts[]</text>
+<text x="786" y="312" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Document[]</text>
+<text x="454" y="327" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">createdBy, createdByEmail</text>
+<text x="786" y="327" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="454" y="342" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">approvedBy, approvedAt</text>
+<text x="786" y="342" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String / Date</text>
+<text x="454" y="357" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">cancelledBy, cancelledAt</text>
+<text x="786" y="357" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String / Date</text>
+<rect x="912" y="126" width="234" height="108" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="912" y="126" width="234" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="924" y="147" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">inventory</text>
+<text x="924" y="177" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="1134" y="177" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="924" y="192" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">name * [unique]</text>
+<text x="1134" y="192" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="924" y="207" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">stock *, unit *</text>
+<text x="1134" y="207" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Number / String</text>
+<text x="924" y="222" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">expirationBatches[]</text>
+<text x="1134" y="222" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Document[]</text>
+<text x="912" y="255" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="start">Repeated from Figure 10A.</text>
+<rect x="44" y="432" width="304" height="153" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="44" y="432" width="304" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="56" y="453" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">notifications</text>
+<text x="56" y="483" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="336" y="483" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="56" y="498" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">type *, title *, message *</text>
+<text x="336" y="498" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="513" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">purchaseOrderId [R16]</text>
+<text x="336" y="513" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId ref</text>
+<text x="56" y="528" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">purchaseOrderNo</text>
+<text x="336" y="528" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="543" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">audiences[]</text>
+<text x="336" y="543" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String[]</text>
+<text x="56" y="558" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">readBy[]</text>
+<text x="336" y="558" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Document[]</text>
+<text x="56" y="573" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">resolvedAt</text>
+<text x="336" y="573" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Date</text>
+<rect x="44" y="650" width="304" height="123" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="44" y="650" width="304" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="56" y="671" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">login_activity</text>
+<text x="56" y="701" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="336" y="701" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="56" y="716" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">userId [R17]</text>
+<text x="336" y="716" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId ref</text>
+<text x="56" y="731" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">name *, email *, role *</text>
+<text x="336" y="731" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="746" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">action, staffId</text>
+<text x="336" y="746" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="761" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">ipAddress, userAgent</text>
+<text x="336" y="761" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<polyline points="442,188 348,188" fill="none" stroke="#1F6053" stroke-width="1.15"/>
+<polygon points="348,188 354.30312971646873,184.95524126122137 354.30312971646873,191.04475873877863" fill="#1F6053"/>
+<rect x="377" y="170" width="22.510253906250004" height="14" fill="#FFFFFF" stroke="none" stroke-width="0.8"/>
+<text x="380" y="180" fill="#1F6053" font-family="Arial, sans-serif" font-size="9" font-weight="700" text-anchor="start">R13</text>
+<polyline points="798,210 912,210" fill="none" stroke="#1F6053" stroke-width="1.15"/>
+<polygon points="912,210 905.6968702835312,213.04475873877863 905.6968702835312,206.95524126122137" fill="#1F6053"/>
+<rect x="816" y="192" width="44.02148437500001" height="14" fill="#FFFFFF" stroke="none" stroke-width="0.8"/>
+<text x="819" y="202" fill="#1F6053" font-family="Arial, sans-serif" font-size="9" font-weight="700" text-anchor="start">R14, R15</text>
+<polyline points="348,495 390,495 390,340 442,340" fill="none" stroke="#1F6053" stroke-width="1.15"/>
+<polygon points="442,340 435.69687028353127,343.0447587387786 435.69687028353127,336.9552412612214" fill="#1F6053"/>
+<rect x="392" y="413" width="22.510253906250004" height="14" fill="#FFFFFF" stroke="none" stroke-width="0.8"/>
+<text x="395" y="423" fill="#1F6053" font-family="Arial, sans-serif" font-size="9" font-weight="700" text-anchor="start">R16</text>
+<polyline points="44,708 28,708 28,300 44,300" fill="none" stroke="#1F6053" stroke-width="1.15"/>
+<polygon points="44,300 37.69687028353126,303.0447587387786 37.69687028353126,296.9552412612214" fill="#1F6053"/>
+<rect x="31" y="623" width="22.510253906250004" height="14" fill="#FFFFFF" stroke="none" stroke-width="0.8"/>
+<text x="34" y="633" fill="#1F6053" font-family="Arial, sans-serif" font-size="9" font-weight="700" text-anchor="start">R17</text>
+<rect x="442" y="458" width="704" height="306" fill="#F1F6F3" stroke="#CBD8D2" stroke-width="0.8"/>
+<text x="460" y="486" fill="#1F6053" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="start">Embedded records inside purchase_orders</text>
+<text x="460" y="518" fill="#18352F" font-family="Arial, sans-serif" font-size="10.5" font-weight="700" text-anchor="start">assignedReceiver</text>
+<text x="460" y="533" fill="#536760" font-family="Arial, sans-serif" font-size="9.5" font-weight="400" text-anchor="start">userId ref -&gt; users; copied name and email</text>
+<text x="460" y="554" fill="#18352F" font-family="Arial, sans-serif" font-size="10.5" font-weight="700" text-anchor="start">items[]</text>
+<text x="460" y="569" fill="#536760" font-family="Arial, sans-serif" font-size="9.5" font-weight="400" text-anchor="start">_id, inventoryId ref, name, unit, ordered/received quantities, unitCost</text>
+<text x="460" y="590" fill="#18352F" font-family="Arial, sans-serif" font-size="10.5" font-weight="700" text-anchor="start">receipts[]</text>
+<text x="460" y="605" fill="#536760" font-family="Arial, sans-serif" font-size="9.5" font-weight="400" text-anchor="start">_id, receivedAt, receivedBy, receivedByEmail, items[]</text>
+<text x="460" y="626" fill="#18352F" font-family="Arial, sans-serif" font-size="10.5" font-weight="700" text-anchor="start">receipts[].items[]</text>
+<text x="460" y="641" fill="#536760" font-family="Arial, sans-serif" font-size="9.5" font-weight="400" text-anchor="start">itemId -&gt; this order&#x27;s items[]._id; inventoryId ref -&gt; inventory</text>
+<text x="460" y="662" fill="#18352F" font-family="Arial, sans-serif" font-size="10.5" font-weight="700" text-anchor="start">pendingReceipts[]</text>
+<text x="460" y="677" fill="#536760" font-family="Arial, sans-serif" font-size="9.5" font-weight="400" text-anchor="start">Arrival reporter, review status, reviewer, review time, reason, items[]</text>
+<text x="460" y="698" fill="#18352F" font-family="Arial, sans-serif" font-size="10.5" font-weight="700" text-anchor="start">pendingReceipts[].items[]</text>
+<text x="460" y="713" fill="#536760" font-family="Arial, sans-serif" font-size="9.5" font-weight="400" text-anchor="start">itemId -&gt; this order&#x27;s items[]._id; quantity, expiry, note</text>
+<text x="460" y="751" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="start">Only items[].inventoryId and receipts[].items[].inventoryId reference the inventory collection.</text>
+</svg>

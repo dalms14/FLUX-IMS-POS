@@ -7,7 +7,7 @@ import AboutFluxSettings from '../components/AboutFluxSettings';
 import './SettingsOverview.css';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
-import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiTrash2, FiDownload, FiLock, FiCheck } from 'react-icons/fi';
+import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiDownload, FiLock, FiCheck } from 'react-icons/fi';
 
 const normalizeAccountEmail = (value = '') => value.toLowerCase().trim();
 
@@ -868,37 +868,37 @@ const DeleteModal = ({ product, onConfirm, onClose }) => (
 );
 
 // ── Inventory Settings Section ──
-const AddonDeleteModal = ({ addon, onConfirm, onClose }) => (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+const AddonArchiveModal = ({ addon, onConfirm, onClose }) => (
+    <div role="dialog" aria-modal="true" aria-label="Archive Add-on" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '360px', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
             <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FiTrash2 size={28} />
+                <FiArchive size={28} />
             </div>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '0 0 8px', color: '#1a1a1a' }}>Delete Add-on?</h3>
+            <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '0 0 8px', color: '#1a1a1a' }}>Archive Add-on?</h3>
             <p style={{ fontSize: '13px', color: '#888', margin: '0 0 24px', lineHeight: 1.5 }}>
-                Do you really want to delete <strong>{addon?.name}</strong>? It will be removed from the master add-ons list.
+                Archive <strong>{addon?.name}</strong>? It will be removed from the active add-ons list and can be restored later.
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
                 <button onClick={onClose} style={{ flex: 1, padding: '12px', backgroundColor: '#f5f5f5', color: '#555', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={onConfirm} style={{ flex: 1, padding: '12px', backgroundColor: '#E53E3E', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>Delete</button>
+                <button onClick={onConfirm} style={{ flex: 1, padding: '12px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>Archive</button>
             </div>
         </div>
     </div>
 );
 
-const DiscountDeleteModal = ({ discount, onConfirm, onClose }) => (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+const DiscountArchiveModal = ({ discount, onConfirm, onClose }) => (
+    <div role="dialog" aria-modal="true" aria-label="Archive Discount" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '360px', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
             <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <FiTrash2 size={28} />
+                <FiArchive size={28} />
             </div>
-            <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '0 0 8px', color: '#1a1a1a' }}>Delete Discount?</h3>
+            <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '0 0 8px', color: '#1a1a1a' }}>Archive Discount?</h3>
             <p style={{ fontSize: '13px', color: '#888', margin: '0 0 24px', lineHeight: 1.5 }}>
-                Do you really want to delete <strong>{discount?.name}</strong>? It will be removed from the master discounts list.
+                Archive <strong>{discount?.name}</strong>? It will be removed from the active discounts list and can be restored later.
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
                 <button onClick={onClose} style={{ flex: 1, padding: '12px', backgroundColor: '#f5f5f5', color: '#555', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
-                <button onClick={onConfirm} style={{ flex: 1, padding: '12px', backgroundColor: '#E53E3E', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>Delete</button>
+                <button onClick={onConfirm} style={{ flex: 1, padding: '12px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>Archive</button>
             </div>
         </div>
     </div>
@@ -1198,22 +1198,33 @@ const AddonSettings = () => {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [deleteAddon, setDeleteAddon] = useState(null);
+    const [archiveAddon, setArchiveAddon] = useState(null);
+    const [showArchive, setShowArchive] = useState(false);
+    const listRequestId = useRef(0);
+    const reloadCurrentList = useRef(null);
 
     const loadAddons = useCallback(async () => {
+        const requestId = ++listRequestId.current;
         setLoading(true);
+        setAddons([]);
         try {
-            const res = await axios.get('http://localhost:5000/api/addons');
-            setAddons(res.data.data || []);
+            const res = await axios.get(`http://localhost:5000/api/addons${showArchive ? '?archived=true' : ''}`);
+            if (requestId !== listRequestId.current) return;
+            setAddons((res.data.data || []).filter(item => showArchive ? item.active === false : item.active !== false));
         } catch (err) {
+            if (requestId !== listRequestId.current) return;
             console.error('Error loading add-ons:', err);
             setMessage({ type: 'error', text: 'Failed to load add-ons.' });
         } finally {
-            setLoading(false);
+            if (requestId === listRequestId.current) setLoading(false);
         }
-    }, []);
+    }, [showArchive]);
+    reloadCurrentList.current = loadAddons;
 
-    useEffect(() => { loadAddons(); }, [loadAddons]);
+    useEffect(() => {
+        loadAddons();
+        return () => { listRequestId.current += 1; };
+    }, [loadAddons]);
 
     const filteredAddons = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -1246,7 +1257,7 @@ const AddonSettings = () => {
             }
 
             resetForm();
-            loadAddons();
+            reloadCurrentList.current();
         } catch (err) {
             setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to save add-on.' });
         } finally {
@@ -1260,16 +1271,27 @@ const AddonSettings = () => {
         setMessage(null);
     };
 
-    const handleDelete = async () => {
-        if (!deleteAddon) return;
+    const handleArchive = async () => {
+        if (!archiveAddon) return;
 
         try {
-            await axios.delete(`http://localhost:5000/api/addons/${deleteAddon._id}`);
-            setMessage({ type: 'success', text: 'Add-on removed.' });
-            setDeleteAddon(null);
-            loadAddons();
+            await axios.delete(`http://localhost:5000/api/addons/${archiveAddon._id}`);
+            setMessage({ type: 'success', text: 'Add-on archived.' });
+            setArchiveAddon(null);
+            if (editing?._id === archiveAddon._id) resetForm();
+            reloadCurrentList.current();
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to remove add-on.' });
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to archive add-on.' });
+        }
+    };
+
+    const handleRestore = async (addon) => {
+        try {
+            await axios.post(`http://localhost:5000/api/addons/${addon._id}/restore`);
+            setMessage({ type: 'success', text: 'Add-on restored.' });
+            reloadCurrentList.current();
+        } catch (err) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to restore add-on.' });
         }
     };
 
@@ -1315,13 +1337,22 @@ const AddonSettings = () => {
             </form>
 
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 18px 0' }}>
+                    <button
+                        type="button"
+                        onClick={() => { resetForm(); setShowArchive(value => !value); }}
+                        style={{ padding: '9px 14px', backgroundColor: showArchive ? '#1A1208' : '#fff', color: showArchive ? '#fff' : '#8B5E3C', border: '1.5px solid #8B5E3C', borderRadius: '8px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                        <FiArchive size={15} /> {showArchive ? 'Active Add-ons' : 'View Archive'}
+                    </button>
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', borderBottom: '1px solid #F0E8E0', backgroundColor: '#fff' }}>
                     <div style={{ display: 'flex', alignItems: 'center', flex: 1, border: '1.5px solid #ddd', borderRadius: '9px', overflow: 'hidden', backgroundColor: '#fff' }}>
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="Search add-ons..."
+                            placeholder={showArchive ? 'Search archived add-ons...' : 'Search add-ons...'}
                             style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', padding: '10px 12px', fontSize: '13px', fontFamily: 'Segoe UI, sans-serif' }}
                         />
                         <button
@@ -1333,18 +1364,18 @@ const AddonSettings = () => {
                         </button>
                     </div>
                     <p style={{ margin: 0, minWidth: '86px', textAlign: 'right', fontSize: '12px', color: '#999', fontWeight: '700' }}>
-                        {filteredAddons.length} add-on{filteredAddons.length !== 1 ? 's' : ''}
+                        {filteredAddons.length} {showArchive ? 'archived ' : ''}add-on{filteredAddons.length !== 1 ? 's' : ''}
                     </p>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 92px 92px', gap: '12px', padding: '12px 18px', backgroundColor: '#1A1208' }}>
-                    {['Add-on', 'Price', 'Edit', 'Delete'].map(header => (
+                    {['Add-on', 'Price', ...(showArchive ? ['Archived', 'Restore'] : ['Edit', 'Archive'])].map(header => (
                         <p key={header} style={{ margin: 0, fontSize: '11px', color: '#C4894A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
                     ))}
                 </div>
                 {loading ? (
                     <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>Loading add-ons...</div>
                 ) : addons.length === 0 ? (
-                    <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No add-ons yet.</div>
+                    <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>{showArchive ? 'No archived add-ons.' : 'No add-ons yet.'}</div>
                 ) : filteredAddons.length === 0 ? (
                     <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No add-ons match your search.</div>
                 ) : (
@@ -1352,17 +1383,22 @@ const AddonSettings = () => {
                         <div key={addon._id || addon.name} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 92px 92px', gap: '12px', alignItems: 'center', padding: '12px 18px', borderBottom: index === filteredAddons.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
                             <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#1a1a1a' }}>{addon.name}</p>
                             <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#8B5E3C' }}>₱{Number(addon.price || 0).toLocaleString()}</p>
-                            <button onClick={() => handleEdit(addon)} style={{ padding: '7px 10px', backgroundColor: '#EBF8FF', color: '#2B6CB0', border: '1px solid #BEE3F8', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiEdit2 size={13} /> Edit</button>
-                            <button onClick={() => setDeleteAddon(addon)} style={{ padding: '7px 10px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiTrash2 size={13} /> Del</button>
+                            {showArchive ? <>
+                                <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>{addon.archivedAt ? new Date(addon.archivedAt).toLocaleDateString() : 'Unknown'}</p>
+                                <button onClick={() => handleRestore(addon)} style={{ padding: '7px 10px', backgroundColor: '#F0FFF4', color: '#276749', border: '1px solid #C6F6D5', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiRotateCcw size={13} /> Restore</button>
+                            </> : <>
+                                <button onClick={() => handleEdit(addon)} style={{ padding: '7px 10px', backgroundColor: '#EBF8FF', color: '#2B6CB0', border: '1px solid #BEE3F8', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiEdit2 size={13} /> Edit</button>
+                                <button onClick={() => setArchiveAddon(addon)} style={{ padding: '7px 10px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiArchive size={13} /> Archive</button>
+                            </>}
                         </div>
                     ))
                 )}
             </div>
-            {deleteAddon && (
-                <AddonDeleteModal
-                    addon={deleteAddon}
-                    onConfirm={handleDelete}
-                    onClose={() => setDeleteAddon(null)}
+            {archiveAddon && (
+                <AddonArchiveModal
+                    addon={archiveAddon}
+                    onConfirm={handleArchive}
+                    onClose={() => setArchiveAddon(null)}
                 />
             )}
         </div>
@@ -1377,22 +1413,33 @@ const DiscountSettings = () => {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [deleteDiscount, setDeleteDiscount] = useState(null);
+    const [archiveDiscount, setArchiveDiscount] = useState(null);
+    const [showArchive, setShowArchive] = useState(false);
+    const listRequestId = useRef(0);
+    const reloadCurrentList = useRef(null);
 
     const loadDiscounts = useCallback(async () => {
+        const requestId = ++listRequestId.current;
         setLoading(true);
+        setDiscounts([]);
         try {
-            const res = await axios.get('http://localhost:5000/api/discounts');
-            setDiscounts(res.data.data || []);
+            const res = await axios.get(`http://localhost:5000/api/discounts${showArchive ? '?archived=true' : ''}`);
+            if (requestId !== listRequestId.current) return;
+            setDiscounts((res.data.data || []).filter(item => showArchive ? item.active === false : item.active !== false));
         } catch (err) {
+            if (requestId !== listRequestId.current) return;
             console.error('Error loading discounts:', err);
             setMessage({ type: 'error', text: 'Failed to load discounts.' });
         } finally {
-            setLoading(false);
+            if (requestId === listRequestId.current) setLoading(false);
         }
-    }, []);
+    }, [showArchive]);
+    reloadCurrentList.current = loadDiscounts;
 
-    useEffect(() => { loadDiscounts(); }, [loadDiscounts]);
+    useEffect(() => {
+        loadDiscounts();
+        return () => { listRequestId.current += 1; };
+    }, [loadDiscounts]);
 
     const filteredDiscounts = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
@@ -1432,7 +1479,7 @@ const DiscountSettings = () => {
             }
 
             resetForm();
-            loadDiscounts();
+            reloadCurrentList.current();
         } catch (err) {
             setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to save discount.' });
         } finally {
@@ -1447,21 +1494,32 @@ const DiscountSettings = () => {
         setMessage(null);
     };
 
-    const handleDelete = async () => {
-        if (!deleteDiscount) return;
-        if (isSystemDiscountName(deleteDiscount.name)) {
-            setMessage({ type: 'error', text: 'Elite Member is a system discount and cannot be deleted.' });
-            setDeleteDiscount(null);
+    const handleArchive = async () => {
+        if (!archiveDiscount) return;
+        if (isSystemDiscountName(archiveDiscount.name)) {
+            setMessage({ type: 'error', text: 'Elite Member is a system discount and cannot be archived.' });
+            setArchiveDiscount(null);
             return;
         }
 
         try {
-            await axios.delete(`http://localhost:5000/api/discounts/${deleteDiscount._id}`);
-            setMessage({ type: 'success', text: 'Discount removed.' });
-            setDeleteDiscount(null);
-            loadDiscounts();
+            await axios.delete(`http://localhost:5000/api/discounts/${archiveDiscount._id}`);
+            setMessage({ type: 'success', text: 'Discount archived.' });
+            setArchiveDiscount(null);
+            if (editing?._id === archiveDiscount._id) resetForm();
+            reloadCurrentList.current();
         } catch (err) {
-            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to remove discount.' });
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to archive discount.' });
+        }
+    };
+
+    const handleRestore = async (discount) => {
+        try {
+            await axios.post(`http://localhost:5000/api/discounts/${discount._id}/restore`);
+            setMessage({ type: 'success', text: 'Discount restored.' });
+            reloadCurrentList.current();
+        } catch (err) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to restore discount.' });
         }
     };
 
@@ -1517,13 +1575,22 @@ const DiscountSettings = () => {
             </form>
 
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 18px 0' }}>
+                    <button
+                        type="button"
+                        onClick={() => { resetForm(); setShowArchive(value => !value); }}
+                        style={{ padding: '9px 14px', backgroundColor: showArchive ? '#1A1208' : '#fff', color: showArchive ? '#fff' : '#8B5E3C', border: '1.5px solid #8B5E3C', borderRadius: '8px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                        <FiArchive size={15} /> {showArchive ? 'Active Discounts' : 'View Archive'}
+                    </button>
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 18px', borderBottom: '1px solid #F0E8E0', backgroundColor: '#fff' }}>
                     <div style={{ display: 'flex', alignItems: 'center', flex: 1, border: '1.5px solid #ddd', borderRadius: '9px', overflow: 'hidden', backgroundColor: '#fff' }}>
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            placeholder="Search discounts..."
+                            placeholder={showArchive ? 'Search archived discounts...' : 'Search discounts...'}
                             style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', padding: '10px 12px', fontSize: '13px', fontFamily: 'Segoe UI, sans-serif' }}
                         />
                         <button
@@ -1535,18 +1602,18 @@ const DiscountSettings = () => {
                         </button>
                     </div>
                     <p style={{ margin: 0, minWidth: '92px', textAlign: 'right', fontSize: '12px', color: '#999', fontWeight: '700' }}>
-                        {filteredDiscounts.length} discount{filteredDiscounts.length !== 1 ? 's' : ''}
+                        {filteredDiscounts.length} {showArchive ? 'archived ' : ''}discount{filteredDiscounts.length !== 1 ? 's' : ''}
                     </p>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 150px 92px 92px', gap: '12px', padding: '12px 18px', backgroundColor: '#1A1208' }}>
-                    {['Discount', 'Discount %', 'Applies To', 'Edit', 'Delete'].map(header => (
+                    {['Discount', 'Discount %', 'Applies To', ...(showArchive ? ['Archived', 'Restore'] : ['Edit', 'Archive'])].map(header => (
                         <p key={header} style={{ margin: 0, fontSize: '11px', color: '#C4894A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
                     ))}
                 </div>
                 {loading ? (
                     <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>Loading discounts...</div>
                 ) : discounts.filter(discount => !isSystemDiscountName(discount.name)).length === 0 ? (
-                    <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No discounts yet.</div>
+                    <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>{showArchive ? 'No archived discounts.' : 'No discounts yet.'}</div>
                 ) : filteredDiscounts.length === 0 ? (
                     <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No discounts match your search.</div>
                 ) : (
@@ -1557,17 +1624,22 @@ const DiscountSettings = () => {
                             <p style={{ margin: 0, fontSize: '12px', fontWeight: '800', color: normalizeDiscountScope(discount) === 'item' ? '#975A16' : '#276749' }}>
                                 {discountScopeLabel(normalizeDiscountScope(discount))}
                             </p>
-                            <button onClick={() => handleEdit(discount)} style={{ padding: '7px 10px', backgroundColor: '#EBF8FF', color: '#2B6CB0', border: '1px solid #BEE3F8', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiEdit2 size={13} /> Edit</button>
-                            <button onClick={() => setDeleteDiscount(discount)} style={{ padding: '7px 10px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiTrash2 size={13} /> Del</button>
+                            {showArchive ? <>
+                                <p style={{ margin: 0, fontSize: '12px', color: '#888' }}>{discount.archivedAt ? new Date(discount.archivedAt).toLocaleDateString() : 'Unknown'}</p>
+                                <button onClick={() => handleRestore(discount)} style={{ padding: '7px 10px', backgroundColor: '#F0FFF4', color: '#276749', border: '1px solid #C6F6D5', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiRotateCcw size={13} /> Restore</button>
+                            </> : <>
+                                <button onClick={() => handleEdit(discount)} style={{ padding: '7px 10px', backgroundColor: '#EBF8FF', color: '#2B6CB0', border: '1px solid #BEE3F8', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiEdit2 size={13} /> Edit</button>
+                                <button onClick={() => setArchiveDiscount(discount)} style={{ padding: '7px 10px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><FiArchive size={13} /> Archive</button>
+                            </>}
                         </div>
                     ))
                 )}
             </div>
-            {deleteDiscount && (
-                <DiscountDeleteModal
-                    discount={deleteDiscount}
-                    onConfirm={handleDelete}
-                    onClose={() => setDeleteDiscount(null)}
+            {archiveDiscount && (
+                <DiscountArchiveModal
+                    discount={archiveDiscount}
+                    onConfirm={handleArchive}
+                    onClose={() => setArchiveDiscount(null)}
                 />
             )}
         </div>

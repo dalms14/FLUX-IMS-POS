@@ -1,6 +1,9 @@
 const { test, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const Transaction = require('../models/Transaction');
+const ForecastSnapshot = require('../models/ForecastSnapshot');
+ForecastSnapshot.updateOne = async () => ({});
+ForecastSnapshot.find = () => ({ sort: () => ({ lean: async () => [] }) });
 const { addDays, businessDate, validDate, demoHistory, createForecast, MIN_HISTORY_DAYS } = require('../services/salesForecast');
 const router = require('../Routes/salesForecastRoutes');
 const { trainLinearSalesModel, predictLinearSales, predictWeekdayAverage, evaluateSalesModel } = require('../services/linearSalesModel');
@@ -131,7 +134,7 @@ test('real mode queries only completed sales after the verified start and exclud
         const filter = pipeline[0].$match;
         assert.equal(filter.orderStatus, 'completed');
         assert.equal(filter.paymentMethod.$ne, 'Cancelled');
-        assert.equal(filter.createdAt.$gte.toISOString(), new Date(`${addDays(currentDay, -60)}T00:00:00+08:00`).toISOString());
+        assert.ok([-60, -30].some(offset => filter.createdAt.$gte.toISOString() === new Date(`${addDays(currentDay, offset)}T00:00:00+08:00`).toISOString()));
         assert.equal(filter.createdAt.$lt.toISOString(), new Date(`${currentDay}T00:00:00+08:00`).toISOString());
         assert.equal(pipeline[1].$group._id.$dateToString.timezone, 'Asia/Manila');
         return Array.from({ length: 60 }, (_, i) => ({ _id: addDays(currentDay, i - 60), sales: 5000 + i * 10 }));

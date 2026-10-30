@@ -15,6 +15,26 @@ const sample = {
 };
 beforeEach(() => jest.resetAllMocks());
 
+test('shows saved predictions, pending dates and peso error separately from demo validation', async () => {
+  axios.get.mockResolvedValue({ data: { ...sample, tracking: { source: 'demo', comparedDays: 1, mae: 300, rows: [
+    { date: '2026-10-21', predicted: 5000, actual: 4700, error: 300, status: 'compared' },
+    { date: '2026-10-24', predicted: 5200, actual: null, error: null, status: 'waiting' },
+  ] } } });
+  render(<SalesForecast />);
+  expect(await screen.findByText('Forecast vs. Actual (sample)')).toBeInTheDocument();
+  expect(screen.getByText('Sample sales')).toBeInTheDocument();
+  expect(screen.getByText('Waiting')).toBeInTheDocument();
+  expect(screen.getByText(/Average difference:/)).toHaveTextContent('300 per day');
+  expect(screen.getByText(/Sample data only/)).toBeInTheDocument();
+});
+
+test('reports tracking failure without claiming predictions were saved', async () => {
+  axios.get.mockResolvedValue({ data: { ...sample, tracking: { source: 'demo', unavailable: true } } });
+  render(<SalesForecast />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Predictions could not be saved or compared');
+  expect(screen.queryByText(/Average difference:/)).not.toBeInTheDocument();
+});
+
 test('clearly labels sample forecasts and provides an accessible daily breakdown', async () => {
   axios.get.mockResolvedValue({ data: sample });
   render(<SalesForecast />);
@@ -24,7 +44,7 @@ test('clearly labels sample forecasts and provides an accessible daily breakdown
   expect(screen.getByText('Tomorrow (sample)')).toBeInTheDocument();
   expect(screen.getAllByRole('listitem')).toHaveLength(7);
   expect(screen.getByText(/A linear regression model learns weekday patterns/)).toBeInTheDocument();
-  expect(screen.getByText('Model check').closest('details')).not.toHaveAttribute('open');
+  expect(screen.getByText('How the forecast works').closest('details')).not.toHaveAttribute('open');
   expect(screen.getByText(/do not establish accuracy for Eli Coffee/)).toBeInTheDocument();
   expect(screen.queryByText(/Historical prediction error/)).not.toBeInTheDocument();
   expect(axios.get.mock.calls[0][0]).toBe('http://localhost:5000/api/sales-forecast?source=demo');
@@ -69,7 +89,7 @@ test('discloses when the simpler comparison has lower test error', async () => {
     days: 14, modelMae: 400, baselineMae: 200, baselineIsBetter: true,
   } } });
   render(<SalesForecast />);
-  await screen.findByText('Model check');
+  await screen.findByText('How the forecast works');
   expect(screen.getByText(/four-week average had lower error/)).toBeInTheDocument();
   expect(screen.getByText(/not guaranteed to perform better/)).toBeInTheDocument();
   expect(screen.getByText(/400 per day/)).toBeInTheDocument();

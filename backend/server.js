@@ -18,6 +18,7 @@ const Discount = require('./models/Discount');
 const purchaseOrderRoutes = require('./Routes/purchaseOrderRoutes');
 const notificationRoutes = require('./Routes/notificationRoutes');
 const salesForecastRoutes = require('./Routes/salesForecastRoutes');
+const validateEliteMember = require('./middleware/validateEliteMember');
 
 dotenv.config();
 
@@ -502,8 +503,8 @@ app.delete('/api/addons/:id', async (req, res) => {
 
     res.json({ success: true, message: `${addon.name} archived` });
   } catch (err) {
-    console.error('Error deleting add-on:', err);
-    res.status(500).json({ message: 'Failed to delete add-on' });
+    console.error('Error archiving add-on:', err);
+    res.status(500).json({ message: 'Failed to archive add-on' });
   }
 });
 
@@ -635,7 +636,7 @@ app.delete('/api/discounts/:id', async (req, res) => {
     }
 
     if (isSystemDiscountName(currentDiscount.name)) {
-      return res.status(400).json({ message: 'Elite Member is a system discount and cannot be deleted' });
+      return res.status(400).json({ message: 'Elite Member is a system discount and cannot be archived' });
     }
 
     const discount = await Discount.findByIdAndUpdate(
@@ -659,8 +660,8 @@ app.delete('/api/discounts/:id', async (req, res) => {
 
     res.json({ success: true, message: `${discount.name} archived` });
   } catch (err) {
-    console.error('Error deleting discount:', err);
-    res.status(500).json({ message: err.message || 'Failed to delete discount' });
+    console.error('Error archiving discount:', err);
+    res.status(500).json({ message: err.message || 'Failed to archive discount' });
   }
 });
 
@@ -1358,7 +1359,7 @@ function buildShortage(requirement, inventoryItem) {
 }
 
 // Place Order
-app.post('/api/transactions', async (req, res) => {
+app.post('/api/transactions', validateEliteMember, async (req, res) => {
     const { cashier, cashierEmail, customerType, serviceType, eliteMember, discountInfo, items, subtotal, tax, discount, total, paymentMethod, amountTendered, change, gcashReference, gcashProofImage } = req.body;
     const deductedRequirements = [];
     try {
@@ -1438,7 +1439,7 @@ app.post('/api/transactions', async (req, res) => {
 });
 
 // Record checkout cancellations before payment is confirmed.
-app.post('/api/transactions/cancelled-checkout', async (req, res) => {
+app.post('/api/transactions/cancelled-checkout', validateEliteMember, async (req, res) => {
     try {
         const { cashier, cashierEmail, customerType, serviceType, eliteMember, discountInfo, items, subtotal, tax, discount, total, reason } = req.body;
 

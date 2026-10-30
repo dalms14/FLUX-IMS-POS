@@ -11,12 +11,15 @@ const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.te
 // Fixed synthetic history is generated in memory, never inserted into the POS database.
 function demoHistory(today) {
     const dailySales = [5800, 4000, 4300, 4500, 4800, 6200, 7000];
-    let seed = 42;
     return Array.from({ length: 56 }, (_, index) => {
         const date = addDays(today, index - 56);
-        seed = (1664525 * seed + 1013904223) >>> 0;
+        // Anchor samples to calendar dates so yesterday's simulated actual does
+        // not change just because the user opens the page on a different day.
+        const dayIndex = Math.floor(new Date(`${date}T00:00:00Z`).getTime() / DAY_MS);
+        const seed = (1664525 * dayIndex + 1013904223) >>> 0;
         const variation = seed % 601 - 300;
-        return { date, sales: dailySales[weekday(date)] + index * 25 + variation };
+        const trendDays = Math.floor((new Date(`${date}T00:00:00Z`) - new Date('2026-09-01T00:00:00Z')) / DAY_MS);
+        return { date, sales: Math.max(0, dailySales[weekday(date)] + trendDays * 25 + variation) };
     });
 }
 

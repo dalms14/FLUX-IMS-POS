@@ -68,14 +68,41 @@ export default function SalesForecast() {
           <strong>{money(row.sales)}{row.closed && <small>Closed</small>}</strong>
         </div>)}
       </div>
-      <p className="forecast-explanation"><strong>How it works:</strong> A linear regression model learns weekday patterns and the sales trend from past daily sales, then estimates the coming week.</p>
-      {current.validation && <details className="forecast-model-check"><summary>Model check</summary>
+      {current.tracking && <div className="forecast-tracking">
+        <h3>Forecast vs. Actual{demo ? ' (sample)' : ''}</h3>
+        <p>Compare saved estimates with sales after each day ends.</p>
+        {demo && <p>Sample data only — not Eli Coffee sales.</p>}
+        {current.tracking.unavailable ? <p role="alert">Forecast tracking is unavailable. Predictions could not be saved or compared. Reload to retry.</p> : <>
+          {current.tracking.comparedDays > 0
+            ? <p><strong>Average difference: {money(current.tracking.mae)} per day</strong> · {current.tracking.comparedDays} days checked. Lower is better.</p>
+            : <p>Results will appear after a saved forecast day ends.</p>}
+          <div className="data-scroll-box forecast-comparison-scroll" tabIndex={0} role="region" aria-label="Saved forecast comparisons">
+            <table><thead><tr><th>Date</th><th>Estimate</th><th>{demo ? 'Sample sales' : 'Actual sales'}</th><th>Difference</th><th>Status</th></tr></thead>
+              <tbody>{current.tracking.rows.map(row => <tr key={row.date}>
+                <td>{row.date}</td><td>{money(row.predicted)}</td><td>{row.actual === null ? '—' : money(row.actual)}</td>
+                <td>{row.error === null ? '—' : money(row.error)}</td><td>{row.status === 'compared' ? 'Checked' : row.status === 'missing-sales' ? 'Missing sales' : 'Waiting'}</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+          <details><summary>Details</summary>
+            <p>Opening this page saves the first estimate for tomorrow onward. Refreshing keeps it unchanged. Comparisons cover the last 30 completed days.</p>
+            <p>Difference means how far the estimate was above or below sales. The average uses completed comparisons only.</p>
+            <p>Sales are after discounts, before refunds. Missing records are not counted as zero unless the day is confirmed closed.</p>
+            {demo && <p>Sample comparisons do not measure accuracy for Eli Coffee.</p>}
+          </details>
+        </>}
+      </div>}
+      <details className="forecast-model-check"><summary>How the forecast works</summary>
+        <p>A linear regression model learns weekday patterns and the sales trend from past daily sales, then estimates the coming week.</p>
+        <p>History through {dateLabel(current.trainedThrough)} (Philippine time). Date filters above do not change the forecast.</p>
+      {current.validation && <>
         <p>Trained on {current.historyDays} completed days. Tested on {current.validation.days} later days in two weekly checks, using only earlier sales for each prediction.</p>
         <p>Average test error{demo ? ' on sample data' : ''}: <strong>{money(current.validation.modelMae)} per day</strong>. Four-week average comparison: <strong>{money(current.validation.baselineMae)} per day</strong>. Lower error is better.</p>
         {current.validation.baselineIsBetter && <p>The four-week average had lower error in this check. The machine-learning model is not guaranteed to perform better.</p>}
         {demo && <p>These results demonstrate the training and testing process; they do not establish accuracy for Eli Coffee.</p>}
-      </details>}
-      <p className="forecast-footnote">Estimates may differ from actual sales. Amounts are after discounts, before refunds. History through {dateLabel(current.trainedThrough)} (Philippine time); date filters above do not change the forecast.</p>
+      </>}
+      </details>
+      <p className="forecast-footnote">Estimates are a guide and may differ from actual sales.</p>
     </>}
   </section>;
 }

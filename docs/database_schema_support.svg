@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1190.55" height="841.89" viewBox="0 0 1190.55 841.89">
+<title>FLUX implemented database schema</title>
+<desc>MongoDB collections and application-level ObjectId references, exported from the Mongoose models.</desc>
+<rect x="0" y="0" width="1190.55" height="841.89" fill="#FFFFFF" stroke="none" stroke-width="0.8"/>
+<text x="44" y="37" fill="#1F6053" font-family="Arial, sans-serif" font-size="10" font-weight="700" text-anchor="start">FLUX / DATABASE DESIGN</text>
+<text x="44" y="73" fill="#18352F" font-family="Arial, sans-serif" font-size="25" font-weight="700" text-anchor="start">Figure 10C. Catalog and supporting records</text>
+<text x="44" y="96" fill="#536760" font-family="Arial, sans-serif" font-size="10.5" font-weight="400" text-anchor="start">These five collections declare no ObjectId references to other models. Text snapshots do not create reference relationships.</text>
+<text x="1146.55" y="37" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">AS IMPLEMENTED  /  2026-10-30</text>
+<rect x="44" y="807.89" width="1102.55" height="0.7" fill="#CBD8D2" stroke="none" stroke-width="0.8"/>
+<text x="44" y="824.89" fill="#536760" font-family="Arial, sans-serif" font-size="8.5" font-weight="400" text-anchor="start">Arrows: stored reference -&gt; target collection. Rxx: relationship register on page 4. *: schema-required field.</text>
+<text x="1146.55" y="824.89" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">3 / 4</text>
+<rect x="44" y="126" width="330" height="123" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="44" y="126" width="330" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="56" y="147" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">addons</text>
+<text x="56" y="177" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="362" y="177" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="56" y="192" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">name *</text>
+<text x="362" y="192" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="207" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">nameKey * [unique]</text>
+<text x="362" y="207" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="222" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">price</text>
+<text x="362" y="222" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Number</text>
+<text x="56" y="237" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">active, archivedAt</text>
+<text x="362" y="237" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Boolean / Date</text>
+<rect x="430" y="126" width="330" height="138" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="430" y="126" width="330" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="442" y="147" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">discounts</text>
+<text x="442" y="177" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="748" y="177" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="442" y="192" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">name *</text>
+<text x="748" y="192" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="442" y="207" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">nameKey * [unique]</text>
+<text x="748" y="207" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="442" y="222" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">percentage * (0-100)</text>
+<text x="748" y="222" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Number</text>
+<text x="442" y="237" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">scope (item / order)</text>
+<text x="748" y="237" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="442" y="252" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">active, archivedAt</text>
+<text x="748" y="252" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Boolean / Date</text>
+<rect x="816" y="126" width="330" height="123" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="816" y="126" width="330" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="828" y="147" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">email_verifications</text>
+<text x="828" y="177" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="1134" y="177" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="828" y="192" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">email * [unique]</text>
+<text x="1134" y="192" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="828" y="207" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">otpHash *</text>
+<text x="1134" y="207" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="828" y="222" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">expiresAt * [TTL]</text>
+<text x="1134" y="222" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Date</text>
+<text x="828" y="237" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">attempts</text>
+<text x="1134" y="237" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Number</text>
+<text x="44" y="279" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Product add-ons copy names and prices.</text>
+<text x="430" y="294" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Transactions store discountInfo snapshots.</text>
+<text x="816" y="279" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">TTL index uses expireAfterSeconds = 0.</text>
+<text x="816" y="295" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Records are eligible for expiry at expiresAt.</text>
+<rect x="44" y="366" width="520" height="168" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="44" y="366" width="520" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="56" y="387" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">forecastsnapshots</text>
+<text x="56" y="417" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="552" y="417" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="56" y="432" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">dataset * [compound unique]</text>
+<text x="552" y="432" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="447" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">targetDate * [compound unique]</text>
+<text x="552" y="447" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String date</text>
+<text x="56" y="462" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">source * (demo / real)</text>
+<text x="552" y="462" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="56" y="477" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">predictedSales *</text>
+<text x="552" y="477" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Number</text>
+<text x="56" y="492" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">generatedAt *</text>
+<text x="552" y="492" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Date</text>
+<text x="56" y="507" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">trainedThrough *</text>
+<text x="552" y="507" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String date</text>
+<text x="56" y="522" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">method</text>
+<text x="552" y="522" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<rect x="626" y="366" width="520" height="153" fill="#FFFFFF" stroke="#CBD8D2" stroke-width="0.8"/>
+<rect x="626" y="366" width="520" height="32" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="638" y="387" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">system_audit</text>
+<text x="638" y="417" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">_id [PK]</text>
+<text x="1134" y="417" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">ObjectId</text>
+<text x="638" y="432" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">module *, action *</text>
+<text x="1134" y="432" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="638" y="447" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">entityId, entityName</text>
+<text x="1134" y="447" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String snapshots</text>
+<text x="638" y="462" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">actor, actorEmail</text>
+<text x="1134" y="462" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String snapshots</text>
+<text x="638" y="477" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">details</text>
+<text x="1134" y="477" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">String</text>
+<text x="638" y="492" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">changes</text>
+<text x="1134" y="492" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Mixed</text>
+<text x="638" y="507" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">createdAt, updatedAt</text>
+<text x="1134" y="507" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">Date</text>
+<text x="44" y="553" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Unique key: dataset + targetDate. Automatic timestamps are disabled.</text>
+<text x="626" y="553" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">entityId is a string with a module context; no Mongoose ref is declared.</text>
+<rect x="44" y="612" width="1102" height="159" fill="#F1F6F3" stroke="#CBD8D2" stroke-width="0.8"/>
+<text x="62" y="640" fill="#1F6053" font-family="Arial, sans-serif" font-size="14" font-weight="700" text-anchor="start">Storage boundaries for the paper</text>
+<text x="62" y="665" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Elite Member details are embedded in transactions; saved member templates live in browser localStorage.</text>
+<text x="62" y="684" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Supplier names and contacts are embedded in purchase orders; supplier entry history also lives in browser localStorage.</text>
+<text x="62" y="703" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">There is no separate Member, Supplier, Payment, OrderItem, DeliveryReceipt, or StockMovement model in this implementation.</text>
+<text x="62" y="722" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Stock movement history is represented through audit events; sales and refund quantities also reside in their respective records.</text>
+<text x="62" y="741" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">All 16 collections have generated document identifiers and version keys. Category and ForecastSnapshot have no automatic timestamps.</text>
+</svg>

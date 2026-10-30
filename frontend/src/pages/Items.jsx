@@ -5,6 +5,8 @@ import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiImage, FiPlus, FiTag } f
 import Sidebar from '../components/Sidebar';
 import './Cashier.css';
 import ReceiptViewModal from '../components/ReceiptViewModal';
+import EliteVerificationModal from '../components/EliteVerificationModal';
+import { isValidEliteMember } from '../utils/eliteMemberHistory';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 
 const ALL_CATEGORY = 'ALL';
@@ -182,7 +184,7 @@ const loadCashierSession = () => {
       ? saved.cart.filter(item => item?.cartKey && item?.name).map(sanitizeCartItem)
       : [];
     let customerType = VALID_CUSTOMER_TYPES.has(saved.customerType) ? saved.customerType : 'customer';
-    const eliteMember = saved.eliteMember || null;
+    const eliteMember = isValidEliteMember(saved.eliteMember) ? saved.eliteMember : null;
     const discountApplied = Boolean(saved.discountApplied);
     const selectedDiscount = normalizeDiscount(saved.selectedDiscount);
 
@@ -595,45 +597,6 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
 
 
 // ── Main Items Page ──
-const EliteVerificationModal = ({ onConfirm, onCancel }) => {
-  const [name, setName] = useState('');
-  const [idNumber, setIdNumber] = useState('');
-
-  const inputStyle = {
-    width: '100%', padding: '10px 12px',
-    border: '1px solid #D4B89A', borderRadius: '8px',
-    fontSize: '14px', outline: 'none', boxSizing: 'border-box',
-    marginTop: '6px',
-  };
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
-      <div className="mobile-modal-card cashier-dialog" style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '28px', width: '340px', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
-        <h3 style={{ fontSize: '17px', fontWeight: '700', margin: '0 0 4px', color: '#1a1a1a' }}>Elite Membership Verification</h3>
-        <div style={{ height: '1px', backgroundColor: '#E0D5CB', width: '100%', marginBottom: '20px' }} />
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ fontSize: '13px', fontWeight: '600', color: '#555' }}>Name:</label>
-          <input value={name} onChange={e => setName(e.target.value)} style={inputStyle} placeholder="Enter member name" />
-        </div>
-        <div style={{ marginBottom: '24px' }}>
-          <label style={{ fontSize: '13px', fontWeight: '600', color: '#555' }}>ID Number:</label>
-          <input value={idNumber} onChange={e => setIdNumber(e.target.value)} style={inputStyle} placeholder="Enter card ID number" />
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="cashier-secondary" onClick={onCancel} style={{ flex: 1, padding: '12px', backgroundColor: '#FAF7F4', color: '#6F4A2F', border: '1px solid #D4B89A', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}>Cancel</button>
-          <button
-            onClick={() => {
-              if (!name.trim() || !idNumber.trim()) { alert('Please fill in both Name and ID Number.'); return; }
-              onConfirm({ name: name.trim(), idNumber: idNumber.trim() });
-            }}
-            style={{ flex: 1, padding: '12px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer' }}
-          >Confirm</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   

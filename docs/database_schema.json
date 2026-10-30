@@ -1,0 +1,3154 @@
+{
+  "title": "FLUX implemented database schema",
+  "asOf": "2026-10-30",
+  "storage": "MongoDB / Mongoose",
+  "collections": [
+    {
+      "model": "Category",
+      "collection": "categories",
+      "source": "backend/models/Category.js",
+      "sourceSha256": "0c3fdebab6f771aac88e5fdd66e35b9f612b2cd85587aad25585df2e42976342",
+      "purpose": "Menu category names referenced by products.",
+      "timestamps": false,
+      "fields": [
+        {
+          "path": "name",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        }
+      ]
+    },
+    {
+      "model": "Product",
+      "collection": "products",
+      "source": "backend/models/Product.js",
+      "sourceSha256": "b91256e8b8e2fd2a7bcdc0e7311e404df4aae4c68ef5d94c9113055b70843d34",
+      "purpose": "Menu configuration, prices, variant groups, embedded add-on choices, availability, and archiving.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "name",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "price",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "soloPrice",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "platterPrice",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "null"
+        },
+        {
+          "path": "category",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "categoryId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Category._id"
+          ],
+          "default": "No declared default",
+          "ref": "Category"
+        },
+        {
+          "path": "description",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "variants",
+          "type": "String[]",
+          "required": false,
+          "rules": [],
+          "default": "[]"
+        },
+        {
+          "path": "variantGroups",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "variantGroups[].name",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "\"Variant\""
+        },
+        {
+          "path": "variantGroups[].options",
+          "type": "String[]",
+          "required": false,
+          "rules": [],
+          "default": "[]"
+        },
+        {
+          "path": "variantGroups[].optionPrices",
+          "type": "Number[]",
+          "required": false,
+          "rules": [],
+          "default": "[]"
+        },
+        {
+          "path": "variantGroups[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "addons",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "addons[].name",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "addons[].price",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "0"
+        },
+        {
+          "path": "addons[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "image",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "status",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: available, unavailable"
+          ],
+          "default": "\"available\""
+        },
+        {
+          "path": "available",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "true"
+        },
+        {
+          "path": "archived",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "false"
+        },
+        {
+          "path": "archivedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "archived": 1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "category": 1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "categoryId": 1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "status": 1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "Addon",
+      "collection": "addons",
+      "source": "backend/models/Addon.js",
+      "sourceSha256": "f58567698cf22416621f69e9552e81eab3667cfa2423daa3bbcab0144570733f",
+      "purpose": "Master add-on names and prices, with active/archive status.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "name",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "nameKey",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Unique index declared"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "price",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "0"
+        },
+        {
+          "path": "active",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "true"
+        },
+        {
+          "path": "archivedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "nameKey": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "Discount",
+      "collection": "discounts",
+      "source": "backend/models/Discount.js",
+      "sourceSha256": "28205e2a3185ff5a5f10751d3fd9f91686486f1ba960c23a0e0f9b6ceee948fa",
+      "purpose": "Master discount names, percentages, application scope, and active/archive status.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "name",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "nameKey",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Unique index declared"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "percentage",
+          "type": "Number",
+          "required": true,
+          "rules": [
+            "min: 0",
+            "max: 100"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "scope",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: item, order"
+          ],
+          "default": "\"order\""
+        },
+        {
+          "path": "active",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "true"
+        },
+        {
+          "path": "archivedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "nameKey": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "Inventory",
+      "collection": "inventory",
+      "source": "backend/models/Inventory.js",
+      "sourceSha256": "5e86270b2451e050c03f1614ee8b740b0258261aaa684b0550663af60ed0f3cd",
+      "purpose": "Ingredient quantities, units, low-stock thresholds, expiration batches, and archiving.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "name",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Unique index declared"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "unit",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "stock",
+          "type": "Number",
+          "required": true,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "0"
+        },
+        {
+          "path": "lowStockAt",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "500"
+        },
+        {
+          "path": "category",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"General\""
+        },
+        {
+          "path": "expirationDate",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "expirationBatches",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "expirationBatches[].quantity",
+          "type": "Number",
+          "required": true,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "expirationBatches[].expirationDate",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "expirationBatches[].receivedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Current date/time (Date.now)"
+        },
+        {
+          "path": "expirationBatches[].note",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "expirationBatches[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "archived",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "false"
+        },
+        {
+          "path": "archivedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "name": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "archived": 1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "Recipe",
+      "collection": "recipes",
+      "source": "backend/models/Recipe.js",
+      "sourceSha256": "3acb6e27bfa0ff3d83a36fbfc97db889936c600168fdda3e1180a9ae353065b6",
+      "purpose": "Product-to-ingredient mapping and the quantities consumed per serving.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "productId",
+          "type": "ObjectId",
+          "required": true,
+          "rules": [
+            "Reference: Product._id"
+          ],
+          "default": "No declared default",
+          "ref": "Product"
+        },
+        {
+          "path": "productName",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "ingredients",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "ingredients[].inventoryId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Inventory._id"
+          ],
+          "default": "No declared default",
+          "ref": "Inventory"
+        },
+        {
+          "path": "ingredients[].name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "ingredients[].amountPerServing",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "ingredients[].unit",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "ingredients[].platterMultiplier",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "3"
+        },
+        {
+          "path": "ingredients[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        }
+      ]
+    },
+    {
+      "model": "Transaction",
+      "collection": "transactions",
+      "source": "backend/models/Transaction.js",
+      "sourceSha256": "83994ad2a47df85b62aa6004d381ca21f293c47ac1e80b9371225705b65d99ff",
+      "purpose": "Sales and cancellation records, purchased item snapshots, payment details, and applied discounts.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "receiptNo",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Unique index declared"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "orderNo",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "orderStatus",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: pending, preparing, ready, completed, cancelled"
+          ],
+          "default": "\"completed\""
+        },
+        {
+          "path": "statusUpdatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Current date/time (Date.now)"
+        },
+        {
+          "path": "cancelledAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "cancelledBy",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "cancelReason",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "cancellationRefundId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Refund._id"
+          ],
+          "default": "null",
+          "ref": "Refund"
+        },
+        {
+          "path": "cancelledItems",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "cancelledItems[].originalIndex",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cancelledItems[].productId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Product._id"
+          ],
+          "default": "No declared default",
+          "ref": "Product"
+        },
+        {
+          "path": "cancelledItems[].name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cancelledItems[].quantity",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cancelledItems[].price",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cancelledItems[].subtotal",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cancelledItems[].reason",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cancelledItems[].cancelledBy",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cancelledItems[].cancelledByEmail",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cancelledItems[].refundId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Refund._id"
+          ],
+          "default": "No declared default",
+          "ref": "Refund"
+        },
+        {
+          "path": "cancelledItems[].cancelledAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Current date/time (Date.now)"
+        },
+        {
+          "path": "cancelledItems[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "cashier",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "cashierEmail",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "customerType",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: customer, elite, pagibig, pwd_senior, custom_discount"
+          ],
+          "default": "\"customer\""
+        },
+        {
+          "path": "serviceType",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: Dine In, Dine Out"
+          ],
+          "default": "\"Dine In\""
+        },
+        {
+          "path": "eliteMember.name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "eliteMember.idNumber",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "discountInfo.name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "discountInfo.percentage",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "discountInfo.code",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "discountInfo.scope",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "items[].productId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Product._id"
+          ],
+          "default": "No declared default",
+          "ref": "Product"
+        },
+        {
+          "path": "items[].name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].category",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].size",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].selectedVariant",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].selectedVariantGroups",
+          "type": "Map<String, String>",
+          "required": false,
+          "rules": [],
+          "default": "{}"
+        },
+        {
+          "path": "items[].variantPrice",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "0"
+        },
+        {
+          "path": "items[].upgrades",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "items[].upgrades[].name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].upgrades[].price",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].upgrades[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "items[].price",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].quantity",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].subtotal",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].discountEligibleQuantity",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "0"
+        },
+        {
+          "path": "items[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "subtotal",
+          "type": "Number",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "tax",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "0"
+        },
+        {
+          "path": "discount",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "0"
+        },
+        {
+          "path": "total",
+          "type": "Number",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "paymentMethod",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Allowed: Cash, GCash, Cancelled"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "amountTendered",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "0"
+        },
+        {
+          "path": "change",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "0"
+        },
+        {
+          "path": "gcashReference",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "gcashProofImage",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "receiptNo": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "Refund",
+      "collection": "refunds",
+      "source": "backend/models/Refund.js",
+      "sourceSha256": "2e8f234f99d87ef1943adc3b0dde2c6e701276d2ca05a39df706fdad89c54a11",
+      "purpose": "Refund requests/results linked to a transaction, with refunded product snapshots.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "transactionId",
+          "type": "ObjectId",
+          "required": true,
+          "rules": [
+            "Reference: Transaction._id"
+          ],
+          "default": "No declared default",
+          "ref": "Transaction"
+        },
+        {
+          "path": "receiptNo",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "items[].productId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Product._id"
+          ],
+          "default": "No declared default",
+          "ref": "Product"
+        },
+        {
+          "path": "items[].name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].quantity",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].price",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].subtotal",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].isMade",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "reason",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "subtotal",
+          "type": "Number",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "tax",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "0"
+        },
+        {
+          "path": "totalRefunded",
+          "type": "Number",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "refundedBy",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "refundedByEmail",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "paymentMethod",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Allowed: Cash, GCash"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "status",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: pending, approved, completed, rejected"
+          ],
+          "default": "\"pending\""
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        }
+      ]
+    },
+    {
+      "model": "Waste",
+      "collection": "waste",
+      "source": "backend/models/Waste.js",
+      "sourceSha256": "d4e321d7fe303ee32f3fa20249dbf5ee256c83e8266847b267992cd932a800aa",
+      "purpose": "Ingredient waste associated with a refund and its original transaction.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "refundId",
+          "type": "ObjectId",
+          "required": true,
+          "rules": [
+            "Reference: Refund._id"
+          ],
+          "default": "No declared default",
+          "ref": "Refund"
+        },
+        {
+          "path": "transactionId",
+          "type": "ObjectId",
+          "required": true,
+          "rules": [
+            "Reference: Transaction._id"
+          ],
+          "default": "No declared default",
+          "ref": "Transaction"
+        },
+        {
+          "path": "receiptNo",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "items[].inventoryId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Inventory._id"
+          ],
+          "default": "No declared default",
+          "ref": "Inventory"
+        },
+        {
+          "path": "items[].inventoryName",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].unit",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].amountWasted",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "reason",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "disposedBy",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "notes",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        }
+      ]
+    },
+    {
+      "model": "User",
+      "collection": "users",
+      "source": "backend/models/User.js",
+      "sourceSha256": "f729c97f3f0dfa3714be5719b725692ef191351e74659187e4a9668634ec00c1",
+      "purpose": "Accounts, role and module permissions, credential hashes, login presence, recovery challenges, and archive status.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "email",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "password",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "mustChangePassword",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "false"
+        },
+        {
+          "path": "firstLoginTokenHash",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Excluded from default query selection"
+          ],
+          "default": "null"
+        },
+        {
+          "path": "firstLoginTokenExpiresAt",
+          "type": "Date",
+          "required": false,
+          "rules": [
+            "Excluded from default query selection"
+          ],
+          "default": "null"
+        },
+        {
+          "path": "role",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "jobRole",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "permissions",
+          "type": "String[]",
+          "required": false,
+          "rules": [],
+          "default": "undefined (not materialized)"
+        },
+        {
+          "path": "pin",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "profileImage",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "isOnline",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "false"
+        },
+        {
+          "path": "lastSeenAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "archived",
+          "type": "Boolean",
+          "required": false,
+          "rules": [],
+          "default": "false"
+        },
+        {
+          "path": "archivedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "passwordResetOtpHash",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Excluded from default query selection"
+          ],
+          "default": "null"
+        },
+        {
+          "path": "passwordResetOtpExpiresAt",
+          "type": "Date",
+          "required": false,
+          "rules": [
+            "Excluded from default query selection"
+          ],
+          "default": "null"
+        },
+        {
+          "path": "passwordResetOtpAttempts",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Excluded from default query selection"
+          ],
+          "default": "0"
+        },
+        {
+          "path": "passwordResetOtpUsedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [
+            "Excluded from default query selection"
+          ],
+          "default": "null"
+        },
+        {
+          "path": "userId",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Unique index declared"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "archived": 1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "userId": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "PurchaseOrder",
+      "collection": "purchase_orders",
+      "source": "backend/models/PurchaseOrder.js",
+      "sourceSha256": "8324daa69d22200f8fb3633c8d2ca4cd437fc47c6e1684c7c81058aebee3fe3d",
+      "purpose": "Supplier order details, receiver assignment, ordered lines, delivery approvals, and receiving records.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "purchaseOrderNo",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace",
+            "Unique index declared"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "supplierName",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "supplierContact",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "\"\""
+        },
+        {
+          "path": "orderDate",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Current date/time (Date.now)"
+        },
+        {
+          "path": "expectedDeliveryDate",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "status",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: Draft, Approved, Arrival Pending Approval, Partially Received, Received, Cancelled"
+          ],
+          "default": "\"Draft\""
+        },
+        {
+          "path": "notes",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "\"\""
+        },
+        {
+          "path": "assignedReceiver.userId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: User._id"
+          ],
+          "default": "null",
+          "ref": "User"
+        },
+        {
+          "path": "assignedReceiver.name",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "assignedReceiver.email",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "items",
+          "type": "Document[]",
+          "required": false,
+          "rules": [
+            "Custom validator: non-empty array"
+          ],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "items[].inventoryId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: Inventory._id"
+          ],
+          "default": "null",
+          "ref": "Inventory"
+        },
+        {
+          "path": "items[].name",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].unit",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].category",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "\"General\""
+        },
+        {
+          "path": "items[].lowStockAt",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "0"
+        },
+        {
+          "path": "items[].orderedQuantity",
+          "type": "Number",
+          "required": true,
+          "rules": [
+            "min: 0.000001"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "items[].receivedQuantity",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "0"
+        },
+        {
+          "path": "items[].unitCost",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "0"
+        },
+        {
+          "path": "items[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "receipts",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[]"
+        },
+        {
+          "path": "receipts[].receivedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Current date/time (Date.now)"
+        },
+        {
+          "path": "receipts[].receivedBy",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"System\""
+        },
+        {
+          "path": "receipts[].receivedByEmail",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "receipts[].items",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "receipts[].items[].itemId",
+          "type": "ObjectId",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "receipts[].items[].inventoryId",
+          "type": "ObjectId",
+          "required": true,
+          "rules": [
+            "Reference: Inventory._id"
+          ],
+          "default": "No declared default",
+          "ref": "Inventory"
+        },
+        {
+          "path": "receipts[].items[].name",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "receipts[].items[].quantity",
+          "type": "Number",
+          "required": true,
+          "rules": [
+            "min: 0.000001"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "receipts[].items[].expirationDate",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "receipts[].items[].note",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "receipts[].items[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "receipts[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "pendingReceipts",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[]"
+        },
+        {
+          "path": "pendingReceipts[].arrivedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Current date/time (Date.now)"
+        },
+        {
+          "path": "pendingReceipts[].reportedBy",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"System\""
+        },
+        {
+          "path": "pendingReceipts[].reportedByEmail",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "pendingReceipts[].status",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: Pending Approval, Approved, Rejected"
+          ],
+          "default": "\"Pending Approval\""
+        },
+        {
+          "path": "pendingReceipts[].reviewedBy",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "pendingReceipts[].reviewedByEmail",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "pendingReceipts[].reviewedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "pendingReceipts[].rejectionReason",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "pendingReceipts[].items",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "pendingReceipts[].items[].itemId",
+          "type": "ObjectId",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "pendingReceipts[].items[].name",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "pendingReceipts[].items[].quantity",
+          "type": "Number",
+          "required": true,
+          "rules": [
+            "min: 0.000001"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "pendingReceipts[].items[].expirationDate",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "pendingReceipts[].items[].note",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "pendingReceipts[].items[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "pendingReceipts[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdBy",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"System\""
+        },
+        {
+          "path": "createdByEmail",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "approvedBy",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "approvedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "cancelledBy",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "cancelledAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "purchaseOrderNo": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "status": 1,
+            "createdAt": -1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "supplierName": 1,
+            "createdAt": -1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "Notification",
+      "collection": "notifications",
+      "source": "backend/models/Notification.js",
+      "sourceSha256": "4d74a0e315ac54a6a338eca5dedc3eac3f9fd3bbcce89306665df54eb12466d8",
+      "purpose": "Operational messages, optional purchase-order references, audiences, and read receipts.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "type",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "title",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "message",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "purchaseOrderId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: PurchaseOrder._id"
+          ],
+          "default": "null",
+          "ref": "PurchaseOrder"
+        },
+        {
+          "path": "purchaseOrderNo",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "audiences",
+          "type": "String[]",
+          "required": false,
+          "rules": [],
+          "default": "[]"
+        },
+        {
+          "path": "readBy",
+          "type": "Document[]",
+          "required": false,
+          "rules": [],
+          "default": "[] (implicit Mongoose array default)"
+        },
+        {
+          "path": "readBy[].email",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "readBy[].readAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "readBy[]._id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Embedded subdocument identifier; local to parent"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "resolvedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "null"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "resolvedAt": 1,
+            "createdAt": -1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "LoginActivity",
+      "collection": "login_activity",
+      "source": "backend/models/LoginActivity.js",
+      "sourceSha256": "7a529c5b7dd7fdb476dce11145f233592685faaee06d1a37e0121bd8411c7c3d",
+      "purpose": "Login, logout, and blocked-login events, with account and client metadata.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "userId",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Reference: User._id"
+          ],
+          "default": "No declared default",
+          "ref": "User"
+        },
+        {
+          "path": "name",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "email",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "role",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "action",
+          "type": "String",
+          "required": false,
+          "rules": [
+            "Allowed: login, logout, login_blocked_archived"
+          ],
+          "default": "\"login\""
+        },
+        {
+          "path": "staffId",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "ipAddress",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "userAgent",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "createdAt": -1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "email": 1,
+            "createdAt": -1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "role": 1,
+            "createdAt": -1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "SystemAudit",
+      "collection": "system_audit",
+      "source": "backend/models/SystemAudit.js",
+      "sourceSha256": "3a275508e473925fdd2ce7a652f8d54194c642c9bf2cf1b67b30dbfc8459b168",
+      "purpose": "Cross-module activity events and flexible change snapshots.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "module",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "action",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "entityId",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "entityName",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "actor",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"System\""
+        },
+        {
+          "path": "actorEmail",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "details",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "\"\""
+        },
+        {
+          "path": "changes",
+          "type": "Mixed",
+          "required": false,
+          "rules": [],
+          "default": "Function: anonymous"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "createdAt": -1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "module": 1,
+            "createdAt": -1
+          },
+          "options": {},
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "EmailVerification",
+      "collection": "email_verifications",
+      "source": "backend/models/EmailVerification.js",
+      "sourceSha256": "aaca591a5bb1bde5e20b72cf15f13924a43427d6eb4ace5bac44411555e62fbd",
+      "purpose": "Email verification challenge hashes, expiry, and attempt counts.",
+      "timestamps": true,
+      "fields": [
+        {
+          "path": "email",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Trim whitespace",
+            "Lowercase",
+            "Unique index declared"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "otpHash",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Excluded from default query selection"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "expiresAt",
+          "type": "Date",
+          "required": true,
+          "rules": [
+            "TTL expiry: 0 seconds after field date"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "attempts",
+          "type": "Number",
+          "required": false,
+          "rules": [],
+          "default": "0"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "createdAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "updatedAt",
+          "type": "Date",
+          "required": false,
+          "rules": [],
+          "default": "Managed by Mongoose timestamps"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "email": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "Mongoose declaration"
+        },
+        {
+          "keys": {
+            "expiresAt": 1
+          },
+          "options": {
+            "expireAfterSeconds": 0
+          },
+          "origin": "Mongoose declaration"
+        }
+      ]
+    },
+    {
+      "model": "ForecastSnapshot",
+      "collection": "forecastsnapshots",
+      "source": "backend/models/ForecastSnapshot.js",
+      "sourceSha256": "ecbeec8f4357d7d105542c84ab9c47019fc586aa9f6cdd7824561e16ac7490db",
+      "purpose": "Saved first forecasts by dataset and target date for later comparison against sales.",
+      "timestamps": false,
+      "fields": [
+        {
+          "path": "dataset",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "source",
+          "type": "String",
+          "required": true,
+          "rules": [
+            "Allowed: demo, real"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "targetDate",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "predictedSales",
+          "type": "Number",
+          "required": true,
+          "rules": [
+            "min: 0"
+          ],
+          "default": "No declared default"
+        },
+        {
+          "path": "generatedAt",
+          "type": "Date",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "trainedThrough",
+          "type": "String",
+          "required": true,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "method",
+          "type": "String",
+          "required": false,
+          "rules": [],
+          "default": "No declared default"
+        },
+        {
+          "path": "_id",
+          "type": "ObjectId",
+          "required": false,
+          "rules": [
+            "Document identifier (PK)"
+          ],
+          "default": "Generated ObjectId"
+        },
+        {
+          "path": "__v",
+          "type": "Number",
+          "required": false,
+          "rules": [
+            "Mongoose version key"
+          ],
+          "default": "0 (on document creation)"
+        }
+      ],
+      "indexes": [
+        {
+          "keys": {
+            "_id": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "MongoDB default identifier index"
+        },
+        {
+          "keys": {
+            "dataset": 1,
+            "targetDate": 1
+          },
+          "options": {
+            "unique": true
+          },
+          "origin": "Mongoose declaration"
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "from": "Product",
+      "path": "categoryId",
+      "to": "Category",
+      "required": false,
+      "insideArray": false,
+      "id": "R01"
+    },
+    {
+      "from": "Recipe",
+      "path": "productId",
+      "to": "Product",
+      "required": true,
+      "insideArray": false,
+      "id": "R02"
+    },
+    {
+      "from": "Recipe",
+      "path": "ingredients[].inventoryId",
+      "to": "Inventory",
+      "required": false,
+      "insideArray": true,
+      "id": "R03"
+    },
+    {
+      "from": "Transaction",
+      "path": "cancellationRefundId",
+      "to": "Refund",
+      "required": false,
+      "insideArray": false,
+      "id": "R04"
+    },
+    {
+      "from": "Transaction",
+      "path": "cancelledItems[].productId",
+      "to": "Product",
+      "required": false,
+      "insideArray": true,
+      "id": "R05"
+    },
+    {
+      "from": "Transaction",
+      "path": "cancelledItems[].refundId",
+      "to": "Refund",
+      "required": false,
+      "insideArray": true,
+      "id": "R06"
+    },
+    {
+      "from": "Transaction",
+      "path": "items[].productId",
+      "to": "Product",
+      "required": false,
+      "insideArray": true,
+      "id": "R07"
+    },
+    {
+      "from": "Refund",
+      "path": "transactionId",
+      "to": "Transaction",
+      "required": true,
+      "insideArray": false,
+      "id": "R08"
+    },
+    {
+      "from": "Refund",
+      "path": "items[].productId",
+      "to": "Product",
+      "required": false,
+      "insideArray": true,
+      "id": "R09"
+    },
+    {
+      "from": "Waste",
+      "path": "refundId",
+      "to": "Refund",
+      "required": true,
+      "insideArray": false,
+      "id": "R10"
+    },
+    {
+      "from": "Waste",
+      "path": "transactionId",
+      "to": "Transaction",
+      "required": true,
+      "insideArray": false,
+      "id": "R11"
+    },
+    {
+      "from": "Waste",
+      "path": "items[].inventoryId",
+      "to": "Inventory",
+      "required": false,
+      "insideArray": true,
+      "id": "R12"
+    },
+    {
+      "from": "PurchaseOrder",
+      "path": "assignedReceiver.userId",
+      "to": "User",
+      "required": false,
+      "insideArray": false,
+      "id": "R13"
+    },
+    {
+      "from": "PurchaseOrder",
+      "path": "items[].inventoryId",
+      "to": "Inventory",
+      "required": false,
+      "insideArray": true,
+      "id": "R14"
+    },
+    {
+      "from": "PurchaseOrder",
+      "path": "receipts[].items[].inventoryId",
+      "to": "Inventory",
+      "required": true,
+      "insideArray": true,
+      "id": "R15"
+    },
+    {
+      "from": "Notification",
+      "path": "purchaseOrderId",
+      "to": "PurchaseOrder",
+      "required": false,
+      "insideArray": false,
+      "id": "R16"
+    },
+    {
+      "from": "LoginActivity",
+      "path": "userId",
+      "to": "User",
+      "required": false,
+      "insideArray": false,
+      "id": "R17"
+    }
+  ]
+}

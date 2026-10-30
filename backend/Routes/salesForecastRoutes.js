@@ -1,5 +1,6 @@
 const express = require('express');
 const Transaction = require('../models/Transaction');
+const { trackForecast } = require('../services/forecastTracking');
 const { MIN_HISTORY_DAYS, MAX_HISTORY_DAYS, addDays, businessDate, validDate, demoHistory, createForecast } = require('../services/salesForecast');
 const router = express.Router();
 
@@ -41,6 +42,14 @@ router.get('/', async (req, res) => {
             if (history.every(row => row.sales === 0)) return res.json({ status: 'insufficient-sales', source, message: 'No completed real sales are available to learn from yet.' });
         }
         const data = { ...createForecast(history, { today, source, isClosed }), generatedAt: new Date().toISOString() };
+        if (data.status === 'ready') {
+            try {
+                data.tracking = await trackForecast(data, { today, start, isClosed });
+            } catch (err) {
+                console.error('Forecast tracking failed:', err.message);
+                data.tracking = { source, unavailable: true };
+            }
+        }
         return res.json(data);
     } catch (err) {
         console.error('Sales forecast failed:', err.message);

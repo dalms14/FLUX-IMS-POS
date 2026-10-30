@@ -281,7 +281,7 @@ const LoginPage = () => {
                   const loginEmail = normalizeLoginEmail(email);
                   if (loginEmail) checkLockoutStatus(loginEmail);
                 }}
-                placeholder="admin@elicoffee.com"
+                placeholder="Type your email.."
                 autoFocus
                 required
                 disabled={locked}

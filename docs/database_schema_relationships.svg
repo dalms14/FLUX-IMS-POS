@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1190.55" height="841.89" viewBox="0 0 1190.55 841.89">
+<title>FLUX implemented database schema</title>
+<desc>MongoDB collections and application-level ObjectId references, exported from the Mongoose models.</desc>
+<rect x="0" y="0" width="1190.55" height="841.89" fill="#FFFFFF" stroke="none" stroke-width="0.8"/>
+<text x="44" y="37" fill="#1F6053" font-family="Arial, sans-serif" font-size="10" font-weight="700" text-anchor="start">FLUX / DATABASE DESIGN</text>
+<text x="44" y="73" fill="#18352F" font-family="Arial, sans-serif" font-size="25" font-weight="700" text-anchor="start">Declared ObjectId relationship register</text>
+<text x="44" y="96" fill="#536760" font-family="Arial, sans-serif" font-size="10.5" font-weight="400" text-anchor="start">The 17 references below correspond to the arrows in Figures 10A and 10B. MongoDB does not enforce their target existence.</text>
+<text x="1146.55" y="37" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">AS IMPLEMENTED  /  2026-10-30</text>
+<rect x="44" y="807.89" width="1102.55" height="0.7" fill="#CBD8D2" stroke="none" stroke-width="0.8"/>
+<text x="44" y="824.89" fill="#536760" font-family="Arial, sans-serif" font-size="8.5" font-weight="400" text-anchor="start">Arrows: stored reference -&gt; target collection. Rxx: relationship register on page 4. *: schema-required field.</text>
+<text x="1146.55" y="824.89" fill="#536760" font-family="Arial, sans-serif" font-size="9" font-weight="400" text-anchor="end">4 / 4</text>
+<rect x="44" y="126" width="1102" height="31" fill="#1F6053" stroke="none" stroke-width="0.8"/>
+<text x="54" y="146" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="9.5" font-weight="700" text-anchor="start">ID</text>
+<text x="114" y="146" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="9.5" font-weight="700" text-anchor="start">SOURCE COLLECTION / FIELD</text>
+<text x="647" y="146" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="9.5" font-weight="700" text-anchor="start">TARGET COLLECTION</text>
+<text x="885" y="146" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="9.5" font-weight="700" text-anchor="start">REQUIRED</text>
+<text x="993" y="146" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="9.5" font-weight="700" text-anchor="start">STORAGE</text>
+<rect x="44" y="157" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="175" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R01</text>
+<text x="114" y="175" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">products.categoryId</text>
+<text x="647" y="175" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">categories._id</text>
+<text x="885" y="175" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="175" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<text x="54" y="203" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R02</text>
+<text x="114" y="203" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">recipes.productId</text>
+<text x="647" y="203" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">products._id</text>
+<text x="885" y="203" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Yes</text>
+<text x="993" y="203" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<rect x="44" y="213" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="231" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R03</text>
+<text x="114" y="231" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">recipes.ingredients[].inventoryId</text>
+<text x="647" y="231" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">inventory._id</text>
+<text x="885" y="231" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="231" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Embedded array</text>
+<text x="54" y="259" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R04</text>
+<text x="114" y="259" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">transactions.cancellationRefundId</text>
+<text x="647" y="259" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">refunds._id</text>
+<text x="885" y="259" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="259" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<rect x="44" y="269" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="287" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R05</text>
+<text x="114" y="287" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">transactions.cancelledItems[].productId</text>
+<text x="647" y="287" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">products._id</text>
+<text x="885" y="287" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="287" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Embedded array</text>
+<text x="54" y="315" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R06</text>
+<text x="114" y="315" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">transactions.cancelledItems[].refundId</text>
+<text x="647" y="315" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">refunds._id</text>
+<text x="885" y="315" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="315" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Embedded array</text>
+<rect x="44" y="325" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="343" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R07</text>
+<text x="114" y="343" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">transactions.items[].productId</text>
+<text x="647" y="343" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">products._id</text>
+<text x="885" y="343" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="343" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Embedded array</text>
+<text x="54" y="371" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R08</text>
+<text x="114" y="371" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">refunds.transactionId</text>
+<text x="647" y="371" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">transactions._id</text>
+<text x="885" y="371" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Yes</text>
+<text x="993" y="371" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<rect x="44" y="381" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="399" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R09</text>
+<text x="114" y="399" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">refunds.items[].productId</text>
+<text x="647" y="399" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">products._id</text>
+<text x="885" y="399" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="399" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Embedded array</text>
+<text x="54" y="427" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R10</text>
+<text x="114" y="427" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">waste.refundId</text>
+<text x="647" y="427" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">refunds._id</text>
+<text x="885" y="427" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Yes</text>
+<text x="993" y="427" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<rect x="44" y="437" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="455" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R11</text>
+<text x="114" y="455" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">waste.transactionId</text>
+<text x="647" y="455" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">transactions._id</text>
+<text x="885" y="455" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Yes</text>
+<text x="993" y="455" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<text x="54" y="483" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R12</text>
+<text x="114" y="483" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">waste.items[].inventoryId</text>
+<text x="647" y="483" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">inventory._id</text>
+<text x="885" y="483" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="483" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Embedded array</text>
+<rect x="44" y="493" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="511" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R13</text>
+<text x="114" y="511" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">purchase_orders.assignedReceiver.userId</text>
+<text x="647" y="511" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">users._id</text>
+<text x="885" y="511" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="511" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<text x="54" y="539" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R14</text>
+<text x="114" y="539" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">purchase_orders.items[].inventoryId</text>
+<text x="647" y="539" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">inventory._id</text>
+<text x="885" y="539" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="539" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Embedded array</text>
+<rect x="44" y="549" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="567" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R15</text>
+<text x="114" y="567" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">purchase_orders.receipts[].items[].inventoryId</text>
+<text x="647" y="567" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">inventory._id</text>
+<text x="885" y="567" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Yes</text>
+<text x="993" y="567" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Embedded array</text>
+<text x="54" y="595" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R16</text>
+<text x="114" y="595" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">notifications.purchaseOrderId</text>
+<text x="647" y="595" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">purchase_orders._id</text>
+<text x="885" y="595" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="595" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<rect x="44" y="605" width="1102" height="28" fill="#F1F6F3" stroke="none" stroke-width="0.8"/>
+<text x="54" y="623" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">R17</text>
+<text x="114" y="623" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">login_activity.userId</text>
+<text x="647" y="623" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">users._id</text>
+<text x="885" y="623" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No</text>
+<text x="993" y="623" fill="#18352F" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Single reference</text>
+<text x="44" y="670" fill="#1F6053" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="start">Relationship interpretation</text>
+<text x="44" y="695" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">A required reference field must contain an identifier when its containing document exists; target existence is an application concern.</text>
+<text x="44" y="714" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">One target may be referenced by many source documents. Array references may point to multiple targets from one source document.</text>
+<text x="44" y="733" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">No unique index is declared on recipes.productId; a one-recipe-per-product database guarantee must not be claimed.</text>
+<text x="44" y="752" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Receipt itemId values point to items[]._id inside the same purchase order; they are not links to a separate collection.</text>
+<text x="44" y="771" fill="#536760" font-family="Arial, sans-serif" font-size="10" font-weight="400" text-anchor="start">Only selected attributes appear in the figures. Data_Dictionary.md and database_schema.json retain the full 318-path structure.</text>
+</svg>

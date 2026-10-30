@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import axios from 'axios';
 import Items from './Items';
+import { ELITE_MEMBER_HISTORY_KEY } from '../utils/eliteMemberHistory';
 
 jest.mock('axios');
 jest.mock('../components/Sidebar', () => () => <nav>Navigation</nav>);
@@ -55,4 +56,37 @@ test('stock rejection keeps the cart and does not show a saved receipt', async (
   expect(screen.queryByRole('dialog', { name: 'Saved receipt' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Proceed to Checkout' })).toBeEnabled();
   expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1);
+});
+
+test('a saved Elite Member applies to the current order and reaches checkout with a 12 digit card', async () => {
+  const member = { name: 'Daniel Almojera', idNumber: '001234567890' };
+  localStorage.setItem(ELITE_MEMBER_HISTORY_KEY, JSON.stringify([member]));
+  axios.post.mockResolvedValue({ data: { success: true, receiptNo: 'FLX-ELITE', orderStatus: 'completed' } });
+  render(<Items />);
+  await screen.findByText('No products found.');
+  fireEvent.click(screen.getByRole('button', { name: 'Elite Member' }));
+  fireEvent.change(screen.getByLabelText('Saved member'), { target: { value: member.idNumber } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+  expect(screen.queryByRole('dialog', { name: 'Elite Membership Verification' })).not.toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem('fluxCashierSession')).eliteMember).toEqual(member);
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
+  fireEvent.change(screen.getByPlaceholderText(/Minimum/), { target: { value: '200' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+  await screen.findByRole('dialog', { name: 'Saved receipt' });
+  expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/transactions', expect.objectContaining({
+    customerType: 'elite', eliteMember: member, discount: 40, total: 160,
+  }));
+});
+
+test('an old cashier session with an invalid card must re-enter membership details', async () => {
+  const saved = JSON.parse(localStorage.getItem('fluxCashierSession'));
+  localStorage.setItem('fluxCashierSession', JSON.stringify({ ...saved, customerType: 'elite', discountApplied: true,
+    eliteMember: { name: 'Old member', idNumber: '1234567890123' },
+  }));
+  render(<Items />);
+  await screen.findByText('No products found.');
+  const session = JSON.parse(localStorage.getItem('fluxCashierSession'));
+  expect(session.customerType).toBe('customer');
+  expect(session.eliteMember).toBeNull();
+  expect(session.discountApplied).toBe(false);
 });

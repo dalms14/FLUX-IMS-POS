@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { printReceipt } from '../utils/printReceipt';
 
 // ── RECEIPT VIEW MODAL ──
 // Shows after a successful transaction
@@ -34,6 +35,20 @@ const getItemScopedDiscountName = (discount, type) => {
 };
 
 const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, discount, total, paymentMethod, amountTendered, change, gcashReference, cashier, customerType, eliteMember, selectedDiscount, discountInfo, createdAt, closeLabel = 'New Order', onClose }) => {
+    const receiptRef = useRef(null);
+    const [printing, setPrinting] = useState(false);
+    const [printError, setPrintError] = useState('');
+    const handlePrint = async () => {
+        setPrinting(true);
+        setPrintError('');
+        try {
+            await printReceipt(receiptRef.current);
+        } catch {
+            setPrintError('Unable to open printing. Please try again.');
+        } finally {
+            setPrinting(false);
+        }
+    };
     const now = createdAt ? new Date(createdAt) : new Date();
     const dateStr = now.toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -80,7 +95,7 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                 fontFamily: "'Courier New', Courier, monospace",
             }}>
                 {/* Receipt Content */}
-                <div style={{ padding: '28px 24px' }}>
+                <div ref={receiptRef} style={{ padding: '28px 24px' }}>
 
                     {/* Logo & Store Info */}
                     <div style={{ textAlign: 'center', marginBottom: '12px' }}>
@@ -207,6 +222,10 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                 </div>
 
                 {/* Action Buttons */}
+                <p style={{ padding: '0 24px', fontSize: '11px', color: '#6b5748' }}>
+                    Print setup: select your receipt printer, 58 mm paper, 100% scale, and turn off headers and footers.
+                </p>
+                {printError && <p role="alert" style={{ padding: '0 24px', fontSize: '12px', color: '#a12622' }}>{printError}</p>}
                 <div style={{
                     padding: '16px 24px',
                     borderTop: '1px solid #eee',
@@ -214,6 +233,19 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                     backgroundColor: '#fafafa',
                     borderRadius: '0 0 12px 12px',
                 }}>
+                    <button
+                        type="button"
+                        onClick={handlePrint}
+                        disabled={printing}
+                        style={{
+                            flex: 1, padding: '12px',
+                            backgroundColor: '#fff', color: '#8B5E3C',
+                            border: '1px solid #8B5E3C', borderRadius: '8px',
+                            fontSize: '13px', fontWeight: '700', cursor: printing ? 'wait' : 'pointer',
+                        }}
+                    >
+                        {printing ? 'Preparing…' : 'Print Receipt'}
+                    </button>
                     <button
                         onClick={onClose}
                         style={{
