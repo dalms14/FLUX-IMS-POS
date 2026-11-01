@@ -2210,6 +2210,7 @@ export const SystemBackupSettings = () => {
     const [exporting, setExporting] = useState(false);
     const [message, setMessage] = useState(null);
     const [lastBackup, setLastBackup] = useState(localStorage.getItem('lastBackupAt') || '');
+    const [exportCounts, setExportCounts] = useState(null);
 
     const backupSources = [
         { key: 'products', label: 'Products' }, { key: 'categories', label: 'Categories' },
@@ -2257,11 +2258,16 @@ export const SystemBackupSettings = () => {
         try {
             const response = await axios.post('http://localhost:5000/api/system/backup', { email: currentUser.email, password });
             const backup = response.data.backup;
+            if (backupSources.some(source => !Array.isArray(backup?.data?.[source.key]))) {
+                throw new Error('The backup is missing one or more record sections.');
+            }
+            const counts = Object.fromEntries(backupSources.map(source => [source.key, backup.data[source.key].length]));
             const createdAt = backup.createdAt;
 
             downloadBackup(backup);
             localStorage.setItem('lastBackupAt', createdAt);
             setLastBackup(createdAt);
+            setExportCounts(counts);
             setShowExportModal(false);
             setMessage({ type: 'success', text: 'Backup file exported successfully.' });
         } catch (err) {
@@ -2297,6 +2303,11 @@ export const SystemBackupSettings = () => {
                 </div>
                 <div className="settings-backup-note"><p>Save the downloaded file somewhere secure. This export covers the listed records; accounts, purchase orders, stock batches, and system audit logs are not included.</p></div>
                 {message && <div role={message.type === 'error' ? 'alert' : 'status'} className={'settings-backup-status ' + (message.type === 'error' ? 'is-error' : '')}>{message.text}</div>}
+                {exportCounts && <div aria-label="Exported record counts" style={{ fontSize: '13px', color: '#6F4A2F', margin: '12px 0', lineHeight: 1.8 }}>
+                    <strong>Included in the downloaded file:</strong><br />
+                    {backupSources.map(source => `${source.label}: ${exportCounts[source.key]}`).join(' · ')}
+                    <p style={{ margin: '6px 0 0' }}>Each section is inside “data” in the JSON file. A count of 0 means there are no saved records in that section.</p>
+                </div>}
                 <button className="settings-backup-export" onClick={() => { setExportError(''); setMessage(null); setShowExportModal(true); }} disabled={exporting}>
                     <FiDownload aria-hidden="true" />{exporting ? 'Exporting Backup...' : 'Export Backup File'}
                 </button>

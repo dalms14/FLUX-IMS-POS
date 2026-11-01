@@ -63,12 +63,21 @@ test('keeps the owner password check and closes after a successful download', as
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: true, cancelable: true }));
   expect(screen.getByRole('dialog')).toBeInTheDocument();
-  finish({ data: { backup: { createdAt: '2026-10-23T00:00:00Z', data: {} } } });
+  finish({ data: { backup: { createdAt: '2026-10-23T00:00:00Z', data: { products: [{ name: 'Coffee' }], categories: [{ name: 'Drinks' }], addons: [{ name: 'Milk' }], discounts: [{ name: 'PWD' }], inventory: [{ name: 'Beans' }], transactions: [{ receiptNo: 'TEST' }], refunds: [], recipes: [{ name: 'Coffee recipe' }] } } } });
   await screen.findByText('Backup file exported successfully.');
   expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/system/backup', { email: 'owner@example.com', password: 'owner-password' });
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   expect(localStorage.getItem('lastBackupAt')).toBe('2026-10-23T00:00:00Z');
+  expect(screen.getByLabelText('Exported record counts')).toHaveTextContent('Products: 1');
+  expect(screen.getByLabelText('Exported record counts')).toHaveTextContent('Recipes: 1');
+  expect(screen.getByLabelText('Exported record counts')).toHaveTextContent('Refunds: 0');
   expect(createUrl).toHaveBeenCalledTimes(1);
+  const exportedText = await new Promise(resolve => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsText(createUrl.mock.calls[0][0]); });
+  const exported = JSON.parse(exportedText);
+  expect(exported.data.addons[0].name).toBe('Milk');
+  expect(exported.data.inventory[0].name).toBe('Beans');
+  expect(exported.data.transactions[0].receiptNo).toBe('TEST');
+  expect(exported.data.recipes).toHaveLength(1);
   expect(revokeUrl).toHaveBeenCalledWith('blob:backup-test');
 });
 
@@ -77,4 +86,16 @@ test('Escape dismisses the popup before an export starts', async () => {
   fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: true, cancelable: true }));
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(axios.post).not.toHaveBeenCalled();
+});
+
+
+test('does not download a partial backup that contains only products', async () => {
+  axios.post.mockResolvedValue({ data: { backup: { createdAt: '2026-10-23T00:00:00Z', data: { products: [] } } } });
+  URL.createObjectURL = jest.fn();
+  openPopup();
+  fireEvent.change(screen.getByLabelText('Owner password'), { target: { value: 'owner-password' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Export backup' }));
+  await screen.findByRole('alert');
+  expect(URL.createObjectURL).not.toHaveBeenCalled();
+  expect(localStorage.getItem('lastBackupAt')).toBeNull();
 });

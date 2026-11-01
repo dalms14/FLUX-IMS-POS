@@ -5,6 +5,7 @@ const Inventory = require('../models/Inventory');
 const SystemAudit = require('../models/SystemAudit');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const { isStaffReceiver, canReceiveOrder } = require('../utils/purchaseOrderReceiver');
 
 const roundQuantity = value => Math.round((Number(value) || 0) * 1000) / 1000;
 const validDate = value => {
@@ -69,7 +70,7 @@ router.get('/my-deliveries', async (req, res) => {
         const user = await User.findOne({ email, archived: { $ne: true } }).select('role');
         if (!user) return res.status(403).json({ message: 'This account is no longer active.' });
         const receiverEmails = [email, '__anyone__'];
-        if (String(user.role || '').toLowerCase() === 'staff') receiverEmails.push('__any_staff__');
+        if (isStaffReceiver(user)) receiverEmails.push('__any_staff__');
         const orders = await PurchaseOrder.find({
             'assignedReceiver.email': { $in: receiverEmails },
             status: { $in: ['Approved', 'Partially Received'] },
@@ -100,8 +101,8 @@ router.post('/', async (req, res) => {
         const receiverMode = assignedReceiverEmail === '__any_staff__' ? 'any-staff'
             : assignedReceiverEmail === '__anyone__' ? 'anyone' : 'assigned';
         const assignedReceiver = receiverMode === 'assigned' && assignedReceiverEmail
-            ? await User.findOne({ email: assignedReceiverEmail }) : null;
-        if (receiverMode === 'assigned' && !assignedReceiver) return res.status(400).json({ message: 'Assign a valid staff member to receive this purchase order' });
+            ? await User.findOne({ email: assignedReceiverEmail, archived: { $ne: true } }) : null;
+        if (receiverMode === 'assigned' && !isStaffReceiver(assignedReceiver)) return res.status(400).json({ message: 'Assign an active staff account to receive this purchase order' });
         const receiverDetails = receiverMode === 'any-staff'
             ? { userId: null, name: 'Any Staff', email: '__any_staff__' }
             : receiverMode === 'anyone'
@@ -260,10 +261,7 @@ router.post('/:id/record-arrival', async (req, res) => {
         const order = await PurchaseOrder.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Purchase order not found' });
         if (!receiver) return res.status(403).json({ message: 'Sign in before recording a delivery.' });
-        const receiverEmail = String(order.assignedReceiver?.email || '').toLowerCase();
-        const allowsAnyStaff = receiverEmail === '__any_staff__' && String(receiver.role || '').toLowerCase() === 'staff';
-        const allowsAnyone = receiverEmail === '__anyone__';
-        if (receiverEmail !== actorEmail && !allowsAnyStaff && !allowsAnyone && !isPurchaseOrderApprover(receiver)) {
+        if (!canReceiveOrder(order, receiver)) {
             return res.status(403).json({ message: `Only the assigned receiver (${order.assignedReceiver.name}) can record this delivery.` });
         }
         if (!['Approved', 'Partially Received'].includes(order.status)) {

@@ -1,12 +1,13 @@
 // Items.jsx
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiImage, FiPlus, FiTag } from 'react-icons/fi';
+import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiImage, FiPlus } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
 import './Cashier.css';
 import ReceiptViewModal from '../components/ReceiptViewModal';
 import EliteVerificationModal from '../components/EliteVerificationModal';
 import { isValidEliteMember } from '../utils/eliteMemberHistory';
+import { allocateDiscountUnits } from '../utils/discountAllocation';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 
 const ALL_CATEGORY = 'ALL';
@@ -199,6 +200,7 @@ const loadCashierSession = () => {
       eliteMember: customerType === 'elite' ? eliteMember : null,
       discountApplied: customerType !== 'customer' && discountApplied,
       selectedDiscount: customerType !== 'customer' ? selectedDiscount : null,
+      discountPeople: Number(saved.discountPeople) || 0,
       discountEligibility: saved.discountEligibility && typeof saved.discountEligibility === 'object' ? saved.discountEligibility : {},
     };
   } catch {
@@ -606,7 +608,7 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
     (isItemScopedDiscount(discount) ? 'selected item person' : 'whole order').includes(searchQuery.toLowerCase())
   );
 
-  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+  const isMobile = typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 768px)').matches;
   const modalWidth = isMobile ? '90vw' : 'min(420px, 90vw)';
   const maxModalHeight = isMobile ? '80vh' : '75vh';
 
@@ -673,7 +675,7 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
             </div>
           ) : (
             filteredDiscounts.map(discount => {
-              const scopeLabel = isItemScopedDiscount(discount) ? 'Selected item/person' : 'Whole order';
+              const scopeLabel = isItemScopedDiscount(discount) ? 'One highest-priced item per person' : 'Whole order';
               return (
               <button
                 key={discount._id || discount.name}
@@ -774,6 +776,25 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
   );
 };
 
+const DiscountPeopleModal = ({ discount, cart, initialCount, onConfirm, onCancel }) => {
+  const [count, setCount] = useState(String(Math.min(initialCount || 1, cart.reduce((sum, item) => sum + item.quantity, 0))));
+  const max = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const valid = /^\d+$/.test(count) && Number(count) >= 1 && Number(count) <= max;
+  return <div style={{ position: 'fixed', inset: 0, zIndex: 2100, background: 'rgba(26,18,8,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}>
+    <form className="cashier-dialog" role="dialog" aria-modal="true" aria-label="Discounted people" onSubmit={event => { event.preventDefault(); if (valid) onConfirm(Number(count)); }} style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: 'min(380px, 100%)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <h3 style={{ margin: '0 0 12px' }}>{discount.name}</h3>
+      <label htmlFor="discount-people">How many people have this discount?</label>
+      <input id="discount-people" type="number" min="1" max={max} step="1" value={count} onChange={event => setCount(event.target.value)} autoFocus style={{ width: '100%', boxSizing: 'border-box', padding: '10px', marginTop: '10px', border: '1px solid #D8CABB', borderRadius: '8px' }} />
+      <p style={{ fontSize: '12px', color: '#777' }}>One item per person. The highest-priced items are selected automatically.</p>
+      {!valid && <p role="alert" style={{ fontSize: '12px', color: '#9B2C2C' }}>Enter a whole number from 1 to {max}.</p>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '18px' }}>
+        <button type="button" onClick={onCancel} className="cashier-secondary" style={{ padding: '10px 14px' }}>Cancel</button>
+        <button disabled={!valid} className="cashier-checkout" style={{ padding: '10px 14px', background: '#8B5E3C', color: '#fff', border: 0, borderRadius: '8px' }}>Apply Discount</button>
+      </div>
+    </form>
+  </div>;
+};
+
 const fileToDataUrl = (file) => new Promise((resolve, reject) => {
   const reader = new FileReader();
   reader.onload = () => resolve(reader.result);
@@ -838,8 +859,8 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
         setError('Please enter the GCash reference number.');
         return;
       }
-      if (amountTendered.trim().length < 10) {
-        setError('Please enter a valid GCash reference number.');
+      if (!/^\d{10,13}$/.test(amountTendered.trim())) {
+        setError('Enter 10 to 13 digits for the GCash reference number.');
         return;
       }
       const needsMobileProof = typeof window !== 'undefined'
@@ -979,8 +1000,8 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
           <div style={{ marginBottom: '16px' }}>
             <p style={{ fontSize: '11px', fontWeight: '700', color: '#555', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>GCash Reference Number</p>
             <input
-              type="text" value={amountTendered}
-              onChange={e => { setAmountTendered(e.target.value); setError(''); }}
+              type="text" inputMode="numeric" pattern="[0-9]{10,13}" value={amountTendered}
+              onChange={e => { setAmountTendered(e.target.value.replace(/\D/g, '')); setError(''); }}
               placeholder="e.g. 1234567890"
               maxLength={13}
               style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '15px', outline: 'none', boxSizing: 'border-box', fontWeight: '600', letterSpacing: '2px' }}
@@ -1046,7 +1067,12 @@ const Items = () => {
   const [eliteMember, setEliteMember] = useState(savedCashierSession.eliteMember);
   const [discountApplied, setDiscountApplied] = useState(savedCashierSession.discountApplied);
   const [selectedDiscount, setSelectedDiscount] = useState(savedCashierSession.selectedDiscount);
-  const [discountEligibility, setDiscountEligibility] = useState(savedCashierSession.discountEligibility);
+  const [discountPeople, setDiscountPeople] = useState(savedCashierSession.discountPeople || Object.values(savedCashierSession.discountEligibility).reduce((sum, qty) => sum + Number(qty), 0));
+  const [pendingDiscount, setPendingDiscount] = useState(null);
+  useEffect(() => {
+    const units = cart.reduce((sum, item) => sum + item.quantity, 0);
+    setDiscountPeople(current => Math.min(current, units));
+  }, [cart]);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1076,8 +1102,7 @@ const Items = () => {
   const activeDiscountLabel = formatDiscountLabel(activeDiscount);
   const isScopedDiscount = isItemScopedDiscount(activeDiscount, customerType);
   const scopedDiscountName = getItemScopedDiscountName(activeDiscount, customerType);
-  const defaultItemScopedDiscount = normalizedDiscounts.find(discount => discount.code !== 'elite' && isItemScopedDiscount(discount));
-  const canUseItemDiscount = customerType !== 'elite' && ((!discountApplied && Boolean(defaultItemScopedDiscount)) || isScopedDiscount);
+  const discountEligibility = useMemo(() => isScopedDiscount ? allocateDiscountUnits(cart, discountPeople) : {}, [cart, discountPeople, isScopedDiscount]);
 
   const enrichProductStockStatus = useCallback(async (product) => {
     try {
@@ -1213,8 +1238,9 @@ const Items = () => {
       discountApplied,
       selectedDiscount,
       discountEligibility: cleanedEligibility,
+      discountPeople,
     }));
-  }, [cart, customerType, eliteMember, discountApplied, discountEligibility, selectedDiscount]);
+  }, [cart, customerType, eliteMember, discountApplied, discountEligibility, discountPeople, selectedDiscount]);
 
   const handleAddToCart = async (product) => {
     if (product.stockStatus?.level === 'out') {
@@ -1276,38 +1302,17 @@ const Items = () => {
 
   const removeFromCart = (cartKey) => {
     setCart(prev => prev.filter(c => c.cartKey !== cartKey));
-    setDiscountEligibility(prev => {
-      const next = { ...prev };
-      delete next[cartKey];
-      return next;
-    });
   };
 
   const updateQty = (cartKey, delta) => {
-    setCart(prev => prev.map(c => {
-      if (c.cartKey !== cartKey) return c;
-      const newQty = c.quantity + delta;
-      return newQty <= 0 ? null : { ...c, quantity: newQty };
-    }).filter(Boolean));
-    setDiscountEligibility(prev => {
-      const item = cart.find(c => c.cartKey === cartKey);
-      if (!item) return prev;
-      const newQty = item.quantity + delta;
-      const next = { ...prev };
-      if (newQty <= 0) {
-        delete next[cartKey];
-      } else if (next[cartKey]) {
-        next[cartKey] = newQty;
-      }
-      return next;
-    });
+    setCart(prev => prev.map(item => item.cartKey === cartKey ? { ...item, quantity: item.quantity + delta } : item).filter(item => item.quantity > 0));
   };
 
-  const clearCart = () => { setCart([]); setDiscountEligibility({}); setDiscountApplied(false); setSelectedDiscount(null); setEliteMember(null); setCustomerType('customer'); setShowDiscountTypeModal(false); setMobileCartOpen(false); };
+  const clearCart = () => { setCart([]); setDiscountPeople(0); setDiscountApplied(false); setSelectedDiscount(null); setEliteMember(null); setCustomerType('customer'); setShowDiscountTypeModal(false); setMobileCartOpen(false); };
 
   const handleCustomerTypeChange = (type) => {
     if (type === 'elite') { setShowEliteModal(true); setShowDiscountTypeModal(false); }
-    else { setCustomerType('customer'); setEliteMember(null); setDiscountEligibility({}); setDiscountApplied(false); setSelectedDiscount(null); }
+    else { setCustomerType('customer'); setEliteMember(null); setDiscountPeople(0); setDiscountApplied(false); setSelectedDiscount(null); }
   };
 
   const handleEliteConfirm = (member) => {
@@ -1316,7 +1321,7 @@ const Items = () => {
     setEliteMember(member);
     setCustomerType('elite');
     setSelectedDiscount(eliteDiscount);
-    setDiscountEligibility({});
+    setDiscountPeople(0);
     setDiscountApplied(true);
     setShowEliteModal(false);
   };
@@ -1324,7 +1329,7 @@ const Items = () => {
     if (customerType === 'elite') return;
     if (discountApplied) {
       setCustomerType('customer');
-      setDiscountEligibility({});
+      setDiscountPeople(0);
       setDiscountApplied(false);
       setSelectedDiscount(null);
       return;
@@ -1335,38 +1340,14 @@ const Items = () => {
     const discountChoice = normalizeDiscount(discountOption);
     if (!discountChoice) return;
 
-    setCustomerType(discountChoice.code);
-    setSelectedDiscount(discountChoice);
-    setEliteMember(null);
-    if (!isItemScopedDiscount(discountChoice, discountChoice.code)) setDiscountEligibility({});
-    setDiscountApplied(true);
-    setShowDiscountTypeModal(false);
-  };
-  const toggleDiscountEligibility = (cartKey) => {
-    const item = cart.find(c => c.cartKey === cartKey);
-    if (!item) return;
-
-    const itemScopedDiscount = isScopedDiscount
-      ? activeDiscount
-      : defaultItemScopedDiscount;
-    if (!itemScopedDiscount) {
-      addNotification({
-        title: 'Item discount unavailable',
-        message: 'Add a PWD/Senior or Pag-IBIG discount in Products > Discounts before applying it to an item.',
-        details: [],
-      });
+    if (isItemScopedDiscount(discountChoice, discountChoice.code)) {
+      setPendingDiscount(discountChoice);
+      setShowDiscountTypeModal(false);
       return;
     }
-
-    setDiscountEligibility(prev => {
-      const next = isScopedDiscount ? { ...prev } : {};
-      if (next[cartKey]) delete next[cartKey];
-      else next[cartKey] = item.quantity;
-      return next;
-    });
-
-    setCustomerType(itemScopedDiscount.code);
-    setSelectedDiscount(itemScopedDiscount);
+    setDiscountPeople(0);
+    setCustomerType(discountChoice.code);
+    setSelectedDiscount(discountChoice);
     setEliteMember(null);
     setDiscountApplied(true);
     setShowDiscountTypeModal(false);
@@ -1737,26 +1718,7 @@ const Items = () => {
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <p style={{ fontSize: '13px', fontWeight: '700', color: '#8B5E3C', margin: '0 0 4px' }}>₱{getCartItemLineTotal(item).toLocaleString()}</p>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '6px' }}>
-                    {canUseItemDiscount && (
-                    <button
-                      onClick={() => toggleDiscountEligibility(item.cartKey)}
-                      title={discountEligibility[item.cartKey] ? `Remove ${scopedDiscountName} discount from this item` : `Apply ${scopedDiscountName} discount to this item`}
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '6px',
-                        border: `1px solid ${discountEligibility[item.cartKey] ? '#D97706' : '#E0D5CB'}`,
-                        backgroundColor: discountEligibility[item.cartKey] ? '#FFFAF0' : '#fff',
-                        color: discountEligibility[item.cartKey] ? '#D97706' : '#8A7A6B',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <FiTag size={13} />
-                    </button>
-                    )}
+                    {discountApplied && discountEligibility[item.cartKey] > 0 && <span style={{ fontSize: '11px', color: '#8B5E3C' }}>{discountEligibility[item.cartKey]} discounted</span>}
                     <button onClick={() => removeFromCart(item.cartKey)} style={{ fontSize: '11px', color: '#8B5E3C', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>✕</button>
                   </div>
                 </div>
@@ -1778,6 +1740,7 @@ const Items = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: '800', color: '#1a1a1a', margin: '8px 0 14px' }}>
             <span>TOTAL:</span><span>₱{total.toLocaleString()}</span>
           </div>
+          {isScopedDiscount && discountApplied && <button onClick={() => setPendingDiscount(activeDiscount)} style={{ border: 0, background: 'none', color: '#8B5E3C', padding: '0 0 10px', cursor: 'pointer', fontSize: '12px' }}>Discounted people: {discountPeople} - Change</button>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
             <button className="cashier-discount" onClick={handleApplyDiscount} style={{ padding: '11px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '700', backgroundColor: discountApplied ? '#EDE1D4' : '#F5F0EB', color: '#6F4A2F' }}>{discountApplied ? 'Discount ✓' : 'Apply Discount'}</button>
             <button className="cashier-secondary" onClick={clearCart} style={{ padding: '11px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '700', backgroundColor: '#fff', color: '#6F4A2F' }}>Clear</button>
@@ -1787,8 +1750,12 @@ const Items = () => {
       </div>
 
       {selectedProduct && <ProductModal product={selectedProduct} onConfirm={addToCart} onClose={() => setSelectedProduct(null)} />}
-      {showEliteModal && <EliteVerificationModal onConfirm={handleEliteConfirm} onCancel={() => { setShowEliteModal(false); setCustomerType('customer'); setEliteMember(null); setDiscountEligibility({}); setDiscountApplied(false); setSelectedDiscount(null); }} />}
+      {showEliteModal && <EliteVerificationModal onConfirm={handleEliteConfirm} onCancel={() => { setShowEliteModal(false); setCustomerType('customer'); setEliteMember(null); setDiscountPeople(0); setDiscountApplied(false); setSelectedDiscount(null); }} />}
       {showDiscountTypeModal && <DiscountTypeModal discounts={availableDiscounts} onSelect={handleDiscountTypeSelect} onCancel={() => setShowDiscountTypeModal(false)} />}
+      {pendingDiscount && <DiscountPeopleModal discount={pendingDiscount} cart={cart} initialCount={discountPeople} onCancel={() => setPendingDiscount(null)} onConfirm={count => {
+        setCustomerType(pendingDiscount.code); setSelectedDiscount(pendingDiscount); setEliteMember(null);
+        setDiscountPeople(count); setDiscountApplied(true); setPendingDiscount(null);
+      }} />}
       {showReceipt && (
     <ReceiptModal cart={cart.map(item => ({
           ...item,

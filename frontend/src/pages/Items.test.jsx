@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import axios from 'axios';
 import Items from './Items';
@@ -89,4 +89,48 @@ test('an old cashier session with an invalid card must re-enter membership detai
   expect(session.customerType).toBe('customer');
   expect(session.eliteMember).toBeNull();
   expect(session.discountApplied).toBe(false);
+});
+
+
+test('GCash accepts digits only, including pasted input, and blocks a short reference', async () => {
+  render(<Items />);
+  await screen.findByText('No products found.');
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
+  fireEvent.click(screen.getByRole('button', { name: 'GCash' }));
+  const reference = screen.getByPlaceholderText('e.g. 1234567890');
+  fireEvent.change(reference, { target: { value: 'abc001234567890x' } });
+  expect(reference).toHaveValue('001234567890');
+  fireEvent.change(reference, { target: { value: 'abc12' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+  await screen.findByText('Enter 10 to 13 digits for the GCash reference number.');
+  expect(axios.post).not.toHaveBeenCalled();
+});
+
+test('two PWD diners automatically discount only the top two units and preserve the allocation at checkout', async () => {
+  localStorage.setItem('fluxCashierSession', JSON.stringify({ cart: [
+    { _id: 'coffee', cartKey: 'coffee', name: 'Coffee', price: 100, quantity: 4 },
+    { _id: 'cake', cartKey: 'cake', name: 'Cake', price: 200, quantity: 2 },
+    { _id: 'meal', cartKey: 'meal', name: 'Meal', price: 300, quantity: 1 },
+  ] }));
+  axios.post.mockResolvedValue({ data: { success: true, receiptNo: 'FLX-PWD' } });
+  render(<Items />);
+  await screen.findByText('No products found.');
+  fireEvent.click(screen.getByRole('button', { name: 'Apply Discount' }));
+  fireEvent.click(screen.getByRole('button', { name: /PWD\/Senior Citizen/ }));
+  const count = screen.getByLabelText('How many people have this discount?');
+  fireEvent.change(count, { target: { value: '2' } });
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Discounted people' })).getByRole('button', { name: 'Apply Discount' }));
+  expect(screen.queryByRole('dialog', { name: 'Discounted people' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
+  fireEvent.change(screen.getByPlaceholderText(/Minimum/), { target: { value: '1000' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+  await screen.findByRole('dialog', { name: 'Saved receipt' });
+  expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/transactions', expect.objectContaining({
+    discount: 100, total: 1000,
+    items: expect.arrayContaining([
+      expect.objectContaining({ name: 'Coffee', discountEligibleQuantity: 0 }),
+      expect.objectContaining({ name: 'Cake', discountEligibleQuantity: 1 }),
+      expect.objectContaining({ name: 'Meal', discountEligibleQuantity: 1 }),
+    ]),
+  }));
 });

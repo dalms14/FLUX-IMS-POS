@@ -19,6 +19,8 @@ const purchaseOrderRoutes = require('./Routes/purchaseOrderRoutes');
 const notificationRoutes = require('./Routes/notificationRoutes');
 const salesForecastRoutes = require('./Routes/salesForecastRoutes');
 const validateEliteMember = require('./middleware/validateEliteMember');
+const validateGcashReference = require('./middleware/validateGcashReference');
+const { collectBackupRecords } = require('./services/backupExport');
 
 dotenv.config();
 
@@ -83,13 +85,8 @@ app.post('/api/system/backup', async (req, res) => {
             return res.status(403).json({ message: 'Only the owner can export a backup. Password confirmation is required.' });
         }
 
-        const [products, categories, addons, discounts, inventory, transactions, refunds, recipes] = await Promise.all([
-            Product.find({}).lean(), Category.find({}).lean(), Addon.find({}).lean(), Discount.find({}).lean(),
-            Inventory.find({}).lean(), Transaction.find({}).lean(), Refund.find({}).lean(), Recipe.find({}).lean(),
-        ]);
+        const { data, counts } = await collectBackupRecords();
         const createdAt = new Date().toISOString();
-        const data = { products, categories, addons, discounts, inventory, transactions, refunds, recipes };
-        const counts = Object.fromEntries(Object.entries(data).map(([key, value]) => [key, value.length]));
         await logSystemAudit({ module: 'System', action: 'Backup Exported', entityName: 'Database backup', actor: owner.name || 'Owner', actorEmail: owner.email, details: 'Owner exported a complete database backup', changes: counts });
         res.json({ success: true, backup: { app: 'FLUX POS', version: '1.0', createdAt, createdBy: { name: owner.name || '', email: owner.email, role: owner.role }, counts, data } });
     } catch (err) {
@@ -1359,7 +1356,7 @@ function buildShortage(requirement, inventoryItem) {
 }
 
 // Place Order
-app.post('/api/transactions', validateEliteMember, async (req, res) => {
+app.post('/api/transactions', validateEliteMember, validateGcashReference, async (req, res) => {
     const { cashier, cashierEmail, customerType, serviceType, eliteMember, discountInfo, items, subtotal, tax, discount, total, paymentMethod, amountTendered, change, gcashReference, gcashProofImage } = req.body;
     const deductedRequirements = [];
     try {

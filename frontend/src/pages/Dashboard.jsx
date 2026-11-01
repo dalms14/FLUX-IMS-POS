@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
+import PurchaseOrderDetailsModal from '../components/PurchaseOrderDetailsModal';
 import './Dashboard.css';
 import { FiPackage, FiShoppingCart, FiCheck, FiTag, FiBell, FiTruck, FiX } from 'react-icons/fi';
 import { LuPhilippinePeso } from 'react-icons/lu';
@@ -118,6 +119,7 @@ const Dashboard = () => {
   const [refunds, setRefunds] = useState([]);
   const [approvalNotifications, setApprovalNotifications] = useState([]);
   const [assignedDeliveries, setAssignedDeliveries] = useState([]);
+  const [viewingDelivery, setViewingDelivery] = useState(null);
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -277,7 +279,7 @@ const Dashboard = () => {
           {assignedDeliveries.length > 0 && (
             <section className="dashboard-notice dashboard-deliveries" style={{ marginBottom: '24px', backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #BEE3F8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ padding: '17px 20px', display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#EBF8FF', borderBottom: '1px solid #BEE3F8' }}><span style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9px', backgroundColor: '#2B6CB0', color: '#fff' }}><FiTruck size={18} /></span><div><h2 style={{ margin: 0, fontSize: '15px', color: '#2C5282' }}>My Assigned Deliveries</h2><p style={{ margin: '3px 0 0', fontSize: '11px', color: '#2B6CB0' }}>Verify the physical supplies, then record what actually arrived.</p></div></div>
-              {assignedDeliveries.map(order => <div key={order._id} style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #E6F6FF' }}><div style={{ flex: 1, minWidth: 0 }}><p style={{ margin: 0, fontSize: '13px', color: '#1A202C', fontWeight: '900' }}>{order.purchaseOrderNo} — {order.supplierName}</p><p style={{ margin: '3px 0 0', fontSize: '11px', color: '#718096' }}>{order.items.length} item{order.items.length === 1 ? '' : 's'} · Expected: {order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-PH') : 'Not set'}</p></div><button onClick={() => setSelectedDelivery(order)} style={{ padding: '9px 11px', borderRadius: '8px', border: 'none', backgroundColor: '#2B6CB0', color: '#fff', fontSize: '12px', fontWeight: '900', cursor: 'pointer', whiteSpace: 'nowrap' }}>Record Delivery</button></div>)}
+              {assignedDeliveries.map(order => <div key={order._id} style={{ padding: '14px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', borderBottom: '1px solid #E6F6FF' }}><div style={{ flex: 1, minWidth: 0 }}><p style={{ margin: 0, fontSize: '13px', color: '#1A202C', fontWeight: '900' }}>{order.purchaseOrderNo} — {order.supplierName}</p><p style={{ margin: '3px 0 0', fontSize: '11px', color: '#718096' }}>{order.items.length} item{order.items.length === 1 ? '' : 's'} · Expected: {order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-PH') : 'Not set'}</p></div><button onClick={() => setViewingDelivery(order)} style={{ padding: '9px 11px', borderRadius: '8px', border: '1px solid #D4B89A', background: '#fff', color: '#6F4A2F', cursor: 'pointer', fontSize: '12px' }}>View Items</button><button onClick={() => setSelectedDelivery(order)} style={{ padding: '9px 11px', borderRadius: '8px', border: 'none', backgroundColor: '#2B6CB0', color: '#fff', fontSize: '12px', fontWeight: '900', cursor: 'pointer', whiteSpace: 'nowrap' }}>Record Delivery</button></div>)}
             </section>
           )}
 
@@ -338,6 +340,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+      {viewingDelivery && <PurchaseOrderDetailsModal order={viewingDelivery} onClose={() => setViewingDelivery(null)} />}
       {selectedDelivery && <DeliveryArrivalModal order={selectedDelivery} onClose={() => setSelectedDelivery(null)} onRecorded={() => { setSelectedDelivery(null); fetchDashboardData(); }} />}
     </div>
   );
