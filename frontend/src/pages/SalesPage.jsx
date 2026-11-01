@@ -342,6 +342,7 @@ const SalesPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [productSort, setProductSort] = useState({ key: 'gross', direction: 'desc' });
+  const invalidDateRange = Boolean(startDate && endDate && startDate > endDate);
 
   const buildParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -351,6 +352,7 @@ const SalesPage = () => {
   }, [startDate, endDate]);
 
   const fetchSales = useCallback(async () => {
+    if (invalidDateRange) return;
     setLoading(true);
     setError('');
     try {
@@ -367,7 +369,7 @@ const SalesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [buildParams]);
+  }, [buildParams, invalidDateRange]);
 
   useEffect(() => {
     fetchSales();
@@ -529,6 +531,7 @@ const SalesPage = () => {
   };
 
   const exportCsv = () => {
+    if (invalidDateRange) return;
     const rows = [
       ['Product', 'Category', 'Qty Sold', 'Qty Refunded', 'Net Qty', 'Gross Sales'],
       ...sortedProductRows.map(row => [row.name, row.category, row.quantity, row.refundedQty, row.netQty, row.gross]),
@@ -554,7 +557,7 @@ const SalesPage = () => {
           actions={
           <button
             onClick={exportCsv}
-            disabled={sales.productRows.length === 0}
+            disabled={invalidDateRange || sales.productRows.length === 0}
             style={{ padding: '10px 14px', border: 'none', borderRadius: '8px', backgroundColor: sales.productRows.length === 0 ? '#bbb' : '#1A1208', color: '#fff', fontWeight: '800', cursor: sales.productRows.length === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
             <FiDownload size={15} /> Export CSV
@@ -580,16 +583,17 @@ const SalesPage = () => {
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase' }}>Start Date</label>
-              <input type="date" value={startDate} onChange={e => { setPreset('custom'); setStartDate(e.target.value); }} style={{ width: '100%', padding: '10px', border: '1px solid #D4B89A', borderRadius: '7px', boxSizing: 'border-box' }} />
+              <input type="date" aria-label="Start Date" max={endDate || undefined} aria-invalid={invalidDateRange} aria-describedby={invalidDateRange ? 'sales-date-error' : undefined} value={startDate} onChange={e => { setPreset('custom'); setStartDate(e.target.value); }} style={{ width: '100%', padding: '10px', border: '1px solid #D4B89A', borderRadius: '7px', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase' }}>End Date</label>
-              <input type="date" value={endDate} onChange={e => { setPreset('custom'); setEndDate(e.target.value); }} style={{ width: '100%', padding: '10px', border: '1px solid #D4B89A', borderRadius: '7px', boxSizing: 'border-box' }} />
+              <input type="date" aria-label="End Date" min={startDate || undefined} aria-invalid={invalidDateRange} aria-describedby={invalidDateRange ? 'sales-date-error' : undefined} value={endDate} onChange={e => { setPreset('custom'); setEndDate(e.target.value); }} style={{ width: '100%', padding: '10px', border: '1px solid #D4B89A', borderRadius: '7px', boxSizing: 'border-box' }} />
             </div>
-            <button onClick={fetchSales} disabled={loading} style={{ padding: '11px 14px', borderRadius: '8px', border: 'none', backgroundColor: '#8B5E3C', color: '#fff', fontWeight: '800', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <button onClick={fetchSales} disabled={loading || invalidDateRange} style={{ padding: '11px 14px', borderRadius: '8px', border: 'none', backgroundColor: '#8B5E3C', color: '#fff', fontWeight: '800', cursor: loading || invalidDateRange ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               <FiRefreshCw size={15} /> {loading ? 'Loading' : 'Apply'}
             </button>
           </div>
+          {invalidDateRange && <p id="sales-date-error" role="alert" style={{ margin: '12px 0 0', color: '#C53030', fontSize: '13px' }}>Start date must be on or before end date. Correct the dates to apply the filter.</p>}
         </section>
 
         {error && <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '8px', fontSize: '13px', fontWeight: '700' }}>{error}</div>}
