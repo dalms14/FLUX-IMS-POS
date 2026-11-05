@@ -1,3 +1,4 @@
+import { rowsToCsv } from '../utils/csv';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
@@ -101,9 +102,6 @@ const DataTable = ({ headers, rows, emptyText, renderRow }) => (
     </table>
   </div>
 );
-
-const csvEscape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-const rowsToCsv = (rows) => rows.map(row => row.map(csvEscape).join(',')).join('\n');
 
 const downloadBlob = (content, filename, type) => {
   const blob = new Blob([content], { type });

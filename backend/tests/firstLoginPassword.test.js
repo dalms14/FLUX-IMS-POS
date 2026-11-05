@@ -3,10 +3,12 @@ const assert = require('node:assert/strict');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const AuthSession = require('../models/AuthSession');
 const LoginActivity = require('../models/LoginActivity');
 const SystemAudit = require('../models/SystemAudit');
 const router = require('../Routes/authRoutes');
 
+const originalSessionCreate = AuthSession.create;
 const originals = { findOne: User.findOne, update: User.findOneAndUpdate, activity: LoginActivity.create, audit: SystemAudit.create };
 const invoke = async (path, body) => {
   let status = 200;
@@ -17,6 +19,7 @@ const invoke = async (path, body) => {
 };
 let account;
 beforeEach(async () => {
+  AuthSession.create = async () => ({});
   account = { _id: 'test-user', email: 'new-staff@example.com', role: 'staff', name: 'New Staff', userId: 'TEST001', mustChangePassword: true, password: await bcrypt.hash('password123', 4), async save() {} };
   User.findOne = async filter => {
     if (filter.email) return account;
@@ -31,6 +34,7 @@ beforeEach(async () => {
   SystemAudit.create = async () => ({});
 });
 afterEach(() => {
+  AuthSession.create = originalSessionCreate;
   User.findOne = originals.findOne;
   User.findOneAndUpdate = originals.update;
   LoginActivity.create = originals.activity;

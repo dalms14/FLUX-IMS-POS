@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import ReceiptViewModal from '../components/ReceiptViewModal';
+import RefundModal from '../components/modals/RefundModal';
+import { hasPermission } from '../utils/roles';
 import { FiCheck, FiChevronDown, FiCreditCard, FiRefreshCw } from 'react-icons/fi';
 import './TransactionPage.css';
 
@@ -420,6 +422,11 @@ const TransactionPage = () => {
   const [error, setError] = useState('');
   const [detailsTransaction, setDetailsTransaction] = useState(null);
   const [receiptTransaction, setReceiptTransaction] = useState(null);
+  const [refundTransaction, setRefundTransaction] = useState(null);
+  const [refundMessage, setRefundMessage] = useState('');
+  const closeRefund = useCallback(() => setRefundTransaction(null), []);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const canRefund = hasPermission(user, 'transactions') || hasPermission(user, 'history');
   const [filterCashier, setFilterCashier] = useState('');
   const [filterPayment, setFilterPayment] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -709,6 +716,7 @@ const TransactionPage = () => {
           </div>
         )}
 
+        {refundMessage && <p role="status" style={{ padding: '12px 16px', background: '#F5F0EB', border: '1px solid #E0D5CB', borderRadius: '6px' }}>{refundMessage}</p>}
         {/* Transactions Table */}
         {loading ? (
           <div style={{ textAlign: 'center', padding: '32px', color: '#666' }}>
@@ -804,6 +812,9 @@ const TransactionPage = () => {
                       >
                         {isCancelledTransaction(transaction) ? 'Cancelled' : 'Completed'}
                       </span>
+                      {transaction.refundSummary?.totalRefunded > 0 && <small style={{ display: 'block', marginTop: '6px', color: '#8B5E3C' }}>
+                        Refunded: {money(transaction.refundSummary.totalRefunded)}
+                      </small>}
                     </td>
                     <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '88px 88px', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
@@ -838,9 +849,14 @@ const TransactionPage = () => {
                         >
                           Receipt
                         </button>
-                        <span style={{ width: '88px', textAlign: 'center', color: '#999', fontSize: '12px', fontWeight: '700', lineHeight: 1.2 }}>
-                          Final
-                        </span>
+                        {canRefund && transaction.refundSummary?.canRefund ? (
+                          <button type="button" onClick={event => { event.stopPropagation(); setRefundMessage(''); setRefundTransaction(transaction); }}
+                            style={{ width: '88px', height: '38px', border: '1px solid #D4B89A', borderRadius: '4px', background: '#F5F0EB', color: '#8B5E3C', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', cursor: 'pointer' }}>
+                            Refund
+                          </button>
+                        ) : <span style={{ width: '88px', textAlign: 'center', color: '#999', fontSize: '12px', fontWeight: '700', lineHeight: 1.2 }}>
+                          {transaction.refundSummary?.totalRefunded > 0 && transaction.refundSummary?.remainingAmount === 0 ? 'Refunded' : 'Final'}
+                        </span>}
                       </div>
                     </td>
                   </tr>
@@ -864,6 +880,12 @@ const TransactionPage = () => {
           onClose={() => setReceiptTransaction(null)}
         />
       )}
+      <RefundModal isOpen={Boolean(refundTransaction)} transaction={refundTransaction} onClose={closeRefund}
+        onSuccess={refund => {
+          setRefundMessage(`Refund recorded: ${money(refund.totalRefunded)}. Return this amount through ${refund.paymentMethod}.`);
+          setDetailsTransaction(null);
+          fetchTransactions(null, { silent: true });
+        }} />
     </div>
   );
 };

@@ -67,7 +67,7 @@ router.get('/my-deliveries', async (req, res) => {
     try {
         const email = String(req.query.email || '').trim().toLowerCase();
         if (!email) return res.status(400).json({ message: 'Email is required' });
-        const user = await User.findOne({ email, archived: { $ne: true } }).select('role');
+        const user = await User.findOne({ email, archived: { $ne: true } }).select('role email userId archived');
         if (!user) return res.status(403).json({ message: 'This account is no longer active.' });
         const receiverEmails = [email, '__anyone__'];
         if (isStaffReceiver(user)) receiverEmails.push('__any_staff__');
@@ -311,7 +311,8 @@ router.post('/:id/record-arrival', async (req, res) => {
 router.post('/:id/pending-receipts/:receiptId/approve', async (req, res) => {
     try {
         const actorEmail = String(req.body.actorEmail || '').trim().toLowerCase();
-        const approver = actorEmail ? await User.findOne({ email: actorEmail }) : null;
+        const approver = actorEmail ? await User.findOne({ email: actorEmail, archived: { $ne: true } }) : null;
+        if (!approver || !isReceiptApprover(approver)) return res.status(403).json({ message: 'Only the Owner, Finance, or HR can approve a delivery.' });
         const order = await PurchaseOrder.findById(req.params.id);
         if (!order) return res.status(404).json({ message: 'Purchase order not found' });
         const pendingReceipt = order.pendingReceipts.id(req.params.receiptId);
@@ -351,7 +352,7 @@ router.post('/:id/pending-receipts/:receiptId/approve', async (req, res) => {
             module: 'Purchase Orders', action: 'Delivery Received', entityId: String(order._id), entityName: order.purchaseOrderNo,
             actor: pendingReceipt.reviewedBy, actorEmail,
             details: `Delivery received by ${pendingReceipt.reviewedBy}. Inventory updated immediately.`,
-            changes: { status: order.status, assignedReceiver: order.assignedReceiver.name, receivedBy: pendingReceipt.reportedBy, arrivalTime: pendingReceipt.arrivedAt, approvalTime: pendingReceipt.reviewedAt, items: receivedItems.map(item => ({ name: item.name, quantity: item.quantity, expirationDate: item.expirationDate })) },
+            changes: { status: order.status, assignedReceiver: order.assignedReceiver.name, receivedBy: pendingReceipt.reportedBy, arrivalTime: pendingReceipt.arrivedAt, approvalTime: pendingReceipt.reviewedAt, items: receivedItems.map(item => ({ inventoryId: item.inventoryId, name: item.name, quantity: item.quantity, unit: order.items.id(item.itemId)?.unit || '', expirationDate: item.expirationDate })) },
         });
         res.json({ success: true, order });
     } catch (err) {

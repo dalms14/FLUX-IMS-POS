@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { clearSession } from '../utils/session';
+import { clearSessionIfCurrent, getSessionId } from '../utils/session';
 import { hasPermission } from '../utils/roles';
 import './Sidebar.css';
 
@@ -56,14 +56,15 @@ export default function Sidebar() {
   };
 
   const confirmLogout = async () => {
-    clearSession();
-    navigate('/login');
+    const sessionId = getSessionId();
     try {
       if (user.email) {
-        await axios.post('http://localhost:5000/api/auth/logout', { email: user.email });
+        await axios.post('http://localhost:5000/api/auth/logout', { email: user.email }, { timeout: 5000 });
       }
     } catch (err) {
       console.error('Error updating logout status:', err);
+    } finally {
+      if (clearSessionIfCurrent(sessionId)) navigate('/login');
     }
   };
 

@@ -16,18 +16,18 @@ import SalesPage from './pages/SalesPage';
 import StaffPage from './pages/StaffPage';
 import ReportsPage from './pages/ReportsPage';
 import { getLandingPath, hasPermission } from './utils/roles';
-import { getSessionUser } from './utils/session';
+import { getSessionCredentials, getSessionUser, SESSION_CHANGED_EVENT } from './utils/session';
 import useSessionSync from './utils/useSessionSync';
 import { sendSessionHeartbeat } from './utils/sessionHeartbeat';
 import './App.css';
 
 // Protect routes that require login
-const PrivateRoute = ({ children }) => {
+export const PrivateRoute = ({ children }) => {
   const user = getSessionUser();
   return user ? children : <Navigate to="/login" />;
 };
 
-const PermissionRoute = ({ children, permission }) => {
+export const PermissionRoute = ({ children, permission }) => {
   const user = getSessionUser();
   if (!user) return <Navigate to="/login" replace />;
   return hasPermission(user, permission) ? children : <Navigate to={getLandingPath(user)} />;
@@ -37,8 +37,18 @@ function App() {
   useSessionSync();
 
   useEffect(() => {
+    let reportedActivity = 0;
     const sendHeartbeat = () => {
-      if (!document.hidden) sendSessionHeartbeat();
+      if (!document.hidden) {
+        reportedActivity = getSessionCredentials()?.lastActiveAt || 0;
+        sendSessionHeartbeat();
+      }
+    };
+    const sendRecentActivity = () => {
+      const activity = getSessionCredentials()?.lastActiveAt || 0;
+      // Report the first input after an idle period immediately, including just
+      // before the server deadline. Continuous input is sent at most every 5s.
+      if (activity - reportedActivity >= 5000) sendHeartbeat();
     };
 
     sendHeartbeat();
@@ -48,11 +58,13 @@ function App() {
     };
     document.addEventListener('visibilitychange', checkWhenReturningToApp);
     window.addEventListener('focus', sendHeartbeat);
+    window.addEventListener(SESSION_CHANGED_EVENT, sendRecentActivity);
 
     return () => {
       clearInterval(heartbeatTimer);
       document.removeEventListener('visibilitychange', checkWhenReturningToApp);
       window.removeEventListener('focus', sendHeartbeat);
+      window.removeEventListener(SESSION_CHANGED_EVENT, sendRecentActivity);
     };
   }, []);
 

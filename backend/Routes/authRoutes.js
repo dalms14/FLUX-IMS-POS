@@ -6,6 +6,9 @@ const LoginActivity = require('../models/LoginActivity');
 const SystemAudit = require('../models/SystemAudit');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { issueSession } = require('../services/authSessions');
+const AuthSession = require('../models/AuthSession');
+const { all: accountPermissions, hasPermission } = require('../utils/permissions');
 
 const loginAttempts = new Map();
 const MAX_ATTEMPTS = 3;
@@ -270,6 +273,7 @@ router.post('/login', async (req, res) => {
         });
 
         res.json({
+            sessionToken: await issueSession(user),
             name: user.name,
             email: user.email,
             role: user.role,
@@ -313,7 +317,7 @@ router.post('/first-login-password', async (req, res) => {
         if (!updated) return res.status(401).json({ message: 'This request is no longer valid. Please sign in again.' });
         await logAuthAudit({ action: 'First Login Password Changed', user: updated, details: 'Temporary password replaced on first sign-in' });
         await LoginActivity.create({ userId: updated._id, name: updated.name || 'Unnamed User', email: updated.email, role: updated.role, action: 'login', staffId: updated.userId || '', ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] || '' });
-        return res.json({ success: true, user: serializeUser(updated) });
+        return res.json({ success: true, user: { ...serializeUser(updated), sessionToken: await issueSession(updated) } });
     } catch (err) {
         console.error('First login password change failed:', err.message);
         return res.status(500).json({ message: 'Unable to change password. Please try again.' });
@@ -406,6 +410,7 @@ router.post('/heartbeat', async (req, res) => {
 });
 
 router.post('/logout', async (req, res) => {
+    if (req.authSession) await AuthSession.deleteOne({ _id: req.authSession._id });
     const normalizedEmail = normalizeEmail(req.body.email);
 
     if (!normalizedEmail) {
@@ -529,8 +534,25 @@ router.post('/users', async (req, res) => {
         return res.status(400).json({ message: 'Name, email, password, and role are required' });
     }
 
-    if (!ALLOWED_ROLES.includes(normalizedRole)) {
+    if (!['staff', 'custom', 'admin'].includes(normalizedRole)) {
         return res.status(400).json({ message: 'Role must be custom or staff' });
+    }
+
+    if (normalizedEmail === 'admin@elicoffee.com' || normalizedUserId === 'ELI001') {
+        return res.status(403).json({ message: 'Reserved owner identity cannot be assigned to another account.' });
+    }
+    if (req.user && normalizedRole === 'admin' && !isOwnerAccount(req.user)) {
+        return res.status(403).json({ message: 'Only the owner can create administrator accounts.' });
+    }
+    if (req.user && !isOwnerAccount(req.user)) {
+        if (normalizedRole === 'custom' && ['finance', 'hr'].includes(normalizedJobRole.toLowerCase())) {
+            return res.status(403).json({ message: 'Only the owner can assign delivery-approver roles.' });
+        }
+        const createdAccount = { role: normalizedRole, jobRole: normalizedJobRole,
+            permissions: ['admin', 'custom'].includes(normalizedRole) ? normalizePermissions(permissions) : undefined };
+        if (accountPermissions.some(permission => hasPermission(createdAccount, permission) && !hasPermission(req.user, permission))) {
+            return res.status(403).json({ message: 'You cannot grant permissions beyond your own access, including role defaults.' });
+        }
     }
 
     if (normalizedRole === 'custom' && !normalizedJobRole) {
@@ -580,6 +602,7 @@ router.post('/users', async (req, res) => {
         }
 
         const finalUserId = normalizedUserId || await generateUserId();
+        if (finalUserId === 'ELI001') return res.status(403).json({ message: 'The owner identifier is reserved.' });
         const existingUserId = await User.findOne({ userId: finalUserId });
         if (existingUserId) {
             return res.status(409).json({ message: 'A user with that user ID already exists' });
@@ -681,7 +704,7 @@ router.delete('/users/:id', async (req, res) => {
             return res.status(400).json({ message: 'Admin email and password confirmation are required' });
         }
 
-        const adminUser = await User.findOne({ email: adminEmail });
+        const adminUser = await User.findOne({ email: adminEmail, archived: { $ne: true } });
         const adminRole = normalizeRole(adminUser?.role);
         const canDeleteUsers = adminRole === 'owner' || (
             adminRole === 'admin' &&
@@ -775,8 +798,8 @@ router.post('/change-password', async (req, res) => {
         return res.status(400).json({ message: 'Current password and new password are required' });
     }
 
-    if (newPassword.length < 6) {
-        return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    if (typeof newPassword !== 'string' || !isStrongPassword(newPassword)) {
+        return res.status(400).json({ message: 'Use at least 8 characters, including uppercase, lowercase, and a number.' });
     }
 
     try {
@@ -816,8 +839,8 @@ router.post('/recover-password', async (req, res) => {
         return res.status(400).json({ message: 'Email, current password, and new password are required' });
     }
 
-    if (newPassword.length < 6) {
-        return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    if (typeof newPassword !== 'string' || !isStrongPassword(newPassword)) {
+        return res.status(400).json({ message: 'Use at least 8 characters, including uppercase, lowercase, and a number.' });
     }
 
     try {
@@ -1024,26 +1047,25 @@ router.post('/password-reset/confirm', async (req, res) => {
         if (!user || !user.passwordResetOtpHash || user.passwordResetOtpUsedAt || !user.passwordResetOtpExpiresAt || user.passwordResetOtpExpiresAt <= new Date()) {
             return res.status(400).json({ message: 'This code is invalid or has expired. Request a new code.' });
         }
-        if (user.passwordResetOtpAttempts >= OTP_MAX_ATTEMPTS) {
-            return res.status(429).json({ message: 'Too many incorrect attempts. Request a new code.' });
-        }
+        const now = new Date();
+        const challenge = { _id: user._id, archived: { $ne: true }, password: user.password,
+            passwordResetOtpHash: user.passwordResetOtpHash, passwordResetOtpExpiresAt: { $gt: now },
+            passwordResetOtpUsedAt: null, passwordResetOtpAttempts: { $lt: OTP_MAX_ATTEMPTS } };
+        // Every concurrent guess reserves a distinct attempt on this challenge.
+        const reserved = await User.findOneAndUpdate(challenge, { $inc: { passwordResetOtpAttempts: 1 } }, { returnDocument: 'after' }).select('+passwordResetOtpAttempts');
+        if (!reserved) return res.status(429).json({ message: 'Too many attempts or this code is no longer valid. Request a new code.' });
         if (hashOtp(otp) !== user.passwordResetOtpHash) {
-            user.passwordResetOtpAttempts += 1;
-            await user.save();
-            return res.status(400).json({ message: `Incorrect code. ${OTP_MAX_ATTEMPTS - user.passwordResetOtpAttempts} attempt(s) remaining.` });
+            return res.status(400).json({ message: `Incorrect code. ${Math.max(0, OTP_MAX_ATTEMPTS - reserved.passwordResetOtpAttempts)} attempt(s) remaining.` });
         }
         if (await bcrypt.compare(newPassword, user.password)) return res.status(400).json({ message: 'Use a password different from your current password.' });
-
-        user.password = newPassword;
-        user.mustChangePassword = false;
-        user.firstLoginTokenHash = null;
-        user.firstLoginTokenExpiresAt = null;
-        user.passwordResetOtpHash = null;
-        user.passwordResetOtpExpiresAt = null;
-        user.passwordResetOtpAttempts = 0;
-        user.passwordResetOtpUsedAt = new Date();
-        user.isOnline = false;
-        await user.save();
+        const updated = await User.findOneAndUpdate({ ...challenge, passwordResetOtpAttempts: { $lte: OTP_MAX_ATTEMPTS } }, { $set: {
+            password: await bcrypt.hash(newPassword, 10), mustChangePassword: false,
+            firstLoginTokenHash: null, firstLoginTokenExpiresAt: null,
+            passwordResetOtpHash: null, passwordResetOtpExpiresAt: null,
+            passwordResetOtpUsedAt: now, isOnline: false,
+        } }, { returnDocument: 'after' });
+        if (!updated) return res.status(400).json({ message: 'This code was already used or replaced. Request a new code.' });
+        await AuthSession.deleteMany({ userId: user._id });
         await SystemAudit.create({ module: 'Security', action: 'Password Reset', entityId: user._id, entityName: user.name, actor: user.name, actorEmail: user.email, details: 'Password reset with one-time email verification code' });
         res.json({ success: true, message: 'Password reset successfully. You can now sign in.' });
     } catch (err) {
@@ -1052,5 +1074,17 @@ router.post('/password-reset/confirm', async (req, res) => {
     }
 });
 
+
+router.get('/my-activity', async (req, res) => {
+    try {
+        const [transactions, refunds] = await Promise.all([
+            require('../models/Transaction').find({ cashierEmail: req.user.email }).sort({ createdAt: -1 }).limit(50),
+            require('../models/Refund').find({ refundedByEmail: req.user.email }).sort({ createdAt: -1 }).limit(50),
+        ]);
+        res.json({ transactions, refunds });
+    } catch (err) {
+        res.status(500).json({ message: 'Unable to load your account activity.' });
+    }
+});
 
 module.exports = router;

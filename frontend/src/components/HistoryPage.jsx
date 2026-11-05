@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../components/Sidebar';
+import InventoryHistoryPanel from './InventoryHistoryPanel';
 import { hasPermission } from '../utils/roles';
 
 const ALL_TABS = [
@@ -50,9 +51,11 @@ const HistoryPage = () => {
   const [refunds, setRefunds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [inventoryRefreshing, setInventoryRefreshing] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async ({ silent = false } = {}) => {
+    if (silent) setInventoryRefreshing(true);
+    else setLoading(true);
     setError('');
     try {
       if (activeTab === 'Transaction History') {
@@ -62,6 +65,7 @@ const HistoryPage = () => {
       } else if (activeTab === 'Inventory History') {
         const res = await fetch('http://localhost:5000/api/inventory-history');
         const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Could not load inventory history.');
         setInventory(data.data || []);
       } else if (activeTab === 'Sales History') {
         const res = await fetch('http://localhost:5000/api/sales-history');
@@ -75,21 +79,16 @@ const HistoryPage = () => {
       }
     } catch (err) {
       console.error('Error fetching data:', err);
-      setError('Failed to load data');
+      setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
+      setInventoryRefreshing(false);
     }
   }, [activeTab]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    if (!dateString || Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleDateString('en-PH');
-  };
 
   const formatDateTime = (dateString) => {
     const date = new Date(dateString);
@@ -264,44 +263,9 @@ const HistoryPage = () => {
     );
   };
 
-  const renderInventoryHistory = () => {
-    const stockIn = inventory.filter(row => row.action === 'Stock In').length;
-    const stockOut = inventory.filter(row => row.action === 'Stock Out').length;
-    const deducted = inventory.filter(row => row.action?.includes('Deducted')).length;
-    const latest = inventory[0];
-
-    return (
-      <div style={{ display: 'grid', gap: '16px' }}>
-        {metricGrid([
-          { label: 'Inventory Logs', value: inventory.length.toLocaleString(), hint: 'All recorded stock movements' },
-          { label: 'Stock In', value: stockIn.toLocaleString(), hint: 'Received supplies and restocks' },
-          { label: 'Stock Out', value: stockOut.toLocaleString(), hint: 'Manual damage, theft, or loss' },
-          { label: 'Refund Waste', value: deducted.toLocaleString(), hint: 'Waste from refunded made items' },
-          { label: 'Latest Change', value: latest ? formatDate(latest.date) : '-', hint: latest?.item || 'No activity yet', compact: true },
-        ])}
-
-        {reportTable({
-          title: 'Inventory Movement',
-          subtitle: 'Manual stock-in, stock-out, and refund waste activity.',
-          headers: ['Date', 'Item', 'Action', 'Quantity', 'By', 'Reason'],
-          emptyText: 'No inventory history found',
-          rows: inventory.map((row, i) => {
-            const isLoss = row.action === 'Stock Out' || row.action?.includes('Deducted');
-            return (
-              <tr key={row._id || i} style={{ backgroundColor: i % 2 === 0 ? '#fff' : '#FBF8F5' }}>
-                <td style={tableCellStyle}>{formatDateTime(row.date)}</td>
-                <td style={{ ...tableCellStyle, fontWeight: '800', color: '#1A1208' }}>{row.item || '-'}</td>
-                <td style={tableCellStyle}>{statusBadge(row.action, isLoss ? 'danger' : 'success')}</td>
-                <td style={{ ...tableCellStyle, fontWeight: '800' }}>{row.quantity || '-'}</td>
-                <td style={tableCellStyle}>{row.by || '-'}</td>
-                <td style={{ ...tableCellStyle, color: '#6B7280' }}>{row.reason || '-'}</td>
-              </tr>
-            );
-          }),
-        })}
-      </div>
-    );
-  };
+  const renderInventoryHistory = () => (
+    <InventoryHistoryPanel rows={inventory} onRefresh={() => fetchData({ silent: true })} refreshing={inventoryRefreshing} />
+  );
 
   const renderSalesHistory = () => {
     const summary = salesSummary || buildSalesSummary(sales);
@@ -386,7 +350,9 @@ const HistoryPage = () => {
               <td style={tableCellStyle}>{formatDateTime(row.createdAt)}</td>
               <td style={{ ...tableCellStyle, color: '#8B5E3C', fontWeight: '800' }}>{row.receiptNo || '-'}</td>
               <td style={{ ...tableCellStyle, color: '#C53030', fontWeight: '900' }}>{formatMoney(row.totalRefunded)}</td>
-              <td style={{ ...tableCellStyle, maxWidth: '320px', color: '#4B5563' }}>{row.reason || '-'}</td>
+              <td style={{ ...tableCellStyle, maxWidth: '280px', color: '#4B5563' }}>
+                <div style={{ maxWidth: '280px', overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{row.reason || '-'}</div>
+              </td>
               <td style={tableCellStyle}>{statusBadge(row.status?.charAt(0).toUpperCase() + row.status?.slice(1), statusTone[row.status])}</td>
               <td style={tableCellStyle}>
                 {row.status === 'pending' && (

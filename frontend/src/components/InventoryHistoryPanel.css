@@ -1,0 +1,31 @@
+.inventory-history-panel { display: grid; gap: 16px; min-width: 0; }
+.inventory-history-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.inventory-history-card { padding: 16px; border: 1px solid #e0d5cb; border-radius: 8px; background: #fff; }
+.inventory-history-card span { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #786b60; }
+.inventory-history-card strong { display: block; margin-top: 10px; color: #1a1208; font-size: 27px; line-height: 1; }
+.inventory-history-box { min-width: 0; overflow: hidden; border: 1px solid #d8c8b8; border-radius: 8px; background: #fff; }
+.inventory-history-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px; border-bottom: 1px solid #e9ded4; }
+.inventory-history-heading h2 { margin: 0; color: #1a1208; font-size: 17px; }
+.inventory-history-heading p { margin: 6px 0 0; color: #8a8178; font-size: 12px; line-height: 1.5; }
+.inventory-history-panel button { padding: 10px 14px; border: 1px solid #d4b89a; border-radius: 6px; background: #fff; color: #8b5e3c; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.inventory-history-panel button:disabled { opacity: .6; cursor: default; }
+.inventory-history-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; padding: 16px 18px 0; }
+.inventory-history-filters label { display: grid; gap: 7px; min-width: 140px; flex: 1; color: #6f6258; font-size: 12px; font-weight: 600; }
+.inventory-history-filters label.inventory-history-search { flex: 2; min-width: 220px; }
+.inventory-history-filters input, .inventory-history-filters select { box-sizing: border-box; width: 100%; min-width: 0; height: 40px; padding: 8px 10px; border: 1px solid #d8c8b8; border-radius: 6px; background: #fff; color: #33251d; font: inherit; font-weight: 400; }
+.inventory-history-count { margin: 14px 18px; color: #8a8178; font-size: 12px; }
+.inventory-history-error { margin: 12px 18px 0; color: #a32c2c; font-size: 12px; }
+.inventory-history-table { width: 100%; min-width: 940px; border-collapse: collapse; font-size: 13px; }
+.inventory-history-table th { padding: 14px 16px; text-align: left; text-transform: uppercase; white-space: nowrap; font-size: 11px; letter-spacing: .6px; color: #d99545; background: #1a1208; }
+.inventory-history-table td { padding: 13px 16px; color: #51453b; border-bottom: 1px solid #eee6de; line-height: 1.5; overflow-wrap: anywhere; }
+.inventory-history-table td:first-child { min-width: 145px; }
+.inventory-history-table tr:nth-child(even) { background: #fbf8f5; }
+.inventory-history-tag { display: inline-block; padding: 4px 8px; border-radius: 5px; color: #6b4a2f; background: #f4efea; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.inventory-history-tag.is-in { background: #eee2d5; color: #754b2d; }
+.inventory-history-table .inventory-history-quantity { font-weight: 700; white-space: nowrap; }
+.inventory-history-table .inventory-history-empty { padding: 30px 16px; text-align: center; color: #8a8178; }
+@media (max-width: 600px) {
+  .inventory-history-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inventory-history-filters label, .inventory-history-filters label.inventory-history-search { min-width: 0; flex-basis: calc(50% - 12px); }
+  .inventory-history-filters label.inventory-history-search { flex-basis: 100%; }
+}

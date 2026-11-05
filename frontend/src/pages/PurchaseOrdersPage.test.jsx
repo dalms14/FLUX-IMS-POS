@@ -24,6 +24,7 @@ beforeEach(() => {
       { _id: 'owner', role: 'owner', name: 'Owner', email: 'owner@example.com' },
       { _id: 'admin', role: 'admin', name: 'Admin', email: 'admin@example.com' },
       { _id: 'staff', role: 'staff', name: 'Staff', email: 'staff@example.com' },
+      { _id: 'operations', role: 'custom', jobRole: 'Operations', name: 'Athan Scott Saroca', userId: 'ELI020', email: 'operations@example.com' },
     ] } : url.endsWith('/purchase-orders') ? [order] : url.includes('/my-deliveries') ? { data: [order] } : [],
   }));
 });
@@ -39,6 +40,7 @@ test('new orders sort ingredients, list only staff, and shared assignments do no
   expect(screen.queryByRole('option', { name: /Owner — owner/ })).not.toBeInTheDocument();
   const receiver = screen.getByRole('option', { name: /Staff — staff/ }).parentElement;
   expect(receiver).toBeRequired();
+  expect(screen.getByRole('option', { name: 'Athan Scott Saroca — Operations (ELI020)' })).toHaveValue('operations@example.com');
   fireEvent.click(screen.getByRole('button', { name: /Any Staff/ }));
   expect(receiver).not.toBeRequired();
 });
@@ -88,4 +90,36 @@ test('assigned staff can inspect the expected delivery on their dashboard before
   expect(dialog).toHaveTextContent('Coffee Beans');
   expect(dialog).toHaveTextContent('10 kg');
   expect(axios.post).not.toHaveBeenCalled();
+});
+
+test('a failed sales request does not hide the Operations account delivery due today', async () => {
+  const existingGet = axios.get.getMockImplementation();
+  axios.get.mockImplementation(url => url.endsWith('/transactions') ? Promise.reject(new Error('Sales unavailable')) : existingGet(url));
+  const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+  localStorage.setItem('user', JSON.stringify({ role: 'custom', jobRole: 'Operations', name: 'Athan Scott Saroca', email: 'operations@example.com' }));
+  render(<Dashboard />);
+  expect(await screen.findByRole('button', { name: 'View Items' })).toBeInTheDocument();
+  expect(axios.get).toHaveBeenCalledWith('http://localhost:5000/api/purchase-orders/my-deliveries?email=operations%40example.com');
+  log.mockRestore();
+});
+
+test('an empty assignment list is explained instead of hiding the whole delivery section', async () => {
+  const existingGet = axios.get.getMockImplementation();
+  axios.get.mockImplementation(url => url.includes('/my-deliveries') ? Promise.resolve({ data: { data: [] } }) : existingGet(url));
+  render(<Dashboard />);
+  expect(await screen.findByText('No approved purchase orders are currently assigned to this account.')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'My Assigned Deliveries' })).toBeInTheDocument();
+});
+
+test('reporting a delivery from the dashboard submits it for review without calling approval', async () => {
+  localStorage.setItem('user', JSON.stringify({ role: 'staff', email: 'staff@example.com' }));
+  axios.post.mockResolvedValue({ data: { order: { ...order, status: 'Arrival Pending Approval' } } });
+  render(<Dashboard />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Record Delivery' }));
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } });
+  const buttons = screen.getAllByRole('button', { name: 'Record Delivery' });
+  fireEvent.click(buttons[buttons.length - 1]);
+  await screen.findByRole('heading', { name: 'My Assigned Deliveries' });
+  expect(axios.post).toHaveBeenCalledTimes(1);
+  expect(axios.post.mock.calls[0][0]).toMatch(/\/record-arrival$/);
 });

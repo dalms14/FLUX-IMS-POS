@@ -1,0 +1,21 @@
+.refund-backdrop { position: fixed; inset: 0; z-index: 1600; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(26, 18, 8, .55); }
+.refund-dialog { width: 100%; max-width: 560px; max-height: 90vh; overflow: auto; border: 1px solid #e0d5cb; border-radius: 10px; background: #fff; color: #33251d; font: 14px "Segoe UI", sans-serif; outline: none; }
+.refund-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px; border-bottom: 1px solid #e0d5cb; }
+.refund-header h2 { margin: 0; font-size: 20px; }
+.refund-header p { margin: 6px 0 0; color: #78695d; }
+.refund-dialog button { padding: 10px 14px; border: 1px solid #d4b89a; border-radius: 6px; color: #8b5e3c; background: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+.refund-dialog button:disabled { opacity: .5; cursor: default; }
+.refund-body { padding: 0 20px 20px; }
+.refund-items { border: 1px solid #e0d5cb; border-radius: 6px; max-height: 240px; overflow: auto; }
+.refund-item { padding: 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #eee6de; }
+.refund-item:last-child { border-bottom: 0; }
+.refund-item-label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.refund-item small { display: block; margin-top: 4px; color: #78695d; font-size: 12px; overflow-wrap: anywhere; }
+.refund-item input[type="number"] { width: 65px; padding: 8px; border: 1px solid #d4b89a; border-radius: 5px; font: inherit; }
+.refund-reason { display: block; margin: 18px 0 8px; font-weight: 600; }
+.refund-dialog textarea { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #d4b89a; border-radius: 6px; font: inherit; resize: vertical; }
+.refund-total { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e0d5cb; }
+.refund-note { font-size: 12px; color: #78695d; line-height: 1.6; }
+.refund-error { padding: 10px; border: 1px solid #e4bcbc; border-radius: 6px; color: #a32c2c; background: #fff6f6; }
+.refund-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid #e0d5cb; }
+.refund-actions button[type="submit"] { background: #8b5e3c; color: #fff; border-color: #8b5e3c; }

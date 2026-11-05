@@ -58,6 +58,23 @@ test('stock rejection keeps the cart and does not show a saved receipt', async (
   expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1);
 });
 
+test('server failure is caught in checkout, preserves the cart, and allows a successful retry', async () => {
+  axios.post.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Failed to save transaction.' } } })
+    .mockResolvedValueOnce({ data: { success: true, receiptNo: 'FLX-RETRY', orderStatus: 'completed' } });
+  render(<Items />);
+  await screen.findByText('No products found.');
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
+  fireEvent.change(screen.getByPlaceholderText(/Minimum/), { target: { value: '250' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+  await screen.findByText('Order failed');
+  expect(screen.getAllByText('Failed to save transaction.')).toHaveLength(2);
+  expect(screen.queryByRole('dialog', { name: 'Saved receipt' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Confirm Order' })).toBeEnabled();
+  expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+  expect(await screen.findByRole('dialog', { name: 'Saved receipt' })).toHaveTextContent('FLX-RETRY');
+});
+
 test('a saved Elite Member applies to the current order and reaches checkout with a 12 digit card', async () => {
   const member = { name: 'Daniel Almojera', idNumber: '001234567890' };
   localStorage.setItem(ELITE_MEMBER_HISTORY_KEY, JSON.stringify([member]));
@@ -133,4 +150,19 @@ test('two PWD diners automatically discount only the top two units and preserve 
       expect.objectContaining({ name: 'Meal', discountEligibleQuantity: 1 }),
     ]),
   }));
+});
+
+test('the printed receipt uses the saved checkout items returned by the server', async () => {
+  axios.post.mockResolvedValue({ data: { success: true, receiptNo: 'FLX-VERIFIED', checkout: {
+    items: [{ productId: 'coffee', name: 'Saved Coffee Name', price: 100, quantity: 2 }],
+    subtotal: 200, discount: 0, total: 200, paymentMethod: 'Cash', amountTendered: 250, change: 50, cashier: 'Verified Cashier', customerType: 'customer',
+  } } });
+  render(<Items />);
+  await screen.findByText('No products found.');
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
+  fireEvent.change(screen.getByPlaceholderText(/Minimum/), { target: { value: '250' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+  const receipt = await screen.findByRole('dialog', { name: 'Saved receipt' });
+  expect(receipt).toHaveTextContent('Saved Coffee Name');
+  expect(receipt).toHaveTextContent('Receipt total: 200');
 });

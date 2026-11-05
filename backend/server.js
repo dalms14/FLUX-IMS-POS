@@ -21,8 +21,12 @@ const salesForecastRoutes = require('./Routes/salesForecastRoutes');
 const validateEliteMember = require('./middleware/validateEliteMember');
 const validateGcashReference = require('./middleware/validateGcashReference');
 const { collectBackupRecords } = require('./services/backupExport');
+const { apiSecurity } = require('./middleware/apiSecurity');
+const { recordSaleUsage } = require('./services/inventoryHistory');
+const { validateVariantPrices } = require('./middleware/variantPrices');
+const { authoritativeCheckout } = require('./services/checkoutPricing');
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const app = express();
 const ALL_CATEGORY_NAME = 'ALL';
@@ -63,6 +67,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.get('/api/health', (req, res) => res.status(200).json({ status: 'ok' }));
+app.use('/api', apiSecurity);
 app.use('/api/auth', authRoutes);
 app.use('/api', historyRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
@@ -94,115 +99,6 @@ app.post('/api/system/backup', async (req, res) => {
         res.status(500).json({ message: 'Failed to export backup.' });
     }
 });
-
-// --- Connect to MongoDB Atlas ---
-console.log("Connecting to Database...");
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ MongoDB Connected Successfully"))
-    .catch(err => {
-        console.log("❌ Connection Failed!");
-        console.error("Error Detail:", err.message);
-    });
-
-// --- Auth Routes ---
-
-// Login attempt tracking (in-memory)
-const loginAttempts = new Map();
-
-const MAX_ATTEMPTS = 3;
-const LOCKOUT_DURATION = 30 * 1000; // 30 seconds in ms
-
-// Email & Password Login
-app.post('/api/auth/login', async (req, res) => {
-    const { email, password } = req.body;
-    console.log("--- Login Attempt ---", email);
-
-    // Check for lockout
-    const attemptKey = email.toLowerCase().trim();
-    const attempts = loginAttempts.get(attemptKey);
-    
-    if (attempts && attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
-        const remainingSeconds = Math.ceil((attempts.lockedUntil - Date.now()) / 1000);
-        console.log("⏳ Account locked:", attemptKey);
-        return res.status(423).json({ 
-            message: `Too many failed attempts. Please try again in ${remainingSeconds} seconds.`,
-            locked: true,
-            remainingSeconds
-        });
-    }
-
-    try {
-        const user = await User.findOne({ email: email.toLowerCase().trim(), archived: { $ne: true } });
-
-        if (!user) {
-            // Track failed attempt
-            trackFailedAttempt(attemptKey);
-            console.log("❌ No user found");
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-        console.log("Password match:", isMatch);
-
-        if (!isMatch) {
-            // Track failed attempt
-            trackFailedAttempt(attemptKey);
-            console.log("❌ Password mismatch");
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
-
-        // Clear attempts on successful login
-        loginAttempts.delete(attemptKey);
-        
-        console.log("✅ Login Successful:", user.name);
-        res.json({ name: user.name, email: user.email, role: user.role });
-
-    } catch (err) {
-        console.error("Server Error:", err.message);
-        res.status(500).json({ message: "Server Error" });
-    }
-});
-
-// Helper function to track failed login attempts
-function trackFailedAttempt(key) {
-    const now = Date.now();
-    let attempts = loginAttempts.get(key) || { count: 0, lockedUntil: null };
-    
-    attempts.count += 1;
-    
-    if (attempts.count >= MAX_ATTEMPTS) {
-        attempts.lockedUntil = now + LOCKOUT_DURATION;
-        console.log(`🔒 Account locked for 30 seconds: ${key}`);
-    }
-    
-    loginAttempts.set(key, attempts);
-}
-
-// Check lockout status endpoint
-app.get('/api/auth/lockout-status', (req, res) => {
-    const { email } = req.query;
-    if (!email) return res.json({ locked: false });
-    
-    const attemptKey = email.toLowerCase().trim();
-    const attempts = loginAttempts.get(attemptKey);
-    
-    if (attempts && attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
-        const remainingSeconds = Math.ceil((attempts.lockedUntil - Date.now()) / 1000);
-        return res.json({ 
-            locked: true, 
-            remainingSeconds,
-            attemptsRemaining: 0
-        });
-    }
-    
-    const remaining = MAX_ATTEMPTS - (attempts?.count || 0);
-    res.json({ 
-        locked: false, 
-        attemptsRemaining: Math.max(0, remaining)
-    });
-});
-
-// PIN Login
 
 function parseAuditEndDate(value) {
   const end = new Date(value);
@@ -798,7 +694,7 @@ app.put('/api/products/:id/recipe', async (req, res) => {
 });
 
 // Create Product
-app.post('/api/products', async (req, res) => {
+app.post('/api/products', validateVariantPrices, async (req, res) => {
   try {
     const { name, category, description, soloPrice, platterPrice, variants, variantGroups, addons, image } = req.body;
     const productCategory = String(category || '').trim();
@@ -860,7 +756,7 @@ app.post('/api/products', async (req, res) => {
 });
 
 // Update Product
-app.put('/api/products/:id', async (req, res) => {
+app.put('/api/products/:id', validateVariantPrices, async (req, res) => {
   try {
     const { name, category, description, soloPrice, platterPrice, variants, variantGroups, addons, image, available } = req.body;
     const productCategory = category === undefined ? undefined : String(category || '').trim();
@@ -1356,7 +1252,7 @@ function buildShortage(requirement, inventoryItem) {
 }
 
 // Place Order
-app.post('/api/transactions', validateEliteMember, validateGcashReference, async (req, res) => {
+app.post('/api/transactions', validateEliteMember, validateGcashReference, authoritativeCheckout(), async (req, res) => {
     const { cashier, cashierEmail, customerType, serviceType, eliteMember, discountInfo, items, subtotal, tax, discount, total, paymentMethod, amountTendered, change, gcashReference, gcashProofImage } = req.body;
     const deductedRequirements = [];
     try {
@@ -1423,8 +1319,9 @@ app.post('/api/transactions', validateEliteMember, validateGcashReference, async
             gcashProofImage: paymentMethod === 'GCash' ? gcashProofImage || null : null,
         });
 
+        await recordSaleUsage(transaction, requirements);
         console.log(`Transaction saved: ${receiptNo} | Order: ${orderNo} | Total: ${total}`);
-        res.json({ success: true, receiptNo, orderNo, orderStatus: transaction.orderStatus, transactionId: transaction._id });
+        res.json({ success: true, receiptNo, orderNo, orderStatus: transaction.orderStatus, transactionId: transaction._id, checkout: { items, subtotal, tax, discount, total, paymentMethod, amountTendered, change, discountInfo, customerType, cashier } });
     } catch (err) {
         for (const deducted of deductedRequirements) {
             await addInventoryStock(deducted.inventoryId, deducted.required, { note: 'Rollback after checkout error' });
@@ -1436,7 +1333,7 @@ app.post('/api/transactions', validateEliteMember, validateGcashReference, async
 });
 
 // Record checkout cancellations before payment is confirmed.
-app.post('/api/transactions/cancelled-checkout', validateEliteMember, async (req, res) => {
+app.post('/api/transactions/cancelled-checkout', validateEliteMember, authoritativeCheckout(true), async (req, res) => {
     try {
         const { cashier, cashierEmail, customerType, serviceType, eliteMember, discountInfo, items, subtotal, tax, discount, total, reason } = req.body;
 
@@ -2267,4 +2164,8 @@ app.get('/api/inventory-stats', async (req, res) => {
 });
 // --- Start Server ---
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+if (require.main === module) {
+  mongoose.connect(process.env.MONGO_URI).catch(err => console.error('Database connection failed:', err.message));
+  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+}
+module.exports = app;

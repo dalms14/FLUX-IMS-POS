@@ -96,8 +96,7 @@ const DeliveryArrivalModal = ({ order, onClose, onRecorded }) => {
     setSaving(true); setError('');
     try {
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const arrival = await axios.post(`http://localhost:5000/api/purchase-orders/${order._id}/record-arrival`, { items, actor: currentUser.name || currentUser.email || 'System', actorEmail: currentUser.email || '' });
-      const response = await axios.post(`http://localhost:5000/api/purchase-orders/${order._id}/pending-receipts/${arrival.data.pendingReceipt._id}/approve`, { actor: currentUser.name || currentUser.email || 'System', actorEmail: currentUser.email || '' });
+      const response = await axios.post(`http://localhost:5000/api/purchase-orders/${order._id}/record-arrival`, { items, actor: currentUser.name || currentUser.email || 'System', actorEmail: currentUser.email || '' });
       onRecorded(response.data.order);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not record this delivery.');
@@ -119,6 +118,7 @@ const Dashboard = () => {
   const [refunds, setRefunds] = useState([]);
   const [approvalNotifications, setApprovalNotifications] = useState([]);
   const [assignedDeliveries, setAssignedDeliveries] = useState([]);
+  const [deliveryError, setDeliveryError] = useState('');
   const [viewingDelivery, setViewingDelivery] = useState(null);
   const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -129,22 +129,29 @@ const Dashboard = () => {
     }
 
     try {
-      const [transactionRes, refundRes, notificationRes, assignedDeliveryRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/transactions'),
-        axios.get('http://localhost:5000/api/refunds'),
-        user.email ? axios.get(`http://localhost:5000/api/notifications?email=${encodeURIComponent(user.email)}`) : Promise.resolve({ data: { data: [] } }),
-        user.email ? axios.get(`http://localhost:5000/api/purchase-orders/my-deliveries?email=${encodeURIComponent(user.email)}`) : Promise.resolve({ data: { data: [] } }),
+      // Each section updates independently: a failed sales request must not hide deliveries.
+      const loadSection = async (url, update, onFailure) => {
+        try {
+          const response = await axios.get(url);
+          const rows = response.data.data || response.data;
+          if (!Array.isArray(rows)) throw new Error('Invalid dashboard response');
+          update(rows);
+        } catch (err) {
+          console.error('Error fetching dashboard section:', err);
+          onFailure?.();
+        }
+      };
+      await Promise.all([
+        loadSection('http://localhost:5000/api/transactions', setTransactions),
+        loadSection('http://localhost:5000/api/refunds', setRefunds),
+        ...(user.email ? [
+          loadSection(`http://localhost:5000/api/notifications?email=${encodeURIComponent(user.email)}`, setApprovalNotifications),
+          loadSection(`http://localhost:5000/api/purchase-orders/my-deliveries?email=${encodeURIComponent(user.email)}`, rows => { setAssignedDeliveries(rows); setDeliveryError(''); }, () => setDeliveryError('Could not load your assigned deliveries. Please retry.')),
+        ] : []),
       ]);
-      setTransactions(transactionRes.data.data || transactionRes.data);
-      setRefunds(refundRes.data.data || refundRes.data);
-      setApprovalNotifications(notificationRes.data.data || []);
-      setAssignedDeliveries(assignedDeliveryRes.data.data || []);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setTransactions([]);
-      setRefunds([]);
-      setApprovalNotifications([]);
-      setAssignedDeliveries([]);
+      setDeliveryError('Could not load dashboard data. Please retry.');
     } finally {
       setLoading(false);
     }
@@ -276,9 +283,11 @@ const Dashboard = () => {
             </section>
           )}
 
-          {assignedDeliveries.length > 0 && (
+          {user.email && (
             <section className="dashboard-notice dashboard-deliveries" style={{ marginBottom: '24px', backgroundColor: '#fff', borderRadius: '16px', overflow: 'hidden', border: '1px solid #BEE3F8', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ padding: '17px 20px', display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#EBF8FF', borderBottom: '1px solid #BEE3F8' }}><span style={{ width: '34px', height: '34px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '9px', backgroundColor: '#2B6CB0', color: '#fff' }}><FiTruck size={18} /></span><div><h2 style={{ margin: 0, fontSize: '15px', color: '#2C5282' }}>My Assigned Deliveries</h2><p style={{ margin: '3px 0 0', fontSize: '11px', color: '#2B6CB0' }}>Verify the physical supplies, then record what actually arrived.</p></div></div>
+              {deliveryError && <p role="alert" style={{ margin: 0, padding: '14px 20px', fontSize: '12px', color: '#9B2C2C' }}>{deliveryError} <button onClick={() => fetchDashboardData()} style={{ background: '#fff', border: '1px solid #D4B89A', borderRadius: '6px', padding: '5px 9px', color: '#6F4A2F', cursor: 'pointer' }}>Retry</button></p>}
+              {!deliveryError && assignedDeliveries.length === 0 && <p style={{ margin: 0, padding: '14px 20px', fontSize: '12px', color: '#777' }}>{loading ? 'Loading assigned deliveries...' : 'No approved purchase orders are currently assigned to this account.'}</p>}
               {assignedDeliveries.map(order => <div key={order._id} style={{ padding: '14px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', borderBottom: '1px solid #E6F6FF' }}><div style={{ flex: 1, minWidth: 0 }}><p style={{ margin: 0, fontSize: '13px', color: '#1A202C', fontWeight: '900' }}>{order.purchaseOrderNo} — {order.supplierName}</p><p style={{ margin: '3px 0 0', fontSize: '11px', color: '#718096' }}>{order.items.length} item{order.items.length === 1 ? '' : 's'} · Expected: {order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('en-PH') : 'Not set'}</p></div><button onClick={() => setViewingDelivery(order)} style={{ padding: '9px 11px', borderRadius: '8px', border: '1px solid #D4B89A', background: '#fff', color: '#6F4A2F', cursor: 'pointer', fontSize: '12px' }}>View Items</button><button onClick={() => setSelectedDelivery(order)} style={{ padding: '9px 11px', borderRadius: '8px', border: 'none', backgroundColor: '#2B6CB0', color: '#fff', fontSize: '12px', fontWeight: '900', cursor: 'pointer', whiteSpace: 'nowrap' }}>Record Delivery</button></div>)}
             </section>
           )}

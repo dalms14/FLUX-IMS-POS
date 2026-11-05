@@ -1,0 +1,103 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import TransactionPage from './TransactionPage';
+import RefundModal from '../components/modals/RefundModal';
+
+jest.mock('../components/Sidebar', () => () => null);
+jest.mock('../components/ReceiptViewModal', () => () => null);
+const sale = {
+  _id: '123456789012345678901234', receiptNo: 'FLX-REFUND-TEST', orderStatus: 'completed', paymentMethod: 'Cash', total: 240,
+  cashier: 'Cashier', createdAt: '2026-11-05T04:00:00Z',
+  items: [{ originalIndex: 0, name: 'Coffee', quantity: 3, price: 100, subtotal: 300, refundedQuantity: 0,
+    refundableQuantity: 3, reservedRefundQuantity: 0, refundLineAmounts: { subtotal: 30000, tax: 0, discount: 6000, total: 24000 } }],
+  refundSummary: { canRefund: true, totalRefunded: 0, remainingAmount: 240 },
+};
+const reply = (data, ok = true) => Promise.resolve({ ok, json: async () => data });
+let currentSale;
+beforeEach(() => {
+  Object.defineProperty(window, 'crypto', { configurable: true, value: { getRandomValues: array => require('crypto').randomFillSync(array) } });
+  localStorage.clear(); localStorage.setItem('user', JSON.stringify({ role: 'staff' }));
+  currentSale = JSON.parse(JSON.stringify(sale));
+  global.fetch = jest.fn((url, options) => {
+    if (options?.method === 'POST') {
+      currentSale.items[0].refundedQuantity = 2; currentSale.items[0].refundableQuantity = 1;
+      currentSale.refundSummary.totalRefunded = 160; currentSale.refundSummary.remainingAmount = 80;
+      return reply({ success: true, data: { totalRefunded: 160, paymentMethod: 'Cash' } });
+    }
+    return reply({ data: url.endsWith(sale._id) ? currentSale : [currentSale] });
+  });
+});
+afterEach(() => jest.restoreAllMocks());
+
+test('cashier refunds selected quantities from a completed sale and sees the refreshed refund amount', async () => {
+  render(<TransactionPage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Refund' }));
+  const modal = await screen.findByRole('dialog', { name: 'Refund transaction' });
+  expect(await within(modal).findByText('Coffee')).toBeInTheDocument();
+  const confirm = within(modal).getByRole('button', { name: 'Confirm refund' });
+  expect(confirm).toBeDisabled();
+  fireEvent.click(within(modal).getByRole('checkbox', { name: 'Refund Coffee (item 1)' }));
+  fireEvent.change(within(modal).getByRole('spinbutton'), { target: { value: '2' } });
+  fireEvent.change(within(modal).getByLabelText('Reason for refund'), { target: { value: 'Wrong order served' } });
+  expect(within(modal).getByText('₱160.00')).toBeInTheDocument();
+  fireEvent.click(confirm);
+  expect(await screen.findByRole('status')).toHaveTextContent('Refund recorded: ₱160');
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  expect(await screen.findByText('Refunded: ₱160')).toBeInTheDocument();
+  const post = fetch.mock.calls.find(([, options]) => options?.method === 'POST');
+  expect(JSON.parse(post[1].body)).toEqual({
+    transactionId: sale._id, requestId: expect.stringMatching(/^[a-f0-9]{32}$/),
+    items: [{ originalIndex: 0, quantity: 2 }], reason: 'Wrong order served',
+  });
+});
+
+test('fully refunded, cancelled or unauthorized transactions have no Refund action', async () => {
+  currentSale.refundSummary = { canRefund: false, totalRefunded: 240, remainingAmount: 0 };
+  const view = render(<TransactionPage />);
+  await screen.findByText('Refunded: ₱240');
+  expect(screen.queryByRole('button', { name: 'Refund' })).not.toBeInTheDocument();
+  view.unmount();
+  currentSale = { ...sale, orderStatus: 'cancelled', paymentMethod: 'Cancelled', refundSummary: { canRefund: false } };
+  const cancelled = render(<TransactionPage />);
+  await screen.findByText('FLX-REFUND-TEST');
+  expect(screen.queryByRole('button', { name: 'Refund' })).not.toBeInTheDocument();
+  cancelled.unmount(); currentSale = sale;
+  localStorage.setItem('user', JSON.stringify({ role: 'custom', permissions: ['items'] }));
+  render(<TransactionPage />);
+  await screen.findByText('FLX-REFUND-TEST');
+  expect(screen.queryByRole('button', { name: 'Refund' })).not.toBeInTheDocument();
+});
+
+test('failed save preserves selections and reuses the request identifier when retried', async () => {
+  let attempts = 0;
+  fetch.mockImplementation((url, options) => options?.method === 'POST'
+    ? ++attempts === 1 ? Promise.reject(new Error('Connection lost')) : reply({ data: { totalRefunded: 80, paymentMethod: 'Cash' } })
+    : reply({ data: sale }));
+  const onClose = jest.fn(), onSuccess = jest.fn();
+  render(<RefundModal isOpen transaction={sale} onClose={onClose} onSuccess={onSuccess} />);
+  fireEvent.click(await screen.findByRole('checkbox'));
+  fireEvent.change(screen.getByLabelText('Reason for refund'), { target: { value: 'Customer request' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm refund' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Connection lost');
+  expect(onClose).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm refund' }));
+  await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+  const posts = fetch.mock.calls.filter(([, options]) => options?.method === 'POST');
+  expect(JSON.parse(posts[0][1].body).requestId).toBe(JSON.parse(posts[1][1].body).requestId);
+});
+
+test('fresh receipt data blocks stale quantities and invalid quantity input cannot be submitted', async () => {
+  const fresh = { ...sale, items: [{ ...sale.items[0], refundableQuantity: 1, refundedQuantity: 2 }] };
+  fetch.mockImplementation(() => reply({ data: fresh }));
+  render(<RefundModal isOpen transaction={sale} onClose={jest.fn()} />);
+  fireEvent.click(await screen.findByRole('checkbox'));
+  expect(screen.getByRole('spinbutton')).toHaveAttribute('max', '1');
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Reason for refund'), { target: { value: 'Customer request' } });
+  expect(screen.getByRole('button', { name: 'Confirm refund' })).toBeDisabled();
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '0.5' } });
+  expect(screen.getByRole('button', { name: 'Confirm refund' })).toBeDisabled();
+  fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '1' } });
+  expect(screen.getByRole('button', { name: 'Confirm refund' })).toBeEnabled();
+  expect(screen.getByText('₱80.00')).toBeInTheDocument();
+});

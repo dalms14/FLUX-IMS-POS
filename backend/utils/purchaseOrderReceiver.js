@@ -1,4 +1,8 @@
-const isStaffReceiver = user => Boolean(user && !user.archived && String(user.role || '').trim().toLowerCase() === 'staff');
+const isStaffReceiver = user => {
+    if (!user || user.archived) return false;
+    const isOwner = String(user.email || '').trim().toLowerCase() === 'admin@elicoffee.com' || String(user.userId || '').trim().toUpperCase() === 'ELI001';
+    return !isOwner && ['staff', 'custom'].includes(String(user.role || '').trim().toLowerCase());
+};
 
 const canReceiveOrder = (order, user) => {
     if (!user || user.archived) return false;

@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
@@ -694,6 +694,31 @@ const StockOutModal = ({ item, onConfirm, onClose }) => {
   );
 };
 
+const ArchiveIngredientDialog = ({ item, busy, onConfirm, onClose }) => {
+  const dialog = useRef(null);
+  useEffect(() => { dialog.current?.querySelector('button')?.focus(); }, []);
+  return <ModalShell width="400px" zIndex={1002}>
+    <section ref={dialog} role="alertdialog" aria-modal="true" aria-labelledby="archive-ingredient-title" aria-describedby="archive-ingredient-description"
+      onKeyDown={event => {
+        if (event.key === 'Escape' && !busy) { event.preventDefault(); onClose(); }
+        if (event.key !== 'Tab') return;
+        const buttons = dialog.current.querySelectorAll('button:not(:disabled)');
+        if (!buttons.length) { event.preventDefault(); return; }
+        if (event.shiftKey && document.activeElement === buttons[0]) { event.preventDefault(); buttons[buttons.length - 1].focus(); }
+        else if (!event.shiftKey && document.activeElement === buttons[buttons.length - 1]) { event.preventDefault(); buttons[0].focus(); }
+      }}>
+      <h2 id="archive-ingredient-title" style={{ margin: '0 0 12px', fontSize: '18px', color: '#1A1208' }}>Archive ingredient</h2>
+      <p id="archive-ingredient-description" style={{ margin: '0 0 22px', fontSize: '13px', color: '#78695D', lineHeight: 1.6 }}>
+        Archive <strong>{item.name}</strong>? Its stock must be zero first. You can restore it from Archived Ingredients later.
+      </p>
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button type="button" onClick={onClose} disabled={busy} style={{ ...secondaryButtonStyle, flex: 1 }}>Cancel</button>
+        <button type="button" onClick={onConfirm} disabled={busy} style={{ ...primaryButtonStyle, flex: 1, opacity: busy ? .6 : 1 }}>{busy ? 'Archiving...' : 'Archive'}</button>
+      </div>
+    </section>
+  </ModalShell>;
+};
+
 const buildStats = (inventoryItems) => ({
   totalItems: inventoryItems.length,
   lowStockCount: inventoryItems.filter(item => item.stock > 0 && item.stock <= item.lowStockAt).length,
@@ -732,6 +757,7 @@ const InventoryNoticeStack = ({ notices, onClose }) => (
       {notices.map(notice => (
         <div
           key={notice.id}
+          role="alert"
           style={{
             backgroundColor: '#FFF5F5',
             border: '1.5px solid #FEB2B2',
@@ -801,6 +827,11 @@ const InventoryPage = () => {
   const [loading, setLoading] = useState(true);
   const [notices, setNotices] = useState([]);
   const [showArchive, setShowArchive] = useState(false);
+  const [archiveItem, setArchiveItem] = useState(null);
+  const [archiving, setArchiving] = useState(false);
+  const archiveBusy = useRef(false);
+  const archiveTrigger = useRef(null);
+  const closeArchive = () => { setArchiveItem(null); archiveTrigger.current?.focus(); };
 
   const addNotice = useCallback((notice) => {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -814,7 +845,6 @@ const InventoryPage = () => {
     setNotices(prev => prev.filter(item => item.id !== id));
   }, []);
 
-  // eslint-disable-next-line no-unused-vars
   const showInventoryError = useCallback((err, fallbackTitle, fallbackMessage, itemName) => {
     const message = String(err.response?.data?.message || fallbackMessage);
     const isDuplicateName = message.toLowerCase().includes('already exists');
@@ -857,19 +887,27 @@ const InventoryPage = () => {
     fetchData();
   }, [showArchive, updateInventoryState]);
 
-  const handleArchive = async (item) => {
-    if (!window.confirm(`Archive ${item.name}? Its stock must be zero first.`)) return;
+  const handleArchive = async () => {
+    if (!archiveItem || archiveBusy.current) return;
+    const item = archiveItem;
+    archiveBusy.current = true;
+    setArchiving(true);
     try {
       await axios.delete(`http://localhost:5000/api/inventory/${item._id}`);
       setItems(prev => prev.filter(existing => existing._id !== item._id));
-    } catch (err) { alert(err.response?.data?.message || 'Failed to archive ingredient.'); }
+      setNotices([]);
+      closeArchive();
+    } catch (err) {
+      showInventoryError(err, 'Could not archive ingredient', 'Failed to archive ingredient.', item.name);
+    } finally { archiveBusy.current = false; setArchiving(false); }
   };
 
   const handleRestore = async (item) => {
     try {
       await axios.post(`http://localhost:5000/api/inventory/${item._id}/restore`);
       setItems(prev => prev.filter(existing => existing._id !== item._id));
-    } catch (err) { alert(err.response?.data?.message || 'Failed to restore ingredient.'); }
+      setNotices([]);
+    } catch (err) { showInventoryError(err, 'Could not restore ingredient', 'Failed to restore ingredient.', item.name); }
   };
 
   useEffect(() => {
@@ -909,9 +947,10 @@ const InventoryPage = () => {
       updateInventoryState(items.map(item => item._id === adjustItem._id ? response.data.item : item));
       setShowStockOutModal(false);
       setAdjustItem(null);
+      setNotices([]);
     } catch (err) {
       console.error('Error deducting stock:', err);
-      alert(err.response?.data?.message || 'Failed to deduct stock');
+      showInventoryError(err, 'Could not deduct stock', 'Failed to deduct stock', adjustItem.name);
     }
   };
 
@@ -1073,7 +1112,7 @@ const InventoryPage = () => {
                           <button onClick={() => handleRestore(item)} title="Restore ingredient" style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#F0FFF4', color: '#276749', border: '1px solid #9AE6B4', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiRotateCcw size={14} /></button>
                         ) : <>
                           <button onClick={() => { setAdjustItem(item); setShowStockOutModal(true); }} title="Stock Out" style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiMinus size={14} /></button>
-                          <button onClick={() => handleArchive(item)} title="Archive ingredient" style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#F7F3EF', color: '#8B5E3C', border: '1px solid #D8CABB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiArchive size={14} /></button>
+                          <button onClick={event => { archiveTrigger.current = event.currentTarget; setArchiveItem(item); }} title="Archive ingredient" style={{ width: '32px', height: '32px', borderRadius: '7px', backgroundColor: '#F7F3EF', color: '#8B5E3C', border: '1px solid #D8CABB', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><FiArchive size={14} /></button>
                         </>}
                       </div>
                     </div>
@@ -1092,6 +1131,7 @@ const InventoryPage = () => {
           onClose={() => { setShowStockOutModal(false); setAdjustItem(null); }}
         />
       )}
+      {archiveItem && <ArchiveIngredientDialog item={archiveItem} busy={archiving} onConfirm={handleArchive} onClose={closeArchive} />}
     </div>
   );
 };

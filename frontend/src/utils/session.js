@@ -14,7 +14,8 @@ export const startSession = (user) => {
   // One storage write publishes both identity and expiry to every tab together.
   const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const now = Date.now();
-  localStorage.setItem('user', JSON.stringify({ ...user, _session: { id, version: 2, lastActiveAt: now, expiresAt: now + SESSION_DURATION_MS } }));
+  const { sessionToken, ...identity } = user;
+  localStorage.setItem('user', JSON.stringify({ ...identity, _session: { id, token: sessionToken, version: 2, lastActiveAt: now, expiresAt: now + SESSION_DURATION_MS } }));
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 };
 
@@ -41,6 +42,10 @@ export const getSessionUser = () => {
 };
 
 export const getSessionId = () => readSession()?.id || null;
+export const getSessionCredentials = () => {
+  const session = readSession();
+  return session ? { id: session.id, token: session.user._session.token, lastActiveAt: session.user._session.lastActiveAt } : null;
+};
 
 export const recordSessionActivity = () => {
   const session = readSession();

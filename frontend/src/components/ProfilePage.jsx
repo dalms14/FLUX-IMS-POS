@@ -68,19 +68,11 @@ const ProfilePage = () => {
       setError('');
 
       try {
-        const [transactionRes, refundRes] = await Promise.all([
-          fetch('http://localhost:5000/api/transactions'),
-          fetch('http://localhost:5000/api/refunds'),
-        ]);
-
-        if (!transactionRes.ok) throw new Error('Failed to load transactions');
-        if (!refundRes.ok) throw new Error('Failed to load refunds');
-
-        const transactionData = await transactionRes.json();
-        const refundData = await refundRes.json();
-
-        setTransactions(getList(transactionData));
-        setRefunds(getList(refundData));
+        const response = await fetch('http://localhost:5000/api/auth/my-activity');
+        if (!response.ok) throw new Error('Failed to load account activity');
+        const data = await response.json();
+        setTransactions(getList(data.transactions));
+        setRefunds(getList(data.refunds));
       } catch (err) {
         console.error('Error loading profile activities:', err);
         setError('Failed to load activities');
@@ -167,7 +159,9 @@ const ProfilePage = () => {
       const data = contentType.includes('application/json') ? await res.json() : null;
       if (!res.ok) throw new Error(data?.message || 'Failed to update profile picture. Please restart the backend server.');
 
-      const updatedUser = { ...user, profileImage: data.user.profileImage };
+      const latestUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (latestUser._session?.id !== user._session?.id) return;
+      const updatedUser = { ...latestUser, profileImage: data.user.profileImage };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       setUploadMessage('Profile picture updated.');
@@ -200,7 +194,9 @@ const ProfilePage = () => {
       const data = contentType.includes('application/json') ? await res.json() : null;
       if (!res.ok) throw new Error(data?.message || 'Failed to remove profile picture. Please restart the backend server.');
 
-      const updatedUser = { ...user, profileImage: '' };
+      const latestUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (latestUser._session?.id !== user._session?.id) return;
+      const updatedUser = { ...latestUser, profileImage: '' };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       setUploadMessage('Profile picture removed.');

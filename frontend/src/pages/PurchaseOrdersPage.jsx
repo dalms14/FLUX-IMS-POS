@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import PurchaseOrderDetailsModal from '../components/PurchaseOrderDetailsModal';
 import InventoryItemSelect from '../components/InventoryItemSelect';
+import { canReceivePurchaseOrder, isReceivingStaff } from '../utils/purchaseOrderReceiver';
 
 const api = 'http://localhost:5000/api';
 const units = ['g', 'ml', 'pcs', 'kg', 'L'];
@@ -56,7 +57,7 @@ const Modal = ({ children, onClose, width = '760px' }) => (
 function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
   const [form, setForm] = useState({ supplierName: '', supplierContact: '', assignedReceiverEmail: '', orderDate: today(), expectedDeliveryDate: '', notes: '', items: [blankLine()] });
   const sortedInventory = useMemo(() => [...inventory].sort((a, b) => a.name.localeCompare(b.name)), [inventory]);
-  const staffReceivers = receivers.filter(user => !user.archived && String(user.role || '').trim().toLowerCase() === 'staff').sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email)));
+  const staffReceivers = receivers.filter(isReceivingStaff).sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email)));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [supplierHistory, setSupplierHistory] = useState(getSupplierHistory);
@@ -110,8 +111,8 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
               <button type="button" onClick={() => change('assignedReceiverEmail', '__any_staff__')} style={{ padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${form.assignedReceiverEmail === '__any_staff__' ? '#8B5E3C' : '#D8CABB'}`, background: form.assignedReceiverEmail === '__any_staff__' ? '#8B5E3C' : '#FAF7F4', color: form.assignedReceiverEmail === '__any_staff__' ? '#fff' : '#6F4A2F', textAlign: 'left', cursor: 'pointer' }}><b style={{ display: 'block', fontSize: '12px' }}>👥 Any Staff</b><span style={{ display: 'block', marginTop: '3px', fontSize: '10px' }}>Any staff account can receive</span></button>
               <button type="button" onClick={() => change('assignedReceiverEmail', '__anyone__')} style={{ padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${form.assignedReceiverEmail === '__anyone__' ? '#8B5E3C' : '#D8CABB'}`, background: form.assignedReceiverEmail === '__anyone__' ? '#8B5E3C' : '#FAF7F4', color: form.assignedReceiverEmail === '__anyone__' ? '#fff' : '#6F4A2F', textAlign: 'left', cursor: 'pointer' }}><b style={{ display: 'block', fontSize: '12px' }}>◎ Everyone</b><span style={{ display: 'block', marginTop: '3px', fontSize: '10px' }}>Any signed-in account can receive</span></button>
             </div>
-            <select required={!form.assignedReceiverEmail.startsWith('__')} value={form.assignedReceiverEmail.startsWith('__') ? '' : form.assignedReceiverEmail} onChange={e => change('assignedReceiverEmail', e.target.value)} style={input}><option value="">Or select one specific staff member…</option>{staffReceivers.map(receiver => <option key={receiver._id} value={receiver.email}>{receiver.name || receiver.email} — {receiver.jobRole || receiver.role}</option>)}</select>
-            <p style={{ margin: '6px 0 0', color: '#777', fontSize: '11px' }}>Choose a shared assignment above, or assign this delivery to one person.</p>
+            <select required={!form.assignedReceiverEmail.startsWith('__')} value={form.assignedReceiverEmail.startsWith('__') ? '' : form.assignedReceiverEmail} onChange={e => change('assignedReceiverEmail', e.target.value)} style={input}><option value="">Or select one specific staff member…</option>{staffReceivers.map(receiver => <option key={receiver._id} value={receiver.email}>{receiver.name || receiver.email} — {receiver.jobRole || receiver.role}{receiver.userId ? ` (${receiver.userId})` : ''}</option>)}</select>
+            <p style={{ margin: '6px 0 0', color: '#777', fontSize: '11px' }}>Staff includes custom staff roles such as Operations. Check the name, role, and User ID when assigning one person.</p>
           </div>
           <div><label style={label}>Order Date</label><input type="date" min={today()} value={form.orderDate} onChange={e => change('orderDate', e.target.value)} style={input} /></div>
           <div><label style={label}>Expected Delivery</label><input type="date" min={form.orderDate || today()} value={form.expectedDeliveryDate} onChange={e => change('expectedDeliveryDate', e.target.value)} style={input} /></div>
@@ -172,11 +173,7 @@ export default function PurchaseOrdersPage() {
   const approveArrival = async order => { const receipt = order.pendingReceipts?.find(row => row.status === 'Pending Approval'); if (!receipt) return; try { const response = await axios.post(`${api}/purchase-orders/${order._id}/pending-receipts/${receipt._id}/approve`, actor()); replace(response.data.order); setMessage(`${order.purchaseOrderNo} delivery approved and inventory updated.`); load(); } catch (err) { setMessage(err.response?.data?.message || 'Delivery approval could not be completed.'); } };
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const canApproveArrival = String(currentUser.role || '').toLowerCase() === 'owner' || ['finance', 'hr'].includes(String(currentUser.jobRole || '').toLowerCase()) || String(currentUser.email || '').toLowerCase() === 'admin@elicoffee.com' || String(currentUser.userId || '').toUpperCase() === 'ELI001';
-  const canReceive = order => {
-    const assigned = order.assignedReceiver?.email;
-    if (assigned === '__any_staff__') return String(currentUser.role || '').trim().toLowerCase() === 'staff';
-    return assigned === '__anyone__' || assigned === String(currentUser.email || '').toLowerCase();
-  };
+  const canReceive = order => canReceivePurchaseOrder(order, currentUser);
   const badge = value => ({ Draft: ['#718096', '#F7FAFC'], Approved: ['#2B6CB0', '#EBF8FF'], 'Arrival Pending Approval': ['#805AD5', '#FAF5FF'], 'Partially Received': ['#D97706', '#FFFAF0'], Received: ['#276749', '#F0FFF4'], Cancelled: ['#C53030', '#FFF5F5'] }[value] || ['#555', '#f5f5f5']);
   return <div className="mobile-app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F5F0EB', fontFamily: 'Segoe UI, sans-serif' }}><Sidebar /><main className="mobile-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
     <PageHeader title="Purchase Orders" description="Create supplier orders and receive delivered stock directly into inventory with a complete audit trail." actions={<button onClick={() => setCreateOpen(true)} style={primary}><FiPlus /> New Purchase Order</button>} />

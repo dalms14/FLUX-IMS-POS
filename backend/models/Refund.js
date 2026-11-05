@@ -7,7 +7,10 @@ const RefundSchema = new mongoose.Schema({
         required: true
     },
     receiptNo: { type: String, required: true },
+    requestId: String,
+    requestFingerprint: String,
     items: [{
+        originalIndex: Number,
         productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
         name: String,
         quantity: Number,
@@ -18,6 +21,7 @@ const RefundSchema = new mongoose.Schema({
     reason: { type: String, required: true }, // e.g., "Wrong order", "Damaged", "Customer request"
     subtotal: { type: Number, required: true },
     tax: { type: Number, default: 0 },
+    discount: { type: Number, default: 0 },
     totalRefunded: { type: Number, required: true },
     refundedBy: { type: String, required: true }, // cashier/admin who processed refund
     refundedByEmail: { type: String, default: '' },
@@ -27,5 +31,7 @@ const RefundSchema = new mongoose.Schema({
     collection: 'refunds',
     timestamps: true,
 });
+
+RefundSchema.index({ transactionId: 1, requestId: 1 }, { unique: true, partialFilterExpression: { requestId: { $type: 'string' } } });
 
 module.exports = mongoose.model('Refund', RefundSchema);

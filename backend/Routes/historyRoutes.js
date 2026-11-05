@@ -2,10 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Transaction = require('../models/Transaction');
 const Refund = require('../models/Refund');
-const Waste = require('../models/Waste');
-const Recipe = require('../models/Recipe');
-const Inventory = require('../models/Inventory');
-const Product = require('../models/Product');
+const { getInventoryHistory } = require('../services/inventoryHistory');
+const { processRefund, annotateRefunds } = require('../services/transactionRefunds');
 const SystemAudit = require('../models/SystemAudit');
 
 function parseEndDate(value) {
@@ -22,19 +20,6 @@ function escapeRegex(value) {
 
 function roundMoney(value) {
     return Math.round(Number(value || 0) * 100) / 100;
-}
-
-function roundStockAmount(value) {
-    return Math.round(Number(value || 0) * 1000) / 1000;
-}
-
-function getNearestExpirationDate(batches = []) {
-    const dates = batches
-        .map(batch => batch.expirationDate ? new Date(batch.expirationDate) : null)
-        .filter(date => date && !Number.isNaN(date.getTime()))
-        .sort((a, b) => a - b);
-
-    return dates[0] || null;
 }
 
 async function logRefundAudit(action, refund, details) {
@@ -61,36 +46,6 @@ async function logRefundAudit(action, refund, details) {
 // ========== TRANSACTION ROUTES ==========
 
 const TRANSACTION_HISTORY_STATUSES = ['completed', 'cancelled'];
-
-function annotateRefundedTransactionItems(transaction) {
-    const refundedByIndex = new Map();
-
-    for (const cancelled of transaction.cancelledItems || []) {
-        const index = Number(cancelled.originalIndex);
-        if (!Number.isInteger(index)) continue;
-        const current = refundedByIndex.get(index) || { quantity: 0, refundIds: [], reasons: [] };
-        current.quantity += Number(cancelled.quantity || 0);
-        if (cancelled.refundId) current.refundIds.push(cancelled.refundId);
-        if (cancelled.reason) current.reasons.push(cancelled.reason);
-        refundedByIndex.set(index, current);
-    }
-
-    return {
-        ...transaction,
-        items: (transaction.items || []).map((item, index) => {
-            const refunded = refundedByIndex.get(index);
-            const refundedQuantity = Math.min(Number(item.quantity || 0), Number(refunded?.quantity || 0));
-            return {
-                ...item,
-                refundedQuantity,
-                activeQuantity: Math.max(0, Number(item.quantity || 0) - refundedQuantity),
-                refundStatus: refundedQuantity > 0 ? 'completed' : '',
-                refundIds: refunded?.refundIds || [],
-                refundReasons: refunded?.reasons || [],
-            };
-        }),
-    };
-}
 
 // Get all transactions (with optional filters)
 router.get('/transactions', async (req, res) => {
@@ -129,7 +84,7 @@ router.get('/transactions', async (req, res) => {
         res.json({
             success: true,
             count: transactions.length,
-            data: transactions.map(annotateRefundedTransactionItems)
+            data: await annotateRefunds(transactions)
         });
     } catch (err) {
         console.error('Error fetching transactions:', err);
@@ -148,7 +103,7 @@ router.get('/transactions/:id', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Transaction not found' });
         }
         
-        res.json({ success: true, data: annotateRefundedTransactionItems(transaction) });
+        res.json({ success: true, data: (await annotateRefunds([transaction]))[0] });
     } catch (err) {
         console.error('Error fetching transaction:', err);
         res.status(500).json({ success: false, message: 'Server error' });
@@ -168,17 +123,18 @@ router.get('/sales-history', async (req, res) => {
         }
 
         const transactions = await Transaction.find(filter)
-            .select('items cancelledItems createdAt orderStatus')
+            .select('items cancelledItems createdAt orderStatus subtotal tax discount total discountInfo customerType paymentMethod')
             .lean();
 
+        const annotatedTransactions = await annotateRefunds(transactions);
         const products = new Map();
         const orderIds = new Set();
         let totalQty = 0;
         let totalRevenue = 0;
 
-        for (const transaction of transactions) {
+        for (const transaction of annotatedTransactions) {
             orderIds.add(String(transaction._id));
-            const annotated = annotateRefundedTransactionItems(transaction);
+            const annotated = transaction;
 
             for (const item of annotated.items || []) {
                 const originalQty = Number(item.quantity || 0);
@@ -243,55 +199,14 @@ router.get('/sales-history', async (req, res) => {
     }
 });
 
-// Get inventory history (changes)
+// Recorded stock movements, including approved purchase-order receipts.
 router.get('/inventory-history', async (req, res) => {
     try {
-        const { startDate, endDate } = req.query;
-        
-        let filter = {};
-        if (startDate || endDate) {
-            filter.createdAt = {};
-            if (startDate) filter.createdAt.$gte = new Date(startDate);
-            if (endDate) filter.createdAt.$lte = parseEndDate(endDate);
-        }
-        
-        // Get waste records as inventory deductions
-        const waste = await Waste.find(filter)
-            .populate('items.inventoryId', 'name unit')
-            .sort({ createdAt: -1 })
-            .lean();
-        
-        const inventoryHistory = waste.map(w => ({
-            date: w.createdAt,
-            item: w.items.map(i => i.inventoryName).join(', '),
-            action: 'Deducted (Refund Waste)',
-            quantity: w.items.map(i => `${i.amountWasted}${i.unit}`).join(', '),
-            by: w.disposedBy,
-            reason: w.reason
-        }));
-        const manualInventoryMovements = await SystemAudit.find({
-            ...filter,
-            module: 'Inventory',
-            action: { $in: ['Stock In', 'Stock Out', 'Expired Stock Auto Deducted'] },
-        }).sort({ createdAt: -1 }).lean();
-
-        const manualInventoryHistory = manualInventoryMovements.map(log => ({
-            date: log.createdAt,
-            item: log.entityName,
-            action: log.action,
-            quantity: `${log.changes?.quantity || 0}${log.changes?.unit ? ` ${log.changes.unit}` : ''}`,
-            by: log.actor,
-            reason: log.details || log.changes?.reason || '',
-        }));
-        
-        res.json({
-            success: true,
-            data: [...inventoryHistory, ...manualInventoryHistory]
-                .sort((a, b) => new Date(b.date) - new Date(a.date)),
-        });
-    } catch (err) {
-        console.error('Error fetching inventory history:', err);
-        res.status(500).json({ success: false, message: 'Server error' });
+        const data = await getInventoryHistory(req.query);
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error fetching inventory history:', error.message);
+        res.status(error.status || 500).json({ success: false, message: error.status ? error.message : 'Could not load inventory history.' });
     }
 });
 
@@ -343,139 +258,16 @@ router.get('/refunds/:id', async (req, res) => {
     }
 });
 
-// Create refund
+// Confirm a refund against the saved sale. Receipt, amounts and actor are server-owned.
 router.post('/refunds', async (req, res) => {
     try {
-        const { transactionId, receiptNo, items, reason, refundedBy, refundedByEmail, paymentMethod } = req.body;
-        
-        if (!transactionId || !items || !reason || !refundedBy) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Missing required fields' 
-            });
-        }
-        
-        // Get original transaction
-        const transaction = await Transaction.findById(transactionId);
-        if (!transaction) {
-            return res.status(404).json({ success: false, message: 'Transaction not found' });
-        }
-
-        if ((transaction.orderStatus || 'pending') !== 'pending') {
-            return res.status(400).json({
-                success: false,
-                message: 'Refunds are only allowed while the order is pending. Preparing, ready, completed, and cancelled orders are final.',
-            });
-        }
-        
-        let subtotal = 0;
-        let totalRefunded = 0;
-        let tax = 0;
-        const processedItems = [];
-        
-        // Process each refunded item
-        for (const item of items) {
-            const product = await Product.findById(item.productId);
-            if (!product) continue;
-            
-            const itemSubtotal = item.price * item.quantity;
-            subtotal += itemSubtotal;
-            
-            // Check if product is made (has recipe)
-            const recipe = await Recipe.findOne({ productId: item.productId });
-            const isMade = !!recipe;
-            
-            processedItems.push({
-                productId: item.productId,
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                subtotal: itemSubtotal,
-                isMade: isMade
-            });
-        }
-        
-        // Calculate tax proportionally
-        const refundPercentage = subtotal / transaction.subtotal;
-        tax = transaction.tax * refundPercentage;
-        totalRefunded = subtotal + tax;
-        
-        // Create refund record
-        const refund = new Refund({
-            transactionId,
-            receiptNo,
-            items: processedItems,
-            reason,
-            subtotal,
-            tax,
-            totalRefunded,
-            refundedBy,
-            refundedByEmail,
-            paymentMethod: paymentMethod || transaction.paymentMethod,
-            status: 'pending'
-        });
-        
-        await refund.save();
-        await logRefundAudit('Created', refund, 'Refund request created');
-        
-        // Process waste items (for made products)
-        const wasteItems = [];
-        for (const item of processedItems) {
-            if (item.isMade) {
-                const recipe = await Recipe.findOne({ productId: item.productId });
-                if (recipe) {
-                    for (const ingredient of recipe.ingredients) {
-                        const amountWasted = ingredient.amountPerServing * item.quantity;
-                        wasteItems.push({
-                            inventoryId: ingredient.inventoryId,
-                            inventoryName: ingredient.name,
-                            unit: ingredient.unit,
-                            amountWasted: amountWasted
-                        });
-                    }
-                }
-            } else {
-                // For non-made items, add back to inventory
-                const inventory = await Inventory.findOne({ name: item.name });
-                if (inventory) {
-                    const quantity = roundStockAmount(item.quantity);
-                    inventory.stock = roundStockAmount(Number(inventory.stock || 0) + quantity);
-                    inventory.expirationBatches = [
-                        ...(inventory.expirationBatches || []),
-                        {
-                            quantity,
-                            expirationDate: null,
-                            receivedAt: new Date(),
-                            note: 'Returned purchased product from refund',
-                        },
-                    ];
-                    inventory.expirationDate = getNearestExpirationDate(inventory.expirationBatches);
-                    await inventory.save();
-                }
-            }
-        }
-        
-        // Create waste record if there are made items
-        if (wasteItems.length > 0) {
-            const waste = new Waste({
-                refundId: refund._id,
-                transactionId,
-                receiptNo,
-                items: wasteItems,
-                reason: `Refunded - ${reason}`,
-                disposedBy: refundedBy
-            });
-            await waste.save();
-        }
-        
-        res.status(201).json({
-            success: true,
-            message: 'Refund created successfully',
-            data: refund
-        });
-    } catch (err) {
-        console.error('Error creating refund:', err);
-        res.status(500).json({ success: false, message: 'Server error', error: err.message });
+        const result = await processRefund(req.body, req.user);
+        res.status(result.replayed ? 200 : 201).json({ success: true, message: 'Refund recorded. Return the amount using the original payment method.', data: result.refund });
+    } catch (error) {
+        console.error('Error processing refund:', error.message);
+        const requiresReplicaSet = error.code === 20 || /Transaction numbers are only allowed/.test(error.message);
+        res.status(error.status || (requiresReplicaSet ? 503 : 500)).json({ success: false,
+            message: error.status ? error.message : requiresReplicaSet ? 'Refunds require database transaction support. No refund was saved; contact the administrator.' : 'Could not save the refund. Please retry the same request.' });
     }
 });
 

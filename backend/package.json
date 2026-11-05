@@ -7,7 +7,7 @@
     "start": "node server.js",
     "seed:inventory": "node seedInventory.js",
     "update:salu-salo": "node updateSaluSaloSets.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",

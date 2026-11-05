@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { FiLock } from 'react-icons/fi';
 import { clearSession, getSessionUser, startSession } from '../utils/session';
 import { getLandingPath } from '../utils/roles';
+import { loadSystemPage } from '../utils/documentNavigation';
 import './FirstLoginPasswordPage.css';
 
 const readChallenge = () => {
@@ -18,9 +19,10 @@ export default function FirstLoginPasswordPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [expired, setExpired] = useState(false);
+  const enteringSystem = useRef(false);
   const navigate = useNavigate();
   const savedUser = getSessionUser();
-  if (savedUser) return <Navigate to={getLandingPath(savedUser)} replace />;
+  if (savedUser && !enteringSystem.current) return <Navigate to={getLandingPath(savedUser)} replace />;
   if (!challenge?.token) return <Navigate to="/login" replace />;
 
   const submit = async event => {
@@ -35,15 +37,17 @@ export default function FirstLoginPasswordPage() {
       const response = await axios.post('http://localhost:5000/api/auth/first-login-password', {
         token: challenge.token, newPassword, confirmPassword,
       });
+      enteringSystem.current = true;
       startSession(response.data.user);
-      navigate(getLandingPath(response.data.user), { replace: true });
+      loadSystemPage(getLandingPath(response.data.user));
     } catch (err) {
+      enteringSystem.current = false;
       setError(err.response?.data?.message || 'Could not change your password. Please try again.');
       if (err.response?.status === 401) {
         sessionStorage.removeItem('firstLoginChallenge');
         setExpired(true);
       }
-    } finally { setSaving(false); }
+    } finally { if (!enteringSystem.current) setSaving(false); }
   };
 
   return <main className="first-login-page">

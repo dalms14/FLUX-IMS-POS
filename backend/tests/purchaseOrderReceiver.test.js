@@ -19,3 +19,11 @@ test('everyone and specific staff assignments keep their own receiving rules', (
     assert.equal(canReceiveOrder(order('__anyone__'), { archived: true, role: 'staff' }), false);
     assert.equal(canReceiveOrder(order('__anyone__'), null), false);
 });
+
+test('custom staff roles such as Operations can receive staff assignments; admin and owner roles cannot', () => {
+    const operations = { role: 'custom', jobRole: 'operations', email: 'operations@example.com' };
+    assert.equal(isStaffReceiver(operations), true);
+    assert.equal(canReceiveOrder(order('__any_staff__'), operations), true);
+    assert.equal(canReceiveOrder(order(operations.email), operations), true);
+    for (const role of ['admin', 'owner']) assert.equal(isStaffReceiver({ role, email: 'other@example.com' }), false);
+});

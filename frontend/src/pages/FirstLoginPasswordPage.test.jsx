@@ -4,10 +4,12 @@ import '@testing-library/jest-dom';
 import axios from 'axios';
 import FirstLoginPasswordPage from './FirstLoginPasswordPage';
 import { getSessionUser } from '../utils/session';
+import { loadSystemPage } from '../utils/documentNavigation';
 
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate, Navigate: () => null }), { virtual: true });
 jest.mock('axios');
+jest.mock('../utils/documentNavigation', () => ({ loadSystemPage: jest.fn() }));
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
@@ -33,7 +35,7 @@ test('starts the remembered session only after a successful password change', as
   axios.post.mockResolvedValue({ data: { user: { email: 'staff@example.com', role: 'owner' } } });
   openPage();
   submit();
-  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { replace: true }));
+  await waitFor(() => expect(loadSystemPage).toHaveBeenCalledWith('/dashboard'));
   expect(getSessionUser().email).toBe('staff@example.com');
   expect(sessionStorage.getItem('firstLoginChallenge')).toBeNull();
 });

@@ -385,6 +385,7 @@ const ProductCard = ({ product, onAdd }) => {
           <img
             src={imageUrl}
             alt={product.name}
+            referrerPolicy="no-referrer"
             style={{
               width: '100%',
               height: '100%',
@@ -883,6 +884,8 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
         gcashReference: paymentMethod === 'GCash' ? amountTendered.trim() : null,
         gcashProofImage: paymentMethod === 'GCash' ? gcashProofImage || null : null,
       });
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Unable to save the order. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -1466,12 +1469,14 @@ const Items = () => {
 
         setShowReceipt(false);
         clearCart();
+        const verified = response.data.checkout;
         setReceiptData({
           ...response.data,
-          cart: buildTransactionItems(),
+          cart: verified?.items || buildTransactionItems(),
           subtotal, discount, total, serviceType, paymentMethod, amountTendered, change,
-          gcashReference, cashier: user.name || 'Staff', customerType, eliteMember,
-          selectedDiscount: activeDiscount,
+          ...(verified || {}),
+          gcashReference, cashier: verified?.cashier || user.name || 'Staff', customerType: verified?.customerType || customerType, eliteMember,
+          selectedDiscount: verified?.discountInfo || activeDiscount,
         });
         return response.data;
     } catch (err) {

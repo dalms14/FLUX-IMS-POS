@@ -1,3 +1,4 @@
+import { rowsToCsv } from '../utils/csv';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
@@ -536,7 +537,7 @@ const SalesPage = () => {
       ['Product', 'Category', 'Qty Sold', 'Qty Refunded', 'Net Qty', 'Gross Sales'],
       ...sortedProductRows.map(row => [row.name, row.category, row.quantity, row.refundedQty, row.netQty, row.gross]),
     ];
-    const csv = rows.map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csv = rowsToCsv(rows);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

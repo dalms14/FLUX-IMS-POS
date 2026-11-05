@@ -3,6 +3,8 @@ import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import AccountRoleTemplates from '../components/AccountRoleTemplates';
 import BackupExportModal from '../components/BackupExportModal';
+import ProductImageInput from '../components/ProductImageInput';
+import AppNotice from '../components/AppNotice';
 import AboutFluxSettings from '../components/AboutFluxSettings';
 import './SettingsOverview.css';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
@@ -129,7 +131,7 @@ const normalizeRecipeIngredients = (ingredients = []) =>
 const productCategoriesOnly = (categories = []) =>
     categories.filter(cat => String(cat.name || '').toUpperCase() !== 'ALL');
 
-const ProductFormModal = ({ product, categories, availableAddons = [], onSave, onClose }) => {
+const ProductFormModal = ({ product, categories, availableAddons = [], onSave, onClose, onNotice }) => {
     const [form, setForm] = useState({
         name: product?.name || '',
         category: product?.categoryId?.name || product?.category || '',
@@ -142,15 +144,14 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
         image: product?.image || '',
     });
     const [inventoryItems, setInventoryItems] = useState([]);
-    const [imageFile, setImageFile] = useState(null);
-    const [imagePreview, setImagePreview] = useState(product?.image || '');
+    const [imageLoading, setImageLoading] = useState(false);
+    const [variantPriceError, setVariantPriceError] = useState('');
     const [recipeLoading, setRecipeLoading] = useState(false);
     const [showIngredientPicker, setShowIngredientPicker] = useState(false);
     const [ingredientSearch, setIngredientSearch] = useState('');
     const [saving, setSaving] = useState(false);
     const [presetNotice, setPresetNotice] = useState('');
     const [showAllAddons, setShowAllAddons] = useState(false);
-    const fileRef = useRef();
 
     useEffect(() => {
         let alive = true;
@@ -190,13 +191,6 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
             alive = false;
         };
     }, [product?._id]);
-
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        setImageFile(file);
-        setImagePreview(URL.createObjectURL(file));
-    };
 
     const toggleAddon = (addon) => {
         setForm(f => {
@@ -287,6 +281,11 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
     };
 
     const updateVariantPrice = (groupIndex, optionIndex, value) => {
+        if (!/^\d{0,4}(?:\.\d{0,2})?$/.test(String(value))) {
+            setVariantPriceError('Price add-ons must be from ₱0 to ₱9,999.99, with at most two decimal places.');
+            return;
+        }
+        setVariantPriceError('');
         setForm(f => ({
             ...f,
             variantGroups: f.variantGroups.map((group, index) =>
@@ -295,7 +294,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                         ...group,
                         optionPrices: group.options.map((_, currentOptionIndex) =>
                             currentOptionIndex === optionIndex
-                                ? Math.max(0, Number(value) || 0)
+                                ? value
                                 : (Number(group.optionPrices?.[currentOptionIndex]) || 0)
                         ),
                     }
@@ -351,24 +350,21 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
     };
 
     const handleSave = async () => {
+        if (imageLoading || saving) return;
+        if (form.variantGroups.some(group => (group.optionPrices || []).some(value => {
+            const text = String(value ?? '');
+            return text !== '' && (!/^\d+(?:\.\d{1,2})?$/.test(text) || Number(text) > 9999.99);
+        }))) {
+            setVariantPriceError('Price add-ons must be from ₱0 to ₱9,999.99, with at most two decimal places.');
+            onNotice({ title: 'Check price add-ons', message: 'Price add-ons must be from ₱0 to ₱9,999.99, with at most two decimal places.', tone: 'error' });
+            return;
+        }
         if (!form.name.trim() || !form.category || !form.soloPrice) {
-            alert('Please fill in Name, Category and Solo Price.');
+            onNotice({ title: 'Missing product details', message: 'Please fill in Name, Category and Solo Price.', tone: 'error' });
             return;
         }
         setSaving(true);
         try {
-            let imageUrl = form.image;
-
-            // If a new image file was selected, convert to base64
-            if (imageFile) {
-                imageUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(imageFile);
-                });
-            }
-
             const payload = {
                 name: form.name.trim(),
                 category: form.category,
@@ -378,7 +374,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                 variants: flattenVariantGroups(form.variantGroups),
                 variantGroups: prepareVariantGroups(form.variantGroups),
                 addons: normalizeAddons(form.addons),
-                image: imageUrl,
+                image: form.image,
                 available: true,
             };
 
@@ -405,7 +401,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
 
             onSave();
         } catch (err) {
-            alert('Failed to save product. Please try again.');
+            onNotice({ title: 'Unable to finish saving', message: err.response?.data?.message || 'Failed to save product. Please try again.', tone: 'error' });
         } finally {
             setSaving(false);
         }
@@ -471,31 +467,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                     <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#aaa' }}>✕</button>
                 </div>
 
-                {/* Image Upload */}
-                <div style={{ marginBottom: '20px', textAlign: 'center' }}>
-                    <div
-                        onClick={() => fileRef.current.click()}
-                        style={{
-                            width: '120px', height: '120px', borderRadius: '12px',
-                            backgroundColor: '#F5F0EB', border: '2px dashed #C4A87A',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer', margin: '0 auto 8px', overflow: 'hidden',
-                            transition: 'border-color 0.15s',
-                        }}
-                    >
-                        {imagePreview
-                            ? <img src={imagePreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : (
-                                <div style={{ textAlign: 'center', color: '#C4A87A' }}>
-                                    <div style={{ fontSize: '28px' }}>📷</div>
-                                    <div style={{ fontSize: '10px', fontWeight: '600', marginTop: '4px' }}>Click to upload</div>
-                                </div>
-                            )
-                        }
-                    </div>
-                    <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
-                    <p style={{ fontSize: '11px', color: '#aaa', margin: 0 }}>JPG, PNG, WEBP — max 2MB</p>
-                </div>
+                <ProductImageInput value={form.image} onChange={image => setForm(current => ({ ...current, image }))} onBusyChange={setImageLoading} disabled={saving} />
 
                 {/* Form Fields */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -591,11 +563,12 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                                 <span style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#8B5E3C', fontSize: '12px', fontWeight: '800', pointerEvents: 'none' }}>+₱</span>
                                                 <input
                                                     style={{ ...inputStyle, paddingLeft: '32px' }}
-                                                    type="number"
-                                                    min="0"
-                                                    step="1"
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    maxLength={7}
                                                     value={group.optionPrices?.[optionIndex] ?? 0}
                                                     onChange={e => updateVariantPrice(groupIndex, optionIndex, e.target.value)}
+                                                    onBlur={e => updateVariantPrice(groupIndex, optionIndex, String(Number(e.target.value) || 0))}
                                                     aria-label={`${variant || `Option ${optionIndex + 1}`} price add-on`}
                                                 />
                                             </div>
@@ -615,6 +588,8 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                         <p style={{ margin: '7px 0 0', color: '#999', fontSize: '11px', lineHeight: 1.4 }}>
                             Use separate types for choices like Flavor and Chicken Part. Leave option rows blank if the product has no variants.
                         </p>
+                        <p style={{ margin: '5px 0 0', color: '#8A8178', fontSize: '11px' }}>Price add-ons: ₱0–₱9,999.99 each, up to 2 decimal places.</p>
+                        {variantPriceError && <p role="alert" style={{ margin: '6px 0 0', color: '#A32C2C', fontSize: '12px' }}>{variantPriceError}</p>}
                     </div>
 
                     <div style={{ gridColumn: '1/-1' }}>
@@ -781,7 +756,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                     <button onClick={onClose} style={{ flex: 1, padding: '12px', backgroundColor: '#f5f5f5', color: '#555', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                         Cancel
                     </button>
-                    <button onClick={handleSave} disabled={saving}
+                    <button onClick={handleSave} disabled={saving || imageLoading}
                         style={{ flex: 2, padding: '12px', backgroundColor: saving ? '#C4A87A' : '#8B5E3C', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer' }}>
                         {saving ? 'Saving...' : product ? 'Save Changes' : 'Add Product'}
                     </button>
@@ -982,6 +957,8 @@ const CategoryFormModal = ({ onSave, onClose }) => {
 
 const InventorySettings = () => {
     const [products, setProducts] = useState([]);
+    const [notice, setNotice] = useState(null);
+    const dismissNotice = useCallback(() => setNotice(null), []);
     const [categories, setCategories] = useState([]);
     const [addons, setAddons] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -1043,8 +1020,9 @@ const InventorySettings = () => {
             await axios.delete(`http://localhost:5000/api/products/${deleteProduct._id}`);
             setDeleteProduct(null);
             fetchProducts();
+            setNotice({ title: 'Product archived', message: 'The product was moved to the archive.', tone: 'success' });
         } catch (err) {
-            alert('Failed to archive product.');
+            setNotice({ title: 'Could not archive product', message: err.response?.data?.message || 'Please try again.', tone: 'error' });
         }
     };
 
@@ -1052,8 +1030,9 @@ const InventorySettings = () => {
         try {
             await axios.post(`http://localhost:5000/api/products/${product._id}/restore`);
             fetchProducts();
+            setNotice({ title: 'Product restored', message: 'The product is available in the active list again.', tone: 'success' });
         } catch (err) {
-            alert('Failed to restore product.');
+            setNotice({ title: 'Could not restore product', message: err.response?.data?.message || 'Please try again.', tone: 'error' });
         }
     };
 
@@ -1135,7 +1114,7 @@ const InventorySettings = () => {
                             {/* Image */}
                             <div style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F0E8E0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {product.image
-                                    ? <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ? <img src={product.image} alt={product.name} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                     : <span style={{ fontSize: '18px' }}>🖼</span>
                                 }
                             </div>
@@ -1154,11 +1133,13 @@ const InventorySettings = () => {
             </div>
 
             {/* Modals */}
+            <AppNotice notice={notice} onDismiss={dismissNotice} />
             {showAddModal && (
                 <ProductFormModal
                     categories={categories}
                     availableAddons={addons}
-                    onSave={() => { setShowAddModal(false); fetchProducts(); }}
+                    onSave={() => { setShowAddModal(false); fetchProducts(); setNotice({ title: 'Product added', message: 'The new product has been saved.', tone: 'success' }); }}
+                    onNotice={setNotice}
                     onClose={() => setShowAddModal(false)}
                 />
             )}
@@ -1173,7 +1154,8 @@ const InventorySettings = () => {
                     product={editProduct}
                     categories={categories}
                     availableAddons={addons}
-                    onSave={() => { setEditProduct(null); fetchProducts(); }}
+                    onSave={() => { setEditProduct(null); fetchProducts(); setNotice({ title: 'Product updated', message: 'Your changes have been saved.', tone: 'success' }); }}
+                    onNotice={setNotice}
                     onClose={() => setEditProduct(null)}
                 />
             )}

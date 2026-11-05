@@ -4,6 +4,7 @@ import axios from 'axios';
 import { FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
 import { getLandingPath } from '../utils/roles';
 import { clearSession, getSessionUser, startSession } from '../utils/session';
+import { loadSystemPage } from '../utils/documentNavigation';
 import './LoginPage.module.css';
 
 const normalizeLoginEmail = (value = '') => value.toLowerCase().trim();
@@ -20,6 +21,8 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const [archivedMessage, setArchivedMessage] = useState('');
   const archivedDialog = useRef(null);
+  const signInPending = useRef(false);
+  const enteringSystem = useRef(false);
 
   useEffect(() => {
     if (archivedMessage) archivedDialog.current?.showModal();
@@ -68,26 +71,27 @@ const LoginPage = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (signInPending.current) return;
     
     if (locked) {
       setError(`Account is locked. Please try again in ${lockoutTime} seconds.`);
       return;
     }
 
-    setLoading(true);
     setError('');
     const loginEmail = normalizeLoginEmail(email);
 
     if (!loginEmail) {
       setError('Please enter your email.');
-      setLoading(false);
       return;
     }
+    signInPending.current = true;
+    setLoading(true);
     
     try {
         const response = await axios.post('http://localhost:5000/api/auth/login', {
             email: loginEmail, password,
-        });
+        }, { timeout: 30000 });
         if (response.data) {
             if (response.data.mustChangePassword) {
                 clearSession();
@@ -99,6 +103,7 @@ const LoginPage = () => {
                 return;
             }
             const user = {
+                sessionToken: response.data.sessionToken,
                 name: response.data.name,
                 email: response.data.email,
                 role: response.data.role,
@@ -109,17 +114,21 @@ const LoginPage = () => {
                 isOnline: response.data.isOnline,
                 lastSeenAt: response.data.lastSeenAt,
             };
+            enteringSystem.current = true;
             startSession(user);
             // Clear lockout on success
             setLocked(false);
             setAttemptsRemaining(3);
-            navigate(getLandingPath(user));
+            loadSystemPage(getLandingPath(user));
         }
     } catch (err) {
+        enteringSystem.current = false;
         const status = err.response?.status;
         const message = err.response?.data?.message;
         
-        if (status === 403 && err.response?.data?.code === 'ACCOUNT_ARCHIVED') {
+        if (!err.response) {
+          setError('Unable to connect. Please check your connection and try signing in again.');
+        } else if (status === 403 && err.response?.data?.code === 'ACCOUNT_ARCHIVED') {
           setAttemptsRemaining(3);
           setArchivedMessage(message);
         } else if (status === 423) {
@@ -138,12 +147,15 @@ const LoginPage = () => {
           setError(message || 'Invalid email or password. Please try again.');
         }
     } finally {
-        setLoading(false);
+        if (!enteringSystem.current) {
+          signInPending.current = false;
+          setLoading(false);
+        }
     }
   };
 
   const savedUser = getSessionUser();
-  if (savedUser) return <Navigate to={getLandingPath(savedUser)} replace />;
+  if (savedUser && !enteringSystem.current) return <Navigate to={getLandingPath(savedUser)} replace />;
 
   return (
     <div className="loginPageShell" style={{ display: 'flex', height: '100vh', fontFamily: 'Segoe UI, sans-serif' }}>
@@ -248,10 +260,10 @@ const LoginPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleLogin} aria-busy={loading}>
           {/* Email */}
           <div style={{ marginBottom: '20px' }}>
-            <label style={{
+            <label htmlFor="login-email" style={{
               display: 'block',
               fontSize: '14px',
               fontWeight: '600',
@@ -274,6 +286,7 @@ const LoginPage = () => {
               }}
             >
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => handleEmailChange(e.target.value)}
@@ -284,7 +297,7 @@ const LoginPage = () => {
                 placeholder="Type your email.."
                 autoFocus
                 required
-                disabled={locked}
+                disabled={locked || loading}
                 autoComplete="email"
                 style={{
                   flex: 1,
@@ -303,7 +316,7 @@ const LoginPage = () => {
 
           {/* Password */}
           <div style={{ marginBottom: '12px', position: 'relative' }}>
-            <label style={{
+            <label htmlFor="login-password" style={{
               display: 'block',
               fontSize: '14px',
               fontWeight: '600',
@@ -313,12 +326,13 @@ const LoginPage = () => {
               Password
             </label>
             <input
+              id="login-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              disabled={locked}
+              disabled={locked || loading}
               style={{
                 width: '100%',
                 padding: '14px 50px 14px 16px',
@@ -335,7 +349,7 @@ const LoginPage = () => {
             <button
               type="button"
               onClick={() => setShowPassword(prev => !prev)}
-              disabled={locked}
+              disabled={locked || loading}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
               title={showPassword ? 'Hide password' : 'Show password'}
               style={{
@@ -360,20 +374,21 @@ const LoginPage = () => {
 
           {/* Forgot Password Link */}
           <div style={{ textAlign: 'right', marginBottom: '24px' }}>
-            <span 
+            <button type="button" disabled={loading}
               onClick={() => navigate('/forgot-password')}
               style={{
                 fontSize: '13px',
                 color: '#8B5E3C',
                 fontWeight: '600',
                 cursor: 'pointer',
-                textDecoration: 'none'
+                textDecoration: 'none',
+                border: 'none', background: 'transparent', padding: 0, fontFamily: 'inherit'
               }}
               onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
               onMouseOut={(e) => e.target.style.textDecoration = 'none'}
             >
               Forgot password?
-            </span>
+            </button>
           </div>
 
           {/* Button */}
