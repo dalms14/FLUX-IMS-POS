@@ -2,6 +2,8 @@ import React, { useCallback, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
+import LiveRefreshStatus from '../components/LiveRefreshStatus';
+import useLiveRefresh from '../utils/useLiveRefresh';
 import {
   FiAlertTriangle,
   FiArchive,
@@ -824,7 +826,7 @@ const InventoryPage = () => {
   const [categories, setCategories] = useState([]);
   const [showStockOutModal, setShowStockOutModal] = useState(false);
   const [adjustItem, setAdjustItem] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [restoring, setRestoring] = useState(false);
   const [notices, setNotices] = useState([]);
   const [showArchive, setShowArchive] = useState(false);
   const [archiveItem, setArchiveItem] = useState(null);
@@ -868,24 +870,15 @@ const InventoryPage = () => {
     setCategories(uniqueCategories);
   }, []);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [inventoryRes, statsRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/inventory${showArchive ? '?archived=true' : ''}`),
-          showArchive ? Promise.resolve({ data: null }) : axios.get('http://localhost:5000/api/inventory-stats'),
-        ]);
-
-        updateInventoryState(inventoryRes.data, statsRes.data);
-      } catch (err) {
-        console.error('Error fetching inventory:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [showArchive, updateInventoryState]);
+  const loadInventory = useCallback(async signal => {
+    const response = await axios.get(`http://localhost:5000/api/inventory${showArchive ? '?archived=true' : ''}`, { signal, timeout: 20000 });
+    if (!Array.isArray(response.data)) throw new Error('Invalid inventory response');
+    return response.data;
+  }, [showArchive]);
+  const liveStatus = useLiveRefresh(loadInventory, updateInventoryState, {
+    paused: showStockOutModal || !!archiveItem || archiving || restoring,
+  });
+  const { loading } = liveStatus;
 
   const handleArchive = async () => {
     if (!archiveItem || archiveBusy.current) return;
@@ -903,11 +896,14 @@ const InventoryPage = () => {
   };
 
   const handleRestore = async (item) => {
+    if (restoring) return;
+    setRestoring(true);
     try {
       await axios.post(`http://localhost:5000/api/inventory/${item._id}/restore`);
       setItems(prev => prev.filter(existing => existing._id !== item._id));
       setNotices([]);
     } catch (err) { showInventoryError(err, 'Could not restore ingredient', 'Failed to restore ingredient.', item.name); }
+    finally { setRestoring(false); }
   };
 
   useEffect(() => {
@@ -973,6 +969,8 @@ const InventoryPage = () => {
           title="Inventory"
           description="Read current stock, low-stock alerts, and expiry status. Receive supplies through Purchase Orders; record only documented loss, damage, or count corrections here."
         />
+
+        <LiveRefreshStatus status={liveStatus} />
 
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(205px, 1fr))', gap: '14px', marginBottom: '18px' }}>
           <KPICard title="Total Items" value={stats.totalItems} detail="Inventory ingredients tracked" icon={<FiPackage size={21} />} color="#8B5E3C" />

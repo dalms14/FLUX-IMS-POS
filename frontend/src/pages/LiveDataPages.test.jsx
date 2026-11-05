@@ -1,0 +1,58 @@
+import React from 'react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import axios from 'axios';
+import InventoryPage from './InventoryPage';
+import SalesPage from './SalesPage';
+jest.mock('axios');
+jest.mock('../components/Sidebar', () => () => null);
+jest.mock('../components/SalesForecast', () => () => null);
+beforeEach(() => { jest.resetAllMocks(); jest.useFakeTimers(); });
+afterEach(() => { cleanup(); jest.useRealTimers(); });
+const flush = () => act(async () => {});
+const tick = () => act(async () => { jest.advanceTimersByTime(15000); });
+
+test('inventory updates quantities and counters without clearing search or stock-out draft', async () => {
+    let stock = 100;
+    const data = () => ({ _id: 'beans', name: 'Coffee Beans', unit: 'g', stock, category: 'Coffee', lowStockAt: 10, expirationBatches: [] });
+    axios.get.mockImplementation(() => Promise.resolve({ data: [data()] }));
+    render(<InventoryPage />);
+    await flush();
+    const search = screen.getByPlaceholderText('Search item name...');
+    fireEvent.change(search, { target: { value: 'Coffee' } });
+    stock = 76;
+    await tick();
+    expect(screen.getAllByText('76').length).toBeGreaterThan(0);
+    expect(search).toHaveValue('Coffee');
+    fireEvent.click(screen.getByTitle('Stock Out'));
+    const quantity = screen.getByPlaceholderText('Max 76 g');
+    fireEvent.change(quantity, { target: { value: '5' } });
+    const calls = axios.get.mock.calls.length;
+    stock = 50;
+    await tick();
+    expect(axios.get).toHaveBeenCalledTimes(calls);
+    expect(quantity).toHaveValue(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await flush();
+    expect(screen.getAllByText('50').length).toBeGreaterThan(0);
+    expect(search).toHaveValue('Coffee');
+});
+
+test('sales refresh totals with the current date range and retain data when background loading fails', async () => {
+    let total = 100;
+    axios.get.mockImplementation(url => Promise.resolve({ data: url.includes('/transactions') ? [{ _id: 't1', receiptNo: 'TEST', total, subtotal: total, createdAt: new Date().toISOString(), paymentMethod: 'Cash', orderStatus: 'completed', items: [{ name: 'Coffee', quantity: 1, price: total }] }] : [] }));
+    render(<SalesPage />);
+    await flush();
+    fireEvent.click(screen.getByRole('button', { name: 'All Time' }));
+    await flush();
+    fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '2026-01-01' } });
+    await flush();
+    total = 200;
+    await tick();
+    expect(screen.getAllByText('₱200').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Start Date')).toHaveValue('2026-01-01');
+    expect(axios.get.mock.calls.at(-1)[0]).toContain('startDate=2026-01-01');
+    axios.get.mockRejectedValue(new Error('Offline'));
+    await tick();
+    expect(screen.getByRole('alert')).toHaveTextContent('values may be outdated');
+    expect(screen.getAllByText('₱200').length).toBeGreaterThan(0);
+});

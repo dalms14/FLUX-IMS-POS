@@ -1,8 +1,10 @@
 import { rowsToCsv } from '../utils/csv';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
+import LiveRefreshStatus from '../components/LiveRefreshStatus';
+import useLiveRefresh from '../utils/useLiveRefresh';
 import SalesForecast from '../components/SalesForecast';
 import { FiBarChart2, FiCreditCard, FiDownload, FiRefreshCw, FiShoppingBag } from 'react-icons/fi';
 import { LuPhilippinePeso } from 'react-icons/lu';
@@ -340,8 +342,7 @@ const SalesPage = () => {
   const [endDate, setEndDate] = useState(presets.today.end);
   const [transactions, setTransactions] = useState([]);
   const [refunds, setRefunds] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
   const [productSort, setProductSort] = useState({ key: 'gross', direction: 'desc' });
   const invalidDateRange = Boolean(startDate && endDate && startDate > endDate);
 
@@ -352,29 +353,22 @@ const SalesPage = () => {
     return params.toString();
   }, [startDate, endDate]);
 
-  const fetchSales = useCallback(async () => {
-    if (invalidDateRange) return;
-    setLoading(true);
-    setError('');
-    try {
-      const query = buildParams();
-      const [transactionRes, refundRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/transactions${query ? `?${query}` : ''}`),
-        axios.get(`http://localhost:5000/api/refunds${query ? `?${query}` : ''}`),
-      ]);
-      setTransactions(transactionRes.data.data || transactionRes.data || []);
-      setRefunds(refundRes.data.data || refundRes.data || []);
-    } catch (err) {
-      console.error('Error fetching sales:', err);
-      setError('Failed to load sales data.');
-    } finally {
-      setLoading(false);
-    }
-  }, [buildParams, invalidDateRange]);
-
-  useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
+  const loadSales = useCallback(async signal => {
+    const query = buildParams();
+    const [transactionRes, refundRes] = await Promise.all([
+      axios.get(`http://localhost:5000/api/transactions${query ? `?${query}` : ''}`, { signal, timeout: 20000 }),
+      axios.get(`http://localhost:5000/api/refunds${query ? `?${query}` : ''}`, { signal, timeout: 20000 }),
+    ]);
+    const transactions = transactionRes.data.data || transactionRes.data;
+    const refunds = refundRes.data.data || refundRes.data;
+    if (!Array.isArray(transactions) || !Array.isArray(refunds)) throw new Error('Invalid sales response');
+    return { transactions, refunds };
+  }, [buildParams]);
+  const liveStatus = useLiveRefresh(loadSales, data => {
+    setTransactions(data.transactions);
+    setRefunds(data.refunds);
+  }, { enabled: !invalidDateRange });
+  const { loading, refresh: fetchSales } = liveStatus;
 
   const applyPreset = (key) => {
     setPreset(key);
@@ -566,6 +560,8 @@ const SalesPage = () => {
           }
         />
 
+        <LiveRefreshStatus status={liveStatus} />
+
         <section style={{ ...cardStyle, marginBottom: '20px', padding: '16px' }}>
           <div className="sales-filter-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', alignItems: 'end' }}>
             <div>
@@ -597,7 +593,6 @@ const SalesPage = () => {
           {invalidDateRange && <p id="sales-date-error" role="alert" style={{ margin: '12px 0 0', color: '#C53030', fontSize: '13px' }}>Start date must be on or before end date. Correct the dates to apply the filter.</p>}
         </section>
 
-        {error && <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', borderRadius: '8px', fontSize: '13px', fontWeight: '700' }}>{error}</div>}
 
         <section className="sales-analysis-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 390px) minmax(0, 1fr)', gap: '18px', alignItems: 'stretch', marginBottom: '20px' }}>
           <div style={{ display: 'grid', gap: '14px' }}>
