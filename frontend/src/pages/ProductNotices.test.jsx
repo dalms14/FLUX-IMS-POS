@@ -27,7 +27,9 @@ test('missing product details show a dismissible on-screen notice without a brow
   await openForm();
   fireEvent.change(screen.getByPlaceholderText('e.g. Chicken Alaking'), { target: { value: 'Coffee' } });
   fireEvent.click(screen.getByRole('button', { name: 'Add Product' }));
-  expect(screen.getByRole('alert')).toHaveTextContent('Please fill in Name, Category and Solo Price.');
+  expect(screen.getByRole('alert')).toHaveTextContent('Choose a category.');
+  expect(screen.getByLabelText('Category')).toHaveFocus();
+  expect(screen.getByLabelText('Category')).toHaveAttribute('aria-invalid', 'true');
   expect(window.alert).not.toHaveBeenCalled();
   expect(axios.post).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss notification' }));

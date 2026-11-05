@@ -1,0 +1,84 @@
+/* Safari date/time controls have an intrinsic width. Allow them and their
+   grid cells to shrink instead of overlapping the next field. */
+.mobile-page-content {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+:is(.mobile-app-shell, .purchase-order-modal, .delivery-arrival-modal) :is(input, select, textarea) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+:is(.mobile-app-shell, .purchase-order-modal, .delivery-arrival-modal) :is(input[type="date"], input[type="time"]) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 42px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+:is(.mobile-app-shell, .purchase-order-modal, .delivery-arrival-modal) input::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
+
+:is(.sales-filter-grid, .reports-filter-grid, .transaction-filter-grid, .delivery-receive-row, .purchase-order-form-grid) > * {
+  min-width: 0;
+}
+
+.delivery-receive-row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, .65fr) minmax(0, .85fr) !important;
+}
+
+.purchase-order-modal, .delivery-arrival-modal {
+  min-width: 0;
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: calc(100dvh - 36px) !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-page-content .data-scroll-box,
+.purchase-order-table {
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+@media (min-width: 769px) and (max-width: 1400px) {
+  .reports-filter-grid,
+  .sales-filter-grid,
+  .transaction-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .reports-two-column { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+@media (max-width: 1100px) {
+  .purchase-order-item-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .purchase-order-item-row > :first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 900px) {
+  .delivery-receive-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .delivery-receive-row > :first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 768px) {
+  .reports-filter-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .purchase-order-modal .delivery-receive-row,
+  .delivery-arrival-modal .delivery-receive-row,
+  .purchase-order-item-row { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* Prevent focus zoom on touch-screen Safari while keeping desktop sizing. */
+@media (hover: none) and (pointer: coarse) {
+  :is(.mobile-app-shell, .purchase-order-modal, .delivery-arrival-modal) :is(input, select, textarea) {
+    font-size: 16px !important;
+  }
+}

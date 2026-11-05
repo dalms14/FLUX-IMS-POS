@@ -3,6 +3,7 @@ import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiImage, FiPlus } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
+import PosPriceFilter from '../components/PosPriceFilter';
 import './Cashier.css';
 import ReceiptViewModal from '../components/ReceiptViewModal';
 import EliteVerificationModal from '../components/EliteVerificationModal';
@@ -216,7 +217,9 @@ const loadCashierSession = () => {
 };
 
 const buildProductStockStatus = (recipe) => {
-  const ingredients = recipe?.ingredients || [];
+  // An option can replace or omit a base ingredient. Check its exact stock at checkout.
+  const overridden = new Set((recipe?.optionRules || []).filter(rule => rule.mode === 'replace').flatMap(rule => rule.ingredients || []).map(row => String(row.inventoryId?._id || row.inventoryId)));
+  const ingredients = (recipe?.ingredients || []).filter(row => !overridden.has(String(row.inventoryId?._id || row.inventoryId)));
   if (ingredients.length === 0) return { level: 'ok', label: '', details: [] };
 
   const shortageDetails = [];
@@ -1064,6 +1067,7 @@ const Items = () => {
   const [activeCategory, setActiveCategory] = useState('');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [priceBudget, setPriceBudget] = useState('');
   const [customerType, setCustomerType] = useState(savedCashierSession.customerType);
   const [showEliteModal, setShowEliteModal] = useState(false);
   const [showDiscountTypeModal, setShowDiscountTypeModal] = useState(false);
@@ -1369,7 +1373,9 @@ const Items = () => {
   const filteredProducts = products.filter(p => {
     const productCategory = p.category || p.categoryId?.name;
     const matchesCategory = activeCategory === ALL_CATEGORY || productCategory === activeCategory;
-    return matchesCategory && p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const soloPrice = Number(p.soloPrice ?? p.price);
+    const matchesBudget = !priceBudget || (Number.isFinite(soloPrice) && soloPrice >= 0 && soloPrice < Number(priceBudget));
+    return matchesCategory && matchesBudget && p.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
   const handleProceedToCheckout = () => {
     if (cart.length === 0) return;
@@ -1637,9 +1643,16 @@ const Items = () => {
         {/* Items Header + Search */}
         <div className="items-header-search" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <p style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a1a', margin: 0 }}>Items</p>
-          <input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            style={{ padding: '10px 18px', border: '1.5px solid #ddd', borderRadius: '24px', fontSize: '14px', outline: 'none', backgroundColor: '#fff', width: '200px' }} />
+          <div className="pos-items-tools">
+            <input type="text" aria-label="Search products" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              style={{ padding: '10px 18px', border: '1.5px solid #ddd', borderRadius: '24px', fontSize: '14px', outline: 'none', backgroundColor: '#fff', width: '200px' }} />
+            <PosPriceFilter budget={priceBudget} onChange={setPriceBudget} />
+          </div>
         </div>
+        {priceBudget && <div className="pos-budget-summary" role="status">
+          <span>{filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} below ₱{Number(priceBudget).toLocaleString()} (solo price)</span>
+          <button type="button" onClick={() => setPriceBudget('')}>Clear price filter</button>
+        </div>}
 
         {/* Product Grid */}
         <div className="items-product-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', overflowY: 'auto', flex: 1, paddingBottom: '16px', alignContent: 'start' }}>

@@ -1,0 +1,34 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import axios from 'axios';
+import SettingsPage from './SettingsPage';
+jest.mock('axios');
+jest.mock('../components/Sidebar', () => () => null);
+
+test('product creation saves a Large ingredient rule and refuses an incomplete rule before product writes', async () => {
+    localStorage.setItem('user', JSON.stringify({ role: 'owner' }));
+    axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/categories') ? [{ _id: 'drinks', name: 'Drinks' }] : url.endsWith('/inventory') ? [{ _id: 'beans', name: 'Beans', unit: 'g' }] : url.endsWith('/addons') ? { data: [] } : [] }));
+    axios.post.mockResolvedValue({ data: { product: { _id: 'coffee' } } });
+    axios.put.mockResolvedValue({ data: { success: true } });
+    render(<SettingsPage mode="products" />);
+    fireEvent.click(await screen.findByRole('button', { name: /\+ Add Product/ }));
+    fireEvent.change(screen.getByPlaceholderText('e.g. Chicken Alaking'), { target: { value: 'Coffee' } });
+    fireEvent.change(screen.getByRole('option', { name: 'Select category...' }).parentElement, { target: { value: 'Drinks' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 325'), { target: { value: '100' } });
+    fireEvent.click(await screen.findByRole('button', { name: '+ Add size or add-on recipe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Product' }));
+    expect(axios.post).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose an available option');
+    expect(screen.getByLabelText('Rule 1 option 1')).toHaveFocus();
+    fireEvent.change(screen.getByLabelText('Rule 1 option 1'), { target: { value: JSON.stringify(['variant', 'Size', 'Large']) } });
+    fireEvent.click(screen.getByRole('button', { name: '+ Select ingredient' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Beans (g)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add Product' }));
+    expect(screen.getByLabelText('Beans rule amount')).toHaveFocus();
+    expect(screen.getByLabelText('Beans rule amount')).toHaveAttribute('aria-invalid', 'true');
+    expect(axios.post).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Beans rule amount'), { target: { value: '24' } });
+    expect(screen.getByLabelText('Beans rule amount')).not.toHaveAttribute('aria-invalid');
+    fireEvent.click(screen.getByRole('button', { name: 'Add Product' }));
+    await waitFor(() => expect(axios.put).toHaveBeenCalledWith('http://localhost:5000/api/products/coffee/recipe', expect.objectContaining({ optionRules: [expect.objectContaining({ mode: 'replace', conditions: [{ type: 'variant', group: 'Size', option: 'Large' }], ingredients: [expect.objectContaining({ inventoryId: 'beans', amountPerServing: '24' })] })] })));
+});

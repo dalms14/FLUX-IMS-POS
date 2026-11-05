@@ -1,5 +1,11 @@
 const mongoose = require('mongoose');
 
+const IngredientSchema = new mongoose.Schema({
+    inventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory' },
+    name: String, amountPerServing: Number, unit: String,
+    platterMultiplier: { type: Number, default: 3 },
+});
+
 const RecipeSchema = new mongoose.Schema({
     productId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -7,12 +13,11 @@ const RecipeSchema = new mongoose.Schema({
         required: true,
     },
     productName: { type: String, required: true },
-    ingredients: [{
-        inventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory' },
-        name:        String,
-        amountPerServing: Number, // amount used per 1 solo serving
-        unit:        String,
-        platterMultiplier: { type: Number, default: 3 }, // platter = solo x 3
+    ingredients: [IngredientSchema],
+    optionRules: [{
+        conditions: [{ type: { type: String, enum: ['variant', 'addon', 'portion'] }, group: String, option: String }],
+        mode: { type: String, enum: ['replace', 'add'], default: 'replace' },
+        ingredients: [IngredientSchema],
     }],
 }, {
     collection: 'recipes',

@@ -27,6 +27,7 @@ test('variant price inputs reject excessive values, negatives and extra decimals
   fireEvent.change(input, { target: { value: '19.95' } });
   fireEvent.blur(input);
   expect(input).toHaveValue('19.95');
+  await waitFor(() => expect(screen.getByRole('button', { name: '+ Add size or add-on recipe' })).toBeInTheDocument());
   fireEvent.click(screen.getByRole('button', { name: 'Add Product' }));
   await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/products', expect.objectContaining({
     variantGroups: expect.arrayContaining([{ name: 'Size', options: ['Regular', 'Large'], optionPrices: [0, 19.95] }]),

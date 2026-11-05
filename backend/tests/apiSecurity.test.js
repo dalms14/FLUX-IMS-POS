@@ -46,6 +46,25 @@ const request = async (path, { token, body, method = 'GET', activity } = {}) => 
     return { status: response.status, data: await response.json() };
 };
 
+test('profile activity and last sign-in are scoped to the signed-in account and expose no credentials', async () => {
+    const Transaction = require('../models/Transaction');
+    const Refund = require('../models/Refund');
+    const filters = {};
+    const chain = value => ({ sort() { return this; }, limit() { return this; }, select() { return this; }, lean: async () => value, then(resolve, reject) { return Promise.resolve(value).then(resolve, reject); } });
+    mock.method(Transaction, 'find', filter => { filters.sales = filter; return chain([]); });
+    mock.method(Refund, 'find', filter => { filters.refunds = filter; return chain([]); });
+    mock.method(LoginActivity, 'findOne', filter => { filters.login = filter; return chain({ createdAt: '2026-11-06T00:00:00Z' }); });
+    const token = await issueSession(users[1]);
+    const response = await request('/auth/my-activity?email=owner@example.com', { token });
+    assert.equal(response.status, 200);
+    assert.deepEqual(filters.sales, { cashierEmail: users[1].email });
+    assert.deepEqual(filters.refunds, { refundedByEmail: users[1].email });
+    assert.deepEqual(filters.login, { userId: users[1]._id, action: 'login' });
+    assert.equal(response.data.user.email, users[1].email);
+    assert.equal(response.data.user.password, undefined);
+    assert.equal(response.data.lastSignInAt, '2026-11-06T00:00:00Z');
+});
+
 test('business APIs reject absent and forged sessions regardless of claimed owner email or role', async () => {
     for (const path of ['/inventory', '/products', '/auth/users', '/purchase-orders', '/transactions', '/refunds']) {
         assert.equal((await request(path)).status, 401);
@@ -247,4 +266,46 @@ test('product create and update both reject invalid variant price add-ons before
             assert.equal(result.data.code, 'INVALID_VARIANT_PRICE');
         }
     }
+});
+
+test('recipe API saves canonical option ingredients, rejects invalid amounts and preserves rules for legacy clients', async () => {
+    const Product = require('../models/Product');
+    const Recipe = require('../models/Recipe');
+    const id = '123456789012345678901234';
+    mock.method(Product, 'findById', () => query({ _id: id, name: 'Coffee', variantGroups: [{ name: 'Size', options: ['Large'] }] }));
+    mock.method(Inventory, 'find', () => query([{ _id: id, name: 'Beans', unit: 'g' }]));
+    let written;
+    mock.method(Recipe, 'findOneAndUpdate', async (_, fields) => { written = fields; return fields; });
+    const token = await issueSession(users[0]);
+    const body = { ingredients: [{ inventoryId: id, amountPerServing: 18 }], optionRules: [{ mode: 'replace', conditions: [{ type: 'variant', group: 'Size', option: 'Large' }], ingredients: [{ inventoryId: id, amountPerServing: 24 }] }] };
+    assert.equal((await request(`/products/${id}/recipe`, { method: 'PUT', token, body })).status, 200);
+    assert.equal(written.optionRules[0].ingredients[0].unit, 'g');
+    assert.equal(written.optionRules[0].ingredients[0].amountPerServing, 24);
+    assert.equal((await request(`/products/${id}/recipe`, { method: 'PUT', token, body: { ingredients: [] } })).status, 200);
+    assert.equal(Object.hasOwn(written, 'optionRules'), false);
+    written = null;
+    body.optionRules[0].ingredients[0].amountPerServing = -1;
+    const invalid = await request(`/products/${id}/recipe`, { method: 'PUT', token, body });
+    assert.equal(invalid.status, 400);
+    assert.equal(invalid.data.code, 'INVALID_RECIPE');
+    assert.equal(written, null);
+});
+
+test('checkout checks option-specific requirements and rejects shortage without recording a sale or consuming stock', async () => {
+    const Product = require('../models/Product');
+    const Recipe = require('../models/Recipe');
+    const Transaction = require('../models/Transaction');
+    const id = '123456789012345678901234';
+    mock.method(Product, 'findById', () => query({ _id: id, name: 'Coffee', soloPrice: 100, category: 'Drinks', variantGroups: [{ name: 'Size', options: ['Large'], optionPrices: [0] }] }));
+    mock.method(Recipe, 'findOne', () => query({ ingredients: [{ inventoryId: id, name: 'Beans', unit: 'g', amountPerServing: 18 }], optionRules: [{ mode: 'replace', conditions: [{ type: 'variant', group: 'Size', option: 'Large' }], ingredients: [{ inventoryId: id, name: 'Beans', unit: 'g', amountPerServing: 24 }] }] }));
+    mock.method(Inventory, 'find', () => query([{ _id: id, name: 'Beans', unit: 'g', stock: 40, expirationBatches: [] }]));
+    let writes = 0;
+    mock.method(Inventory, 'findOneAndUpdate', async () => { writes++; });
+    mock.method(Transaction, 'create', async () => { writes++; });
+    const token = await issueSession(users[1]);
+    const result = await request('/transactions', { method: 'POST', token, body: { paymentMethod: 'Cash', amountTendered: 200, items: [{ productId: id, quantity: 2, price: 100, size: 'solo', selectedVariantGroups: { Size: 'Large' }, inventoryUsageRecorded: true, inventoryUsage: [] }] } });
+    assert.equal(result.status, 409);
+    assert.equal(result.data.shortages[0].required, 48);
+    assert.equal(result.data.shortages[0].available, 40);
+    assert.equal(writes, 0);
 });

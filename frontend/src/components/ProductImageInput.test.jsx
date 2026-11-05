@@ -77,6 +77,7 @@ test('a dropped image reaches the new product save payload and saving waits for 
   const save = screen.getByRole('button', { name: 'Add Product' });
   expect(save).toBeDisabled();
   fireEvent.load(screen.getByAltText('Product preview'));
+  await waitFor(() => expect(screen.getByRole('button', { name: '+ Add size or add-on recipe' })).toBeInTheDocument());
   expect(save).toBeEnabled();
   fireEvent.click(save);
   await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/products', expect.objectContaining({ image: imageUrl, name: 'Test Coffee' })));

@@ -4,9 +4,11 @@ import Sidebar from '../components/Sidebar';
 import AccountRoleTemplates from '../components/AccountRoleTemplates';
 import BackupExportModal from '../components/BackupExportModal';
 import ProductImageInput from '../components/ProductImageInput';
+import RecipeOptionRules, { recipeChoices, recipeError } from '../components/RecipeOptionRules';
 import AppNotice from '../components/AppNotice';
 import AboutFluxSettings from '../components/AboutFluxSettings';
 import './SettingsOverview.css';
+import { focusInvalidField, clearInvalidField, firstInvalidField } from '../utils/formValidation';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiDownload, FiLock, FiCheck } from 'react-icons/fi';
@@ -132,6 +134,11 @@ const productCategoriesOnly = (categories = []) =>
     categories.filter(cat => String(cat.name || '').toUpperCase() !== 'ALL');
 
 const ProductFormModal = ({ product, categories, availableAddons = [], onSave, onClose, onNotice }) => {
+    const productFormRef = useRef(null);
+    const flagField = (field, message) => {
+        onNotice({ title: 'Check this field', message, tone: 'error' });
+        focusInvalidField(productFormRef.current, field);
+    };
     const [form, setForm] = useState({
         name: product?.name || '',
         category: product?.categoryId?.name || product?.category || '',
@@ -141,12 +148,14 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
         variantGroups: normalizeVariantGroups(product || {}),
         addons: normalizeAddons(product?.addons),
         recipeIngredients: [],
+        optionRules: [],
         image: product?.image || '',
     });
     const [inventoryItems, setInventoryItems] = useState([]);
     const [imageLoading, setImageLoading] = useState(false);
     const [variantPriceError, setVariantPriceError] = useState('');
     const [recipeLoading, setRecipeLoading] = useState(false);
+    const [recipeLoadError, setRecipeLoadError] = useState(false);
     const [showIngredientPicker, setShowIngredientPicker] = useState(false);
     const [ingredientSearch, setIngredientSearch] = useState('');
     const [saving, setSaving] = useState(false);
@@ -158,6 +167,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
 
         const fetchRecipeTools = async () => {
             setRecipeLoading(true);
+            setRecipeLoadError(false);
             try {
                 const requests = [
                     axios.get('http://localhost:5000/api/inventory'),
@@ -176,9 +186,11 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                     setForm(f => ({
                         ...f,
                         recipeIngredients: normalizeRecipeIngredients(recipeRes.data.recipe.ingredients),
+                        optionRules: (recipeRes.data.recipe.optionRules || []).map(rule => ({ ...rule, ingredients: normalizeRecipeIngredients(rule.ingredients) })),
                     }));
                 }
             } catch (err) {
+                if (alive) setRecipeLoadError(true);
                 console.error('Error loading ingredients:', err);
             } finally {
                 if (alive) setRecipeLoading(false);
@@ -350,17 +362,38 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
     };
 
     const handleSave = async () => {
-        if (imageLoading || saving) return;
+        if (imageLoading || recipeLoading || saving) return;
+        if (recipeLoadError) {
+            onNotice({ title: 'Ingredients unavailable', message: 'Close and reopen this form to reload the recipe before saving.', tone: 'error' });
+            return;
+        }
+        const basicFields = [
+            ['name', !form.name.trim(), 'Enter the product name.'],
+            ['category', !form.category, 'Choose a category.'],
+            ['soloPrice', form.soloPrice === '' || form.soloPrice == null, 'Enter the solo price.'],
+        ];
+        const missing = basicFields.find(([, invalid]) => invalid);
+        if (missing) {
+            flagField(productFormRef.current.querySelector(`[name="${missing[0]}"]`), missing[2]);
+            return;
+        }
+        const invalidField = firstInvalidField(productFormRef.current);
+        if (invalidField) {
+            const label = invalidField.dataset.validationLabel || invalidField.getAttribute('aria-label') || 'this field';
+            flagField(invalidField, invalidField.dataset.validationMessage || `Enter a valid value for ${label}.`);
+            return;
+        }
+        const ingredientError = recipeError(form.recipeIngredients, form.optionRules, recipeChoices(prepareVariantGroups(form.variantGroups), form.addons, !!form.platterPrice));
+        if (ingredientError) {
+            flagField(productFormRef.current.querySelector('[data-recipe-options] select, [data-base-recipe] input'), ingredientError);
+            return;
+        }
         if (form.variantGroups.some(group => (group.optionPrices || []).some(value => {
             const text = String(value ?? '');
             return text !== '' && (!/^\d+(?:\.\d{1,2})?$/.test(text) || Number(text) > 9999.99);
         }))) {
             setVariantPriceError('Price add-ons must be from ₱0 to ₱9,999.99, with at most two decimal places.');
             onNotice({ title: 'Check price add-ons', message: 'Price add-ons must be from ₱0 to ₱9,999.99, with at most two decimal places.', tone: 'error' });
-            return;
-        }
-        if (!form.name.trim() || !form.category || !form.soloPrice) {
-            onNotice({ title: 'Missing product details', message: 'Please fill in Name, Category and Solo Price.', tone: 'error' });
             return;
         }
         setSaving(true);
@@ -388,6 +421,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
             }
 
             const recipePayload = {
+                optionRules: form.optionRules,
                 ingredients: form.recipeIngredients
                     .map(ingredient => ({
                         inventoryId: ingredient.inventoryId,
@@ -459,7 +493,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
 
     return (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '640px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
+            <div ref={productFormRef} onInputCapture={() => clearInvalidField(productFormRef.current)} onChangeCapture={() => clearInvalidField(productFormRef.current)} style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '640px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#1a1a1a' }}>
                         {product ? 'Edit Product' : 'Add New Product'}
@@ -473,12 +507,12 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Product Name *</label>
-                        <input style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Chicken Alaking" />
+                        <input name="name" aria-label="Product name" required style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Chicken Alaking" />
                     </div>
 
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Category *</label>
-                        <select style={{ ...inputStyle, backgroundColor: '#fff' }}
+                        <select name="category" aria-label="Category" required style={{ ...inputStyle, backgroundColor: '#fff' }}
                             value={form.category} onChange={e => applyCategoryPreset(e.target.value)}>
                             <option value="">Select category...</option>
                             {productCategoriesOnly(categories).map(cat => (
@@ -498,13 +532,13 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
 
                     <div>
                         <label style={labelStyle}>Solo Price (₱) *</label>
-                        <input style={inputStyle} type="number" value={form.soloPrice}
+                        <input name="soloPrice" aria-label="Solo price" required min="0" step="0.01" style={inputStyle} type="number" value={form.soloPrice}
                             onChange={e => setForm(f => ({ ...f, soloPrice: e.target.value }))} placeholder="e.g. 325" />
                     </div>
 
                     <div>
                         <label style={labelStyle}>Platter Price (₱)</label>
-                        <input style={inputStyle} type="number" value={form.platterPrice}
+                        <input aria-label="Platter price" min="0" step="0.01" style={inputStyle} type="number" value={form.platterPrice}
                             onChange={e => setForm(f => ({ ...f, platterPrice: e.target.value }))} placeholder="Optional" />
                     </div>
 
@@ -566,6 +600,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                                     type="text"
                                                     inputMode="decimal"
                                                     maxLength={7}
+                                                    pattern="[0-9]+([.][0-9]{1,2})?"
                                                     value={group.optionPrices?.[optionIndex] ?? 0}
                                                     onChange={e => updateVariantPrice(groupIndex, optionIndex, e.target.value)}
                                                     onBlur={e => updateVariantPrice(groupIndex, optionIndex, String(Number(e.target.value) || 0))}
@@ -682,7 +717,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                     })}
                                 </div>
 
-                                <div style={{ border: '1px solid #E8DDD0', borderRadius: '10px', overflow: 'hidden' }}>
+                                <div data-base-recipe style={{ border: '1px solid #E8DDD0', borderRadius: '10px', overflow: 'hidden' }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 34px', gap: '10px', padding: '9px 12px', backgroundColor: '#F5F0EB', alignItems: 'center' }}>
                                         {['Ingredient', 'Per Sale', 'Platter x'].map(header => (
                                             <p key={header} style={{ margin: 0, fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
@@ -712,16 +747,16 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                                 </div>
                                                 <input
                                                     type="number"
-                                                    min="0"
-                                                    step={ingredient.unit === 'pcs' ? '1' : '0.01'}
+                                                    required data-validation-label={`${ingredient.name} amount`} min="0.001" max="1000000"
+                                                    step="0.001"
                                                     value={ingredient.amountPerServing}
                                                     onChange={e => updateRecipeIngredient(ingredient.inventoryId, 'amountPerServing', e.target.value)}
                                                     style={inputStyle}
                                                 />
                                                 <input
                                                     type="number"
-                                                    min="1"
-                                                    step="0.1"
+                                                    required data-validation-label={`${ingredient.name} platter multiplier`} min="0.001" max="1000"
+                                                    step="0.001"
                                                     value={ingredient.platterMultiplier}
                                                     onChange={e => updateRecipeIngredient(ingredient.inventoryId, 'platterMultiplier', e.target.value)}
                                                     style={inputStyle}
@@ -742,6 +777,8 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                         )}
                     </div>
 
+                    {!recipeLoading && <RecipeOptionRules rules={form.optionRules} onChange={optionRules => setForm(f => ({ ...f, optionRules }))} inventory={inventoryItems} choices={recipeChoices(prepareVariantGroups(form.variantGroups), form.addons, !!form.platterPrice)} />}
+
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Description</label>
                         <textarea style={{ ...inputStyle, height: '80px', resize: 'vertical' }}
@@ -756,7 +793,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                     <button onClick={onClose} style={{ flex: 1, padding: '12px', backgroundColor: '#f5f5f5', color: '#555', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                         Cancel
                     </button>
-                    <button onClick={handleSave} disabled={saving || imageLoading}
+                    <button onClick={handleSave} disabled={saving || imageLoading || recipeLoading}
                         style={{ flex: 2, padding: '12px', backgroundColor: saving ? '#C4A87A' : '#8B5E3C', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer' }}>
                         {saving ? 'Saving...' : product ? 'Save Changes' : 'Add Product'}
                     </button>

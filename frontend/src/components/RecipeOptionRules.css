@@ -1,0 +1,19 @@
+.recipe-ingredient-picker { margin-bottom: 16px; }
+.recipe-ingredient-trigger {
+    display: flex; justify-content: space-between; align-items: center;
+    width: 100%; padding: 11px 12px; border: 1px solid #d9c8ba;
+    border-radius: 6px; background: #fff; color: #805737; font: inherit;
+    text-align: left; cursor: pointer;
+}
+.recipe-ingredient-panel { margin-top: 6px; border: 1px solid #e4d8ce; border-radius: 7px; overflow: hidden; background: #fff; }
+.recipe-ingredient-search { display: flex; gap: 8px; padding: 10px; background: #faf7f3; }
+.recipe-ingredient-search input { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #ddd; border-radius: 5px; background: #fff; font: inherit; }
+.recipe-ingredient-search button { border: 0; background: transparent; color: #805737; font: inherit; cursor: pointer; }
+.recipe-ingredient-list-heading { display: flex; justify-content: space-between; padding: 6px 12px; color: #827367; font-size: 11px; border-bottom: 1px solid #eee7df; }
+.recipe-ingredient-list { max-height: 210px; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: #b69b83 #faf7f3; scrollbar-width: thin; }
+.recipe-ingredient-choice { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-bottom: 1px solid #f0ebe5; background: #fff; color: #31271e; font: inherit; text-align: left; cursor: pointer; }
+.recipe-ingredient-choice:hover { background: #f7f1ea; }
+.recipe-ingredient-choice:focus-visible, .recipe-ingredient-trigger:focus-visible, .recipe-ingredient-search input:focus-visible { outline: 2px solid #8b5e3c; outline-offset: -2px; }
+.recipe-ingredient-unit { flex-shrink: 0; font-size: 11px; color: #805737; background: #f5f0eb; border-radius: 4px; padding: 3px 7px; }
+.recipe-ingredient-empty { padding: 16px 12px; margin: 0; color: #827367; text-align: center; font-size: 12px; }
+.product-invalid-field { outline: 2px solid #b34332 !important; outline-offset: 2px; border-color: #b34332 !important; background-color: #fff8f5 !important; scroll-margin: 60px; }

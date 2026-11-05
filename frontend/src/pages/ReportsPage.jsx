@@ -498,7 +498,7 @@ const ReportsPage = () => {
         />
 
         <section style={{ ...cardStyle, padding: '16px', marginBottom: '18px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', alignItems: 'end' }}>
+          <div className="reports-filter-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', alignItems: 'end' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '900', textTransform: 'uppercase' }}>Preset</label>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

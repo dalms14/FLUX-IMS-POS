@@ -23,6 +23,7 @@ const validateGcashReference = require('./middleware/validateGcashReference');
 const { collectBackupRecords } = require('./services/backupExport');
 const { apiSecurity } = require('./middleware/apiSecurity');
 const { recordSaleUsage } = require('./services/inventoryHistory');
+const { normalizeRecipe, buildInventoryRequirements } = require('./services/recipeUsage');
 const { validateVariantPrices } = require('./middleware/variantPrices');
 const { authoritativeCheckout } = require('./services/checkoutPricing');
 
@@ -610,6 +611,7 @@ app.get('/api/products/:id/recipe', async (req, res) => {
   try {
     const recipe = await Recipe.findOne({ productId: req.params.id })
       .populate('ingredients.inventoryId', 'name unit category stock lowStockAt')
+      .populate('optionRules.ingredients.inventoryId', 'name unit category stock lowStockAt')
       .lean();
 
     res.json({ success: true, recipe: recipe || null });
@@ -622,50 +624,21 @@ app.get('/api/products/:id/recipe', async (req, res) => {
 // Create or update recipe/ingredient mapping for a product
 app.put('/api/products/:id/recipe', async (req, res) => {
   try {
-    const { ingredients } = req.body;
     const product = await Product.findById(req.params.id);
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    if (!Array.isArray(ingredients)) {
-      return res.status(400).json({ message: 'Ingredients must be an array' });
-    }
-
-    const inventoryIds = ingredients
-      .map(ingredient => ingredient.inventoryId)
-      .filter(Boolean);
-
-    const inventoryItems = await Inventory.find({ _id: { $in: inventoryIds } }).lean();
-    const inventoryMap = new Map(inventoryItems.map(item => [String(item._id), item]));
-
-    const normalizedIngredients = ingredients
-      .map(ingredient => {
-        const inventoryItem = inventoryMap.get(String(ingredient.inventoryId));
-        const amountPerServing = Number(ingredient.amountPerServing);
-        const platterMultiplier = Number(ingredient.platterMultiplier);
-
-        if (!inventoryItem || !Number.isFinite(amountPerServing) || amountPerServing <= 0) {
-          return null;
-        }
-
-        return {
-          inventoryId: inventoryItem._id,
-          name: inventoryItem.name,
-          amountPerServing,
-          unit: inventoryItem.unit,
-          platterMultiplier: Number.isFinite(platterMultiplier) && platterMultiplier > 0 ? platterMultiplier : 3,
-        };
-      })
-      .filter(Boolean);
+    const normalized = await normalizeRecipe(product, req.body);
+    const normalizedIngredients = normalized.ingredients;
 
     const recipe = await Recipe.findOneAndUpdate(
       { productId: product._id },
       {
         productId: product._id,
         productName: product.name,
-        ingredients: normalizedIngredients,
+        ...normalized,
       },
       { returnDocument: 'after', upsert: true, runValidators: true }
     );
@@ -677,6 +650,7 @@ app.put('/api/products/:id/recipe', async (req, res) => {
       entityName: product.name,
       details: `${normalizedIngredients.length} ingredient deduction rule(s) saved`,
       changes: {
+        ...(normalized.optionRules === undefined ? {} : { optionRules: normalized.optionRules }),
         ingredients: normalizedIngredients.map(ingredient => ({
           name: ingredient.name,
           amountPerServing: ingredient.amountPerServing,
@@ -689,7 +663,7 @@ app.put('/api/products/:id/recipe', async (req, res) => {
     res.json({ success: true, recipe });
   } catch (err) {
     console.error('Error saving recipe:', err);
-    res.status(500).json({ message: 'Failed to save recipe' });
+    res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to save recipe', code: err.code });
   }
 });
 
@@ -1197,46 +1171,6 @@ function getNearestExpirationDate(batches = []) {
     return dates[0] || null;
 }
 
-async function buildInventoryRequirements(items = []) {
-    const requirementMap = new Map();
-
-    for (const item of items) {
-        if (!item.productId) continue;
-
-        const recipe = await Recipe.findOne({ productId: item.productId }).lean();
-        if (!recipe) continue;
-
-        const quantity = Number(item.quantity || 0);
-        if (!Number.isFinite(quantity) || quantity <= 0) continue;
-
-        for (const ingredient of recipe.ingredients || []) {
-            if (!ingredient.inventoryId) continue;
-
-            const amountPerServing = Number(ingredient.amountPerServing || 0);
-            const platterMultiplier = Number(ingredient.platterMultiplier || 1);
-            const multiplier = item.size === 'platter' ? platterMultiplier : 1;
-            const requiredAmount = roundStockAmount(amountPerServing * multiplier * quantity);
-
-            if (!Number.isFinite(requiredAmount) || requiredAmount <= 0) continue;
-
-            const key = String(ingredient.inventoryId);
-            const existing = requirementMap.get(key) || {
-                inventoryId: ingredient.inventoryId,
-                name: ingredient.name,
-                unit: ingredient.unit,
-                required: 0,
-                products: [],
-            };
-
-            existing.required = roundStockAmount(existing.required + requiredAmount);
-            existing.products.push(item.name || recipe.productName);
-            requirementMap.set(key, existing);
-        }
-    }
-
-    return Array.from(requirementMap.values());
-}
-
 function buildShortage(requirement, inventoryItem) {
     const available = roundStockAmount(inventoryItem?.stock || 0);
 
@@ -1272,6 +1206,13 @@ app.post('/api/transactions', validateEliteMember, validateGcashReference, autho
                 _id: { $in: requirements.map(requirement => requirement.inventoryId) },
             }).lean();
             const inventoryMap = new Map(inventoryItems.map(item => [String(item._id), item]));
+
+            for (const requirement of requirements) {
+                const source = inventoryMap.get(String(requirement.inventoryId));
+                if (source && (source.archived || source.unit !== requirement.unit)) {
+                    return res.status(400).json({ code: 'INVALID_RECIPE', message: 'A recipe ingredient is archived or its unit has changed. Update the product recipe before checkout.' });
+                }
+            }
 
             const shortages = requirements
                 .filter(requirement => {
@@ -1328,7 +1269,7 @@ app.post('/api/transactions', validateEliteMember, validateGcashReference, autho
         }
 
         console.error('Transaction error:', err.message);
-        res.status(500).json({ message: 'Failed to save transaction.' });
+        res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to save transaction.', code: err.code });
     }
 });
 
@@ -1598,7 +1539,7 @@ app.post('/api/orders/:id/cancel', async (req, res) => {
             return res.status(400).json({ message: 'This order has no active items to cancel' });
         }
 
-        const requirements = await buildInventoryRequirements(activeItems);
+        const requirements = await buildInventoryRequirements(activeItems, { useSnapshots: true });
         for (const requirement of requirements) {
             await addInventoryStock(requirement.inventoryId, requirement.required, { note: 'Restored from cancelled order' });
         }
@@ -1707,7 +1648,7 @@ app.post('/api/orders/:id/cancel-items', async (req, res) => {
             });
         }
 
-        const requirements = await buildInventoryRequirements(selectedItems);
+        const requirements = await buildInventoryRequirements(selectedItems, { useSnapshots: true });
         for (const requirement of requirements) {
             await addInventoryStock(requirement.inventoryId, requirement.required, { note: 'Restored from cancelled order item' });
         }

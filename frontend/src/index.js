@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import './MobilePages.css';
+import './ResponsiveForms.css';
 import './utils/networkApi';
 import App from './App';
 import reportWebVitals from './reportWebVitals';

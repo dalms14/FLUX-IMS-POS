@@ -1,0 +1,13 @@
+.pos-items-tools { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pos-price-button, .pos-price-options button { border: 1px solid #d9c8ba; border-radius: 7px; padding: 9px 12px; background: #fff; color: #805737; font: inherit; font-size: 13px; cursor: pointer; }
+.pos-price-button[aria-expanded="true"], .pos-price-options button:hover { background: #f5eee6; }
+.pos-price-options { flex-basis: 100%; padding: 12px; border: 1px solid #e4d8ce; border-radius: 8px; background: #fff; font-size: 13px; }
+.pos-price-custom { display: flex; flex-wrap: wrap; gap: 8px; }
+.pos-price-options label { display: block; margin-bottom: 6px; }
+.pos-price-options input { flex: 1; min-width: 100px; padding: 9px 10px; border: 1px solid #d9c8ba; border-radius: 6px; font: inherit; }
+.pos-price-options p, .pos-budget-summary { margin: 8px 0 0; font-size: 12px; color: #827367; }
+.pos-price-options [role="alert"] { color: #a32c2c; }
+.pos-budget-summary { display: flex; align-items: center; gap: 10px; margin: -5px 0 12px; }
+.pos-budget-summary button { border: 0; background: transparent; color: #805737; text-decoration: underline; cursor: pointer; }
+.items-header-search { gap: 12px; flex-wrap: wrap; }
+@media (max-width: 600px) { .pos-items-tools { width: 100%; justify-content: flex-start; } .pos-items-tools > input { flex: 1; min-width: 110px; } }

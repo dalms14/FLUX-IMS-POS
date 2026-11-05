@@ -18,7 +18,7 @@ export default function AppNotice({ notice, onDismiss }) {
       {success ? <FiCheckCircle size={20} style={{ flexShrink: 0, marginTop: '1px', color: '#8B5E3C' }} /> : <FiAlertCircle size={20} style={{ flexShrink: 0, marginTop: '1px', color: '#8B5E3C' }} />}
       <div style={{ flex: 1, minWidth: 0 }}>
         <strong style={{ display: 'block', fontSize: '13px' }}>{notice.title}</strong>
-        <p style={{ margin: '5px 0 0', fontSize: '12px', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{notice.message}</p>
+        <p id="app-notice-message" style={{ margin: '5px 0 0', fontSize: '12px', lineHeight: 1.5, overflowWrap: 'anywhere' }}>{notice.message}</p>
       </div>
       <button type="button" onClick={onDismiss} aria-label="Dismiss notification" style={{ display: 'flex', padding: '2px', border: 'none', background: 'transparent', color: '#8A7A6B', cursor: 'pointer' }}><FiX size={17} /></button>
     </div>, document.body);

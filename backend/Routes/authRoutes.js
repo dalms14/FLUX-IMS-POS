@@ -1077,11 +1077,12 @@ router.post('/password-reset/confirm', async (req, res) => {
 
 router.get('/my-activity', async (req, res) => {
     try {
-        const [transactions, refunds] = await Promise.all([
+        const [transactions, refunds, lastSignIn] = await Promise.all([
             require('../models/Transaction').find({ cashierEmail: req.user.email }).sort({ createdAt: -1 }).limit(50),
             require('../models/Refund').find({ refundedByEmail: req.user.email }).sort({ createdAt: -1 }).limit(50),
+            LoginActivity.findOne({ userId: req.user._id, action: 'login' }).sort({ createdAt: -1 }).select('createdAt').lean(),
         ]);
-        res.json({ transactions, refunds });
+        res.json({ transactions, refunds, user: serializeUser(req.user), lastSignInAt: lastSignIn?.createdAt || null });
     } catch (err) {
         res.status(500).json({ message: 'Unable to load your account activity.' });
     }

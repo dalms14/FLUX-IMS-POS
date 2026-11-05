@@ -22,6 +22,41 @@ beforeEach(() => {
   axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/discounts') ? { data: [] } : [] }));
 });
 
+test('budget filtering combines with category and search, excludes the boundary, and clears without changing the cart', async () => {
+  const products = [
+    { _id: 'a', name: 'Budget Brew', category: 'Drinks', soloPrice: 175 },
+    { _id: 'b', name: 'Boundary Brew', category: 'Drinks', soloPrice: 200 },
+    { _id: 'c', name: 'Premium Brew', category: 'Drinks', soloPrice: 250 },
+    { _id: 'd', name: 'Budget Fries', category: 'Appetizer', price: 150 },
+  ];
+  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/products') ? products : url.endsWith('/discounts') ? { data: [] } : { recipe: null } }));
+  render(<Items />);
+  await screen.findByText('Premium Brew');
+  fireEvent.click(screen.getByRole('button', { name: 'Price filter' }));
+  fireEvent.change(screen.getByLabelText('Customer budget (PHP)'), { target: { value: '200' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  expect(screen.getByText('Budget Brew')).toBeInTheDocument();
+  expect(screen.getByText('Budget Fries')).toBeInTheDocument();
+  expect(screen.queryByText('Boundary Brew')).not.toBeInTheDocument();
+  expect(screen.queryByText('Premium Brew')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Drinks' }));
+  expect(screen.queryByText('Budget Fries')).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search products' }), { target: { value: 'Premium' } });
+  expect(screen.getByText('No products found.')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Below ₱200' }));
+  fireEvent.change(screen.getByLabelText('Customer budget (PHP)'), { target: { value: '-1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a budget above 0');
+  expect(screen.getByText('No products found.')).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('Customer budget (PHP)'), { target: { value: '250.01' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+  expect(screen.getByText('Premium Brew')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear price filter' }));
+  expect(screen.getByRole('button', { name: 'Price filter' })).toBeInTheDocument();
+  expect(screen.getByText('Premium Brew')).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1);
+});
+
 test.each(['Cash', 'GCash'])('%s checkout opens the receipt and returns to an empty POS without an order board', async payment => {
   axios.post.mockResolvedValue({ data: { success: true, receiptNo: 'FLX-TEST', orderStatus: 'completed' } });
   render(<Items />);

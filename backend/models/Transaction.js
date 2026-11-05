@@ -54,6 +54,11 @@ const TransactionSchema = new mongoose.Schema({
         quantity:        Number,
         subtotal:        Number,
         discountEligibleQuantity: { type: Number, default: 0 },
+        inventoryUsageRecorded: { type: Boolean, default: false },
+        inventoryUsage: [{
+            inventoryId: { type: mongoose.Schema.Types.ObjectId, ref: 'Inventory' },
+            name: String, unit: String, quantityPerItem: Number,
+        }],
     }],
     subtotal:       { type: Number, required: true },
     tax:            { type: Number, default: 0 },
