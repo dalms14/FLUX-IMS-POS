@@ -33,7 +33,17 @@ const statusStyles = {
   refunded: { backgroundColor: '#FFF5F5', color: '#C53030' },
 };
 
-const getOrderStatus = (transaction) => String(transaction.orderStatus || 'completed').toLowerCase();
+const getOrderStatus = (transaction) => String(transaction.paymentMethod || '').trim().toLowerCase() === 'cancelled'
+  ? 'cancelled'
+  : String(transaction.orderStatus || 'completed').trim().toLowerCase();
+
+const businessDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+const businessDate = value => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : businessDateFormatter.format(date);
+};
 
 const getTransactionStatus = (transaction, refundMap) => {
   const orderStatus = getOrderStatus(transaction);
@@ -177,23 +187,16 @@ const Dashboard = () => {
   }, [fetchDashboardData]);
 
   // Calculate stats from transactions
-  const todayTransactions = transactions.filter(t => {
-    const tDate = new Date(t.createdAt).toDateString();
-    const today = new Date().toDateString();
-    return tDate === today;
-  });
-  const todayFinalTransactions = todayTransactions.filter(t =>
-    ['completed', 'cancelled'].includes(getOrderStatus(t))
-  );
-
+  const today = businessDate(new Date());
+  const todayTransactions = transactions.filter(t => businessDate(t.createdAt) === today);
   const todayCompletedTransactions = todayTransactions.filter(t =>
-    ['completed', 'cancelled'].includes(getOrderStatus(t))
+    getOrderStatus(t) === 'completed'
   );
 
-  const todaySales = todayCompletedTransactions.reduce((sum, t) => sum + t.total, 0);
-  const todayOrders = todayFinalTransactions.length;
-  const todayItemsSold = todayFinalTransactions.reduce((sum, t) => (
-    sum + (t.items || []).reduce((itemSum, item) => itemSum + (item.quantity || 0), 0)
+  const todaySales = todayCompletedTransactions.reduce((sum, t) => sum + Number(t.total || 0), 0);
+  const todayOrders = todayCompletedTransactions.length;
+  const todayItemsSold = todayCompletedTransactions.reduce((sum, t) => (
+    sum + (t.items || []).reduce((itemSum, item) => itemSum + Number(item.quantity || 0), 0)
   ), 0);
   const refundMap = refunds.reduce((map, refund) => {
     const transactionKey = String(refund.transactionId || '');
@@ -205,8 +208,8 @@ const Dashboard = () => {
 
     return map;
   }, new Map());
-  const completedTodayOrders = todayFinalTransactions.filter(t => getTransactionStatus(t, refundMap) === 'completed').length;
-  const refundedTodayOrders = todayFinalTransactions.length - completedTodayOrders;
+  const completedTodayOrders = todayCompletedTransactions.filter(t => getTransactionStatus(t, refundMap) === 'completed').length;
+  const refundedTodayOrders = todayCompletedTransactions.length - completedTodayOrders;
 
   const now = new Date();
   const timeString = now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
@@ -237,16 +240,14 @@ const Dashboard = () => {
               icon={<LuPhilippinePeso size={32} color="#8B5E3C" />}
               label="Today's Revenue"
               value={`₱${todaySales.toLocaleString()}`}
-              subtext={`${todayOrders} orders`}
-              trend={12}
+              subtext={`${todayOrders} completed order${todayOrders === 1 ? '' : 's'}`}
               color="#8B5E3C"
             />
             <KPICard
               icon={<FiPackage size={32} color="#38A169" />}
               label="Total Orders"
               value={todayOrders}
-              subtext="Today"
-              trend={8}
+              subtext="Completed today"
               color="#38A169"
             />
             <KPICard
@@ -254,7 +255,6 @@ const Dashboard = () => {
               label="Items Sold"
               value={todayItemsSold}
               subtext={`Avg ${todayOrders > 0 ? Math.round(todayItemsSold / todayOrders) : 0} per order`}
-              trend={5}
               color="#D69E2E"
             />
             <KPICard

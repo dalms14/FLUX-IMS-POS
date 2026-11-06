@@ -92,6 +92,27 @@ test('stock rejection keeps the cart and does not show a saved receipt', async (
   expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1);
 });
 
+test.each([
+  [{ _id: 'chicken', unit: 'pcs', stock: 500 }, 'Recipe Issue', /recipe uses g, but inventory uses pcs/],
+  [{ _id: 'chicken', unit: 'g', stock: 500, archived: true }, 'Recipe Issue', /ingredient is archived/],
+  [null, 'Recipe Issue', /inventory ingredient is missing/],
+  [{ _id: 'chicken', unit: 'g', stock: 500, lowStockAt: 800 }, 'Low Stock', null],
+])('product availability distinguishes recipe problems from low stock: %j', async (inventory, badge, issue) => {
+  localStorage.removeItem('fluxCashierSession');
+  const product = { _id: 'meal', name: 'Chicken Meal', soloPrice: 100, image: 'data:image/png;base64,test' };
+  const recipe = { ingredients: [{ inventoryId: inventory, name: 'Chicken', unit: 'g', amountPerServing: 440 }] };
+  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/products') ? [product] : url.endsWith('/recipe') ? { recipe } : url.endsWith('/discounts') ? { data: [] } : product }));
+  render(<Items />);
+  await screen.findByText(badge);
+  fireEvent.click(screen.getByRole('button', { name: issue ? 'Unavailable' : 'Add', exact: true }));
+  if (issue) {
+    expect(await screen.findByText(issue)).toBeInTheDocument();
+    expect(screen.getByText('No items added yet.')).toBeInTheDocument();
+  } else {
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1));
+  }
+});
+
 test('server failure is caught in checkout, preserves the cart, and allows a successful retry', async () => {
   axios.post.mockRejectedValueOnce({ response: { status: 500, data: { message: 'Failed to save transaction.' } } })
     .mockResolvedValueOnce({ data: { success: true, receiptNo: 'FLX-RETRY', orderStatus: 'completed' } });

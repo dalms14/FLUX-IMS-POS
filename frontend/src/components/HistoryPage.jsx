@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from '../components/Sidebar';
 import InventoryHistoryPanel from './InventoryHistoryPanel';
 import { hasPermission } from '../utils/roles';
+import { FiCreditCard, FiPackage, FiTrendingUp, FiRotateCcw } from 'react-icons/fi';
+import './HistoryPage.css';
 
 const ALL_TABS = [
   'Transaction History',
@@ -9,6 +11,13 @@ const ALL_TABS = [
   { label: 'Sales History', adminOnly: true },
   'Refunds',
 ];
+
+const TAB_ICONS = {
+  'Transaction History': FiCreditCard,
+  'Inventory History': FiPackage,
+  'Sales History': FiTrendingUp,
+  Refunds: FiRotateCcw,
+};
 
 const tableHeaderStyle = {
   padding: '14px 16px',
@@ -396,26 +405,22 @@ const HistoryPage = () => {
       <Sidebar />
 
       <div className="mobile-page-content history-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px', backgroundColor: '#F5F0EB' }}>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '28px', flexWrap: 'wrap' }}>
-          {tabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: activeTab === tab ? 'none' : '1.5px solid #1a1a1a',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '800',
-                backgroundColor: activeTab === tab ? '#1a1a1a' : '#fff',
-                color: activeTab === tab ? '#fff' : '#1a1a1a',
-                transition: 'all 0.15s',
-              }}
-            >
-              {tab}
-            </button>
-          ))}
+        <div className="history-navigation" role="group" aria-label="History sections">
+          {tabs.map(tab => {
+            const Icon = TAB_ICONS[tab];
+            return (
+              <button
+                key={tab}
+                type="button"
+                className="history-navigation-button"
+                aria-pressed={activeTab === tab}
+                onClick={() => setActiveTab(tab)}
+              >
+                <Icon aria-hidden="true" />
+                <span>{tab}</span>
+              </button>
+            );
+          })}
         </div>
 
         {renderContent()}

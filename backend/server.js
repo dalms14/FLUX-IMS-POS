@@ -613,8 +613,8 @@ app.get('/api/products/:id', async (req, res) => {
 app.get('/api/products/:id/recipe', async (req, res) => {
   try {
     const recipe = await Recipe.findOne({ productId: req.params.id })
-      .populate('ingredients.inventoryId', 'name unit category stock lowStockAt')
-      .populate('optionRules.ingredients.inventoryId', 'name unit category stock lowStockAt')
+      .populate('ingredients.inventoryId', 'name unit category stock lowStockAt archived')
+      .populate('optionRules.ingredients.inventoryId', 'name unit category stock lowStockAt archived')
       .lean();
 
     res.json({ success: true, recipe: recipe || null });
@@ -1212,8 +1212,11 @@ app.post('/api/transactions', validateEliteMember, validateGcashReference, autho
 
             for (const requirement of requirements) {
                 const source = inventoryMap.get(String(requirement.inventoryId));
-                if (source && (source.archived || source.unit !== requirement.unit)) {
-                    return res.status(400).json({ code: 'INVALID_RECIPE', message: 'A recipe ingredient is archived or its unit has changed. Update the product recipe before checkout.' });
+                if (source?.archived) {
+                    return res.status(400).json({ code: 'INVALID_RECIPE', message: `${source.name || requirement.name} is archived. Select an active ingredient in the product recipe before checkout.` });
+                }
+                if (source && source.unit !== requirement.unit) {
+                    return res.status(400).json({ code: 'INVALID_RECIPE', message: `${source.name || requirement.name} uses ${requirement.unit} in the recipe, but inventory uses ${source.unit}. Correct the ingredient unit or recipe before checkout.` });
                 }
             }
 

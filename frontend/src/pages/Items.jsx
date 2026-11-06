@@ -224,6 +224,7 @@ const buildProductStockStatus = (recipe) => {
 
   const shortageDetails = [];
   const lowDetails = [];
+  const recipeIssues = [];
 
   ingredients.forEach(ingredient => {
     const source = ingredient.inventoryId || {};
@@ -233,12 +234,24 @@ const buildProductStockStatus = (recipe) => {
     const name = source.name || ingredient.name || 'Ingredient';
     const unit = source.unit || ingredient.unit || '';
 
+    if (!source._id) {
+      recipeIssues.push(`${name}: inventory ingredient is missing. Update the product recipe.`);
+    } else if (source.archived) {
+      recipeIssues.push(`${name}: ingredient is archived. Select an active ingredient in the product recipe.`);
+    } else if (source.unit !== ingredient.unit) {
+      recipeIssues.push(`${name}: recipe uses ${ingredient.unit}, but inventory uses ${source.unit}. Correct the ingredient unit or recipe.`);
+    }
+
     if (required > 0 && stock < required) {
       shortageDetails.push(`${name}: needs ${required} ${unit}, available ${stock} ${unit}`);
     } else if (stock > 0 && lowStockAt > 0 && stock <= lowStockAt) {
       lowDetails.push(`${name}: ${stock} ${unit} left, alert at ${lowStockAt} ${unit}`);
     }
   });
+
+  if (recipeIssues.length > 0) {
+    return { level: 'out', label: 'Recipe Issue', details: recipeIssues };
+  }
 
   if (shortageDetails.length > 0) {
     return { level: 'out', label: 'Unavailable', details: shortageDetails };
@@ -1254,7 +1267,7 @@ const Items = () => {
       vibrateCannotOrder();
       addNotification({
         title: `${product.name} cannot be ordered`,
-        message: 'One or more ingredients are out of stock or below the amount needed for one serving.',
+        message: product.stockStatus.label === 'Recipe Issue' ? 'Correct the ingredient mapping before ordering this product.' : 'One or more ingredients are out of stock or below the amount needed for one serving.',
         details: product.stockStatus.details || [],
       });
       return;
@@ -1274,7 +1287,7 @@ const Items = () => {
       vibrateCannotOrder();
       addNotification({
         title: `${latestProduct.name} cannot be ordered`,
-        message: 'One or more ingredients are out of stock or below the amount needed for one serving.',
+        message: latestProduct.stockStatus.label === 'Recipe Issue' ? 'Correct the ingredient mapping before ordering this product.' : 'One or more ingredients are out of stock or below the amount needed for one serving.',
         details: latestProduct.stockStatus.details || [],
       });
       return;
@@ -1795,6 +1808,7 @@ const Items = () => {
       {receiptData && (
         <ReceiptViewModal
             {...receiptData}
+            autoPrint
             onClose={() => setReceiptData(null)}
         />
     )}

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { printReceipt } from '../utils/printReceipt';
 
 // ── RECEIPT VIEW MODAL ──
@@ -34,21 +34,36 @@ const getItemScopedDiscountName = (discount, type) => {
     return 'Discount';
 };
 
-const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, discount, total, paymentMethod, amountTendered, change, gcashReference, cashier, customerType, eliteMember, selectedDiscount, discountInfo, createdAt, closeLabel = 'New Order', onClose }) => {
+const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, discount, total, paymentMethod, amountTendered, change, gcashReference, cashier, customerType, eliteMember, selectedDiscount, discountInfo, createdAt, autoPrint = false, closeLabel = 'New Order', onClose }) => {
     const receiptRef = useRef(null);
+    const autoPrintedReceipt = useRef(null);
+    const printInProgress = useRef(false);
     const [printing, setPrinting] = useState(false);
     const [printError, setPrintError] = useState('');
-    const handlePrint = async () => {
+    const handlePrint = useCallback(async () => {
+        if (printInProgress.current) return;
+        printInProgress.current = true;
         setPrinting(true);
         setPrintError('');
         try {
             await printReceipt(receiptRef.current);
         } catch {
-            setPrintError('Unable to open printing. Please try again.');
+            setPrintError(autoPrint
+                ? 'Order saved, but printing could not start. Reprint the receipt from Transactions.'
+                : 'Unable to open printing. Please try again.');
         } finally {
+            printInProgress.current = false;
             setPrinting(false);
         }
-    };
+    }, [autoPrint]);
+
+    useEffect(() => {
+        if (!autoPrint || !receiptNo || autoPrintedReceipt.current === receiptNo) return;
+        // Guard against rerenders and React Strict Mode replaying the effect.
+        // Printing errors must never submit the saved order again.
+        autoPrintedReceipt.current = receiptNo;
+        handlePrint();
+    }, [autoPrint, receiptNo, handlePrint]);
     const now = createdAt ? new Date(createdAt) : new Date();
     const dateStr = now.toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true });
@@ -79,7 +94,7 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
     );
 
     return (
-        <div style={{
+        <div role="dialog" aria-modal="true" aria-label="Receipt" style={{
             position: 'fixed', inset: 0,
             backgroundColor: 'rgba(0,0,0,0.6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -222,9 +237,10 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                 </div>
 
                 {/* Action Buttons */}
-                <p style={{ padding: '0 24px', fontSize: '11px', color: '#6b5748' }}>
+                {!autoPrint && <p style={{ padding: '0 24px', fontSize: '11px', color: '#6b5748' }}>
                     Print setup: select your receipt printer, 58 mm paper, 100% scale, and turn off headers and footers.
-                </p>
+                </p>}
+                {autoPrint && printing && <p role="status" style={{ padding: '0 24px', fontSize: '12px', color: '#6b5748' }}>Preparing receipt for printing...</p>}
                 {printError && <p role="alert" style={{ padding: '0 24px', fontSize: '12px', color: '#a12622' }}>{printError}</p>}
                 <div style={{
                     padding: '16px 24px',
@@ -233,7 +249,7 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                     backgroundColor: '#fafafa',
                     borderRadius: '0 0 12px 12px',
                 }}>
-                    <button
+                    {!autoPrint && <button
                         type="button"
                         onClick={handlePrint}
                         disabled={printing}
@@ -245,14 +261,16 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                         }}
                     >
                         {printing ? 'Preparing…' : 'Print Receipt'}
-                    </button>
+                    </button>}
                     <button
+                        type="button"
                         onClick={onClose}
+                        disabled={printing}
                         style={{
                             flex: 1, padding: '12px',
                             backgroundColor: '#8B5E3C', color: '#fff',
                             border: 'none', borderRadius: '8px',
-                            fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+                            fontSize: '13px', fontWeight: '700', cursor: printing ? 'wait' : 'pointer',
                         }}
                     >
                         {closeLabel}
