@@ -40,6 +40,7 @@ These changes implement the two items selected for this revision. Implementation
 ## Account creation placement
 
 - Create Account is available from **Users**, with a **Back to Users** link on the creation page. It is no longer a Settings section.
+- The unused PIN field is removed from account creation. New accounts continue to use email and password.
 - **Create Accounts** requires **Users** access. The checkbox is locked until Users is selected, and unchecking Users clears Create Accounts in both creation and access editing.
 - The server removes Create Accounts from submitted roles without Users and denies account creation for existing roles that lack Users access.
 - Retest: select Users and Create Accounts, uncheck Users, and save. Confirm Create Accounts is cleared and the account cannot create users through either the page or API.

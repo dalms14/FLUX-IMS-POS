@@ -24,7 +24,6 @@ test('applying a template changes only role and permissions, which remain editab
   fireEvent.change(screen.getByPlaceholderText('e.g. Maria Santos'), { target: { value: 'New Staff' } });
   fireEvent.change(screen.getByPlaceholderText('staff.personal@gmail.com'), { target: { value: 'new@example.com' } });
   fireEvent.change(screen.getByPlaceholderText('Minimum 6 characters'), { target: { value: 'temporary123' } });
-  fireEvent.change(screen.getByPlaceholderText('6 digits'), { target: { value: '123456' } });
   fireEvent.change(screen.getByPlaceholderText('Auto-generated if blank'), { target: { value: 'ELI999' } });
   await applyRole();
   expect(screen.getByPlaceholderText('e.g. Finance')).toHaveValue('Inventory Clerk');
@@ -34,7 +33,6 @@ test('applying a template changes only role and permissions, which remain editab
   expect(screen.getByPlaceholderText('e.g. Maria Santos')).toHaveValue('New Staff');
   expect(screen.getByPlaceholderText('staff.personal@gmail.com')).toHaveValue('new@example.com');
   expect(screen.getByPlaceholderText('Minimum 6 characters')).toHaveValue('temporary123');
-  expect(screen.getByPlaceholderText('6 digits')).toHaveValue('123456');
   expect(screen.getByPlaceholderText('Auto-generated if blank')).toHaveValue('ELI999');
   fireEvent.click(screen.getByRole('checkbox', { name: 'Sales' }));
   expect(screen.getByRole('checkbox', { name: 'Sales' })).toBeChecked();
@@ -48,6 +46,7 @@ test('applying a template changes only role and permissions, which remain editab
 test('template access is sent through the normal verified-account creation flow', async () => {
   axios.post.mockResolvedValueOnce({ data: { message: 'Code sent' } }).mockResolvedValueOnce({ data: { user: { name: 'New Staff', jobRole: 'Inventory Clerk', userId: 'ELI999' } } });
   render(<UserAccountSettings />);
+  expect(screen.queryByText('PIN', { exact: true })).not.toBeInTheDocument();
   await applyRole();
   fireEvent.change(screen.getByPlaceholderText('e.g. Maria Santos'), { target: { value: 'New Staff' } });
   fireEvent.change(screen.getByPlaceholderText('staff.personal@gmail.com'), { target: { value: 'new@example.com' } });
@@ -58,6 +57,7 @@ test('template access is sent through the normal verified-account creation flow'
   fireEvent.change(screen.getByPlaceholderText('000000'), { target: { value: '123456' } });
   fireEvent.click(screen.getByRole('button', { name: 'Verify Email & Create User' }));
   await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/auth/users', expect.objectContaining({ role: 'custom', jobRole: 'Inventory Clerk', permissions: ['dashboard', 'inventory'], email: 'new@example.com', verificationCode: '123456' })));
+  expect(axios.post.mock.calls.find(([url]) => url === 'http://localhost:5000/api/auth/users')[1]).not.toHaveProperty('pin');
   await screen.findByText(/Email verified. Created New Staff/);
   expect(screen.getByLabelText('Reuse an existing role')).toHaveValue('');
   await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(2));

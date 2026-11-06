@@ -1675,7 +1675,6 @@ export const UserAccountSettings = () => {
         email: '',
         password: '',
         userId: '',
-        pin: '',
         role: 'staff',
         jobRole: '',
         permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'],
@@ -1750,11 +1749,6 @@ export const UserAccountSettings = () => {
             return;
         }
 
-        if (form.pin && form.pin.length !== 6) {
-            setMessage({ type: 'error', text: 'PIN must be exactly 6 digits.' });
-            return;
-        }
-
         if (form.password.length < 6) {
             setMessage({ type: 'error', text: 'Temporary password must be at least 6 characters.' });
             return;
@@ -1809,7 +1803,6 @@ export const UserAccountSettings = () => {
                 jobRole: form.role === 'custom' ? form.jobRole : undefined,
                 permissions: form.role === 'custom' ? form.permissions : undefined,
                 userId: form.userId.trim(),
-                pin: form.pin.trim(),
                 verificationCode: verification.code,
             });
 
@@ -1817,7 +1810,7 @@ export const UserAccountSettings = () => {
                 type: 'success',
                 text: `Email verified. Created ${res.data.user.name} as ${res.data.user.jobRole || res.data.user.role}. User ID: ${res.data.user.userId}`,
             });
-            setForm({ name: '', email: '', password: '', userId: '', pin: '', role: 'staff', jobRole: '', permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'] });
+            setForm({ name: '', email: '', password: '', userId: '', role: 'staff', jobRole: '', permissions: ['dashboard', 'items', 'transactions', 'history', 'settings'] });
             setSelectedTemplateId('');
             setTemplatesVersion(value => value + 1);
             setVerification({ pending: false, email: '', code: '' });
@@ -1904,14 +1897,10 @@ export const UserAccountSettings = () => {
                         <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#777' }}>The user must replace this temporary password on their first sign-in.</p>
                     </div>
                     <div>
-                        <label style={labelStyle}>PIN</label>
-                        <input style={inputStyle} inputMode="numeric" maxLength="6" value={form.pin} onChange={e => updateField('pin', e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="6 digits" />
-                    </div>
-                    <div>
                         <label style={labelStyle}>User ID</label>
                         <input style={inputStyle} value={form.userId} onChange={e => updateField('userId', e.target.value)} placeholder="Auto-generated if blank" />
                     </div>
-                    <div>
+                    <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Role *</label>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                             {['staff', 'custom'].map(role => (
