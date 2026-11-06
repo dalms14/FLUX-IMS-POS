@@ -63,7 +63,7 @@ test('keeps the owner password check and closes after a successful download', as
   expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
   fireEvent(screen.getByRole('dialog'), new Event('cancel', { bubbles: true, cancelable: true }));
   expect(screen.getByRole('dialog')).toBeInTheDocument();
-  finish({ data: { backup: { createdAt: '2026-10-23T00:00:00Z', data: { products: [{ name: 'Coffee' }], categories: [{ name: 'Drinks' }], addons: [{ name: 'Milk' }], discounts: [{ name: 'PWD' }], inventory: [{ name: 'Beans' }], transactions: [{ receiptNo: 'TEST' }], refunds: [], recipes: [{ name: 'Coffee recipe' }] } } } });
+  finish({ data: { backup: { createdAt: '2026-10-23T00:00:00Z', data: { products: [{ name: 'Coffee' }], categories: [{ name: 'Drinks' }], addons: [{ name: 'Milk' }], discounts: [{ name: 'PWD' }], inventory: [{ name: 'Beans' }], transactions: [{ receiptNo: 'TEST' }], refunds: [], recipes: [{ name: 'Coffee recipe' }], eliteMembers: [{ name: 'Member', idNumber: '001' }] } } } });
   await screen.findByText('Backup file exported successfully.');
   expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/system/backup', { email: 'owner@example.com', password: 'owner-password' });
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

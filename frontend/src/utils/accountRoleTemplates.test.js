@@ -31,11 +31,11 @@ test('deduplicates matching roles and keeps different access sets distinct', () 
   expect(templates[1].id).not.toBe(templates[2].id);
 });
 
-test('matches effective Finance/HR permissions and legacy custom access defaults', () => {
+test('preserves Finance/HR and legacy access while membership requires an explicit grant', () => {
   const templates = buildAccountRoleTemplates([
     { role: 'custom', jobRole: 'Finance', permissions: ['sales', 'not-a-real-page'] },
     { role: 'custom', jobRole: 'Legacy Supervisor' },
   ]);
   expect(templates.find(item => item.jobRole === 'Finance').permissions).toEqual(['sales', 'purchase_orders']);
-  expect(templates.find(item => item.jobRole === 'Legacy Supervisor').permissions).toHaveLength(PERMISSIONS.length);
+  expect(templates.find(item => item.jobRole === 'Legacy Supervisor').permissions).toEqual(PERMISSIONS.filter(permission => permission.key !== 'elite_members').map(permission => permission.key));
 });

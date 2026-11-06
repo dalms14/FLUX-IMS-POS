@@ -19,6 +19,7 @@ const purchaseOrderRoutes = require('./Routes/purchaseOrderRoutes');
 const notificationRoutes = require('./Routes/notificationRoutes');
 const salesForecastRoutes = require('./Routes/salesForecastRoutes');
 const validateEliteMember = require('./middleware/validateEliteMember');
+const eliteMemberRoutes = require('./Routes/eliteMemberRoutes');
 const validateGcashReference = require('./middleware/validateGcashReference');
 const { collectBackupRecords } = require('./services/backupExport');
 const { apiSecurity } = require('./middleware/apiSecurity');
@@ -74,6 +75,7 @@ app.use('/api', historyRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/sales-forecast', salesForecastRoutes);
+app.use('/api/elite-members', eliteMemberRoutes);
 
 // Backups contain sensitive business records, so exporting one requires the owner's
 // saved account email and a fresh password confirmation.
@@ -253,6 +255,8 @@ async function seedDefaultDiscounts() {
 app.get('/api/system-audit', async (req, res) => {
   try {
     const { module, startDate, endDate } = req.query;
+    const page = req.query.page === undefined ? null : Number(req.query.page);
+    if (page !== null && (!Number.isSafeInteger(page) || page < 1 || page > 100000)) return res.status(400).json({ message: 'Select a valid report page.' });
     const filter = {};
 
     if (module) filter.module = module;
@@ -262,12 +266,11 @@ app.get('/api/system-audit', async (req, res) => {
       if (endDate) filter.createdAt.$lte = parseAuditEndDate(endDate);
     }
 
-    const logs = await SystemAudit.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(500)
-      .lean();
-
-    res.json({ success: true, count: logs.length, data: logs });
+    let query = SystemAudit.find(filter).sort({ createdAt: -1, _id: -1 });
+    if (page !== null) query = query.skip((page - 1) * 500);
+    const logs = await query.limit(page === null ? 500 : 501).lean();
+    const data = page === null ? logs : logs.slice(0, 500);
+    res.json({ success: true, count: data.length, data, ...(page === null ? {} : { page, hasMore: logs.length > 500 }) });
   } catch (err) {
     console.error('Error fetching system audit:', err);
     res.status(500).json({ message: 'Failed to fetch system audit' });
@@ -1262,7 +1265,7 @@ app.post('/api/transactions', validateEliteMember, validateGcashReference, autho
 
         await recordSaleUsage(transaction, requirements);
         console.log(`Transaction saved: ${receiptNo} | Order: ${orderNo} | Total: ${total}`);
-        res.json({ success: true, receiptNo, orderNo, orderStatus: transaction.orderStatus, transactionId: transaction._id, checkout: { items, subtotal, tax, discount, total, paymentMethod, amountTendered, change, discountInfo, customerType, cashier } });
+        res.json({ success: true, receiptNo, orderNo, orderStatus: transaction.orderStatus, transactionId: transaction._id, checkout: { items, subtotal, tax, discount, total, paymentMethod, amountTendered, change, discountInfo, customerType, cashier, eliteMember } });
     } catch (err) {
         for (const deducted of deductedRequirements) {
             await addInventoryStock(deducted.inventoryId, deducted.required, { note: 'Rollback after checkout error' });

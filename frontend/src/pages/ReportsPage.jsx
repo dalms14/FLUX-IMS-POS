@@ -1,4 +1,5 @@
 import { rowsToCsv } from '../utils/csv';
+import ReportCsvExportModal from '../components/ReportCsvExportModal';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
@@ -142,6 +143,7 @@ const ReportsPage = () => {
   const [activeReport, setActiveReport] = useState('overview');
   const [loginQuery, setLoginQuery] = useState('');
   const [loginRole, setLoginRole] = useState('all');
+  const [csvOpen, setCsvOpen] = useState(false);
 
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -393,57 +395,9 @@ const ReportsPage = () => {
     });
   }, [loginActivity, loginQuery, loginRole]);
 
-  const exportCsv = () => {
-    const rows = [
-      ['FLUX Reports'],
-      ['Period', startDate || 'All', endDate || 'All'],
-      [],
-      ['Financial Summary'],
-      ['Gross Sales', report.grossSales],
-      ['Approved/Completed Refunds', report.refundTotal],
-      ['Net Sales', report.netSales],
-      ['Cancelled Checkouts', report.cancelledTransactions.length],
-      ['Discounts', report.discounts],
-      ['Tax', report.tax],
-      ['Pending Refund Value', report.pendingRefundTotal],
-      [],
-      ['Payment Method', 'Orders', 'Gross Sales', 'Amount Tendered', 'Change'],
-      ...report.paymentRows.map(row => [row.method, row.orders, row.gross, row.amountTendered, row.change]),
-      [],
-      ['Product', 'Category', 'Qty Sold', 'Gross Sales'],
-      ...report.productRows.map(row => [row.name, row.category, row.quantity, row.gross]),
-      [],
-      ['Inventory Item', 'Category', 'Stock', 'Unit', 'Low Stock At', 'Status'],
-      ...inventory.map(item => [
-        item.name,
-        item.category || 'General',
-        item.stock,
-        item.unit,
-        item.lowStockAt,
-        (item.stock || 0) === 0 ? 'Out of Stock' : (item.stock || 0) <= (item.lowStockAt || 0) ? 'Low Stock' : 'In Stock',
-      ]),
-      [],
-      ['Inventory Movement Date', 'Item', 'Action', 'Quantity', 'By', 'Reason'],
-      ...inventoryHistory.map(row => [
-        formatDateTime(row.date),
-        row.item,
-        row.action,
-        row.quantity,
-        row.by,
-        row.reason,
-      ]),
-      [],
-      ['Activity Date', 'Type', 'Reference', 'Actor', 'Detail', 'Amount'],
-      ...report.activityRows.map(row => [formatDateTime(row.date), row.type, row.reference, row.actor, row.detail, row.amount]),
-      [],
-      ['Activity Time', 'Name', 'Email', 'Role', 'Staff ID', 'Status', 'Device'],
-      ...loginActivity.map(row => [formatDateTime(row.createdAt), row.name, row.email, row.role, row.staffId, loginActivityLabel(row.action), row.userAgent]),
-      [],
-      ['System Change Time', 'Module', 'Action', 'Record', 'Actor', 'Details'],
-      ...systemAudit.map(row => [formatDateTime(row.createdAt), row.module, row.action, row.entityName || row.entityId, row.actor, row.details]),
-    ];
-
-    downloadBlob(rowsToCsv(rows), `flux-reports-${startDate || 'all'}-${endDate || 'all'}.csv`, 'text/csv;charset=utf-8;');
+  const exportCsv = ({ rows, filename }) => {
+    downloadBlob(`\uFEFF${rowsToCsv(rows)}`, filename, 'text/csv;charset=utf-8;');
+    setCsvOpen(false);
   };
 
   const exportJson = () => {
@@ -487,7 +441,7 @@ const ReportsPage = () => {
           description="Sales, inventory, finance, and activity records."
           actions={
             <>
-            <button onClick={exportCsv} disabled={loading} style={{ padding: '10px 13px', border: 'none', borderRadius: '8px', backgroundColor: loading ? '#bbb' : '#1A1208', color: '#fff', fontWeight: '800', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button id="csv-export-button" onClick={() => setCsvOpen(true)} style={{ padding: '10px 13px', border: 'none', borderRadius: '8px', backgroundColor: '#1A1208', color: '#fff', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <FiDownload size={15} /> Export CSV
             </button>
             <button onClick={exportJson} disabled={loading} style={{ padding: '10px 13px', border: '1px solid #8B5E3C', borderRadius: '8px', backgroundColor: '#fff', color: '#8B5E3C', fontWeight: '800', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -496,6 +450,8 @@ const ReportsPage = () => {
             </>
           }
         />
+
+        {csvOpen && <ReportCsvExportModal initialType={activeReport === 'inventory' ? 'inventory' : activeReport === 'activity' ? 'activity_logs' : 'sales_transactions'} initialStart={startDate} initialEnd={endDate} loginQuery={loginQuery} loginRole={loginRole} onClose={() => setCsvOpen(false)} onDownload={exportCsv} />}
 
         <section style={{ ...cardStyle, padding: '16px', marginBottom: '18px' }}>
           <div className="reports-filter-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px', alignItems: 'end' }}>

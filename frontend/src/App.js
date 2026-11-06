@@ -15,6 +15,7 @@ import SettingsPage from './pages/SettingsPage';
 import SalesPage from './pages/SalesPage';
 import StaffPage from './pages/StaffPage';
 import ReportsPage from './pages/ReportsPage';
+import EliteMembersPage from './pages/EliteMembersPage';
 import { getLandingPath, hasPermission } from './utils/roles';
 import { getSessionCredentials, getSessionUser, SESSION_CHANGED_EVENT } from './utils/session';
 import useSessionSync from './utils/useSessionSync';
@@ -160,6 +161,7 @@ function App() {
           />
           <Route path="/purchase-orders" element={<PermissionRoute permission="purchase_orders"><PurchaseOrdersPage /></PermissionRoute>} />
           <Route path="/products" element={<PermissionRoute permission="products"><SettingsPage initialSection="inventory" mode="products" /></PermissionRoute>} />
+          <Route path="/elite-members" element={<PermissionRoute permission="elite_members"><EliteMembersPage /></PermissionRoute>} />
           <Route path="/product-settings" element={<Navigate to="/products" />} />
           <Route path="/settings" element={<PermissionRoute permission="settings"><SettingsPage /></PermissionRoute>} />
         </Routes>

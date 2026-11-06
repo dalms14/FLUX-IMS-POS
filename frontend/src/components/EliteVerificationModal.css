@@ -43,3 +43,4 @@
 .elite-verification-actions { display: flex; gap: 10px; margin-top: 24px; }
 .elite-verification-actions button { flex: 1; padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
 .elite-verification-confirm { background: #8B5E3C; color: #fff; border: none; border-radius: 10px; }
+.elite-verification-actions button:disabled { opacity: .55; cursor: not-allowed; }

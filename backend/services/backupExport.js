@@ -7,6 +7,7 @@ const backupModels = {
     transactions: require('../models/Transaction'),
     refunds: require('../models/Refund'),
     recipes: require('../models/Recipe'),
+    eliteMembers: require('../models/EliteMember'),
 };
 
 async function collectBackupRecords() {

@@ -66,7 +66,7 @@ test('profile activity and last sign-in are scoped to the signed-in account and 
 });
 
 test('business APIs reject absent and forged sessions regardless of claimed owner email or role', async () => {
-    for (const path of ['/inventory', '/products', '/auth/users', '/purchase-orders', '/transactions', '/refunds']) {
+    for (const path of ['/inventory', '/products', '/auth/users', '/purchase-orders', '/transactions', '/refunds', '/elite-members']) {
         assert.equal((await request(path)).status, 401);
         assert.equal((await request(path, { token: 'a'.repeat(64) })).status, 401);
     }
@@ -195,7 +195,7 @@ test('restricted creators cannot grant implicit staff defaults or Finance/HR app
     users[2].permissions = ['users'];
     const token = await issueSession(users[2]);
     const body = { name: 'New user', email: 'new@example.com', password: 'Temporary123', userId: 'ELI099', verificationCode: '123456' };
-    for (const fields of [{ role: 'staff' }, { role: 'staff', permissions: [] }, { role: 'custom', jobRole: 'Finance', permissions: [] }, { role: 'custom', jobRole: 'HR', permissions: [] }]) {
+    for (const fields of [{ role: 'staff' }, { role: 'staff', permissions: [] }, { role: 'custom', jobRole: 'Finance', permissions: [] }, { role: 'custom', jobRole: 'HR', permissions: [] }, { role: 'custom', jobRole: 'Membership Clerk', permissions: ['elite_members'] }]) {
         const result = await request('/auth/users', { method: 'POST', token, body: { ...body, ...fields } });
         assert.equal(result.status, 403);
     }
@@ -210,6 +210,51 @@ test('a custom account explicitly delegated users access can create a custom acc
     const result = await request('/auth/users', { method: 'POST', token, body: { name: 'Assistant', email: 'new@example.com', password: 'Temporary123', userId: 'ELI099', verificationCode: '123456', role: 'custom', jobRole: 'Assistant', permissions: ['settings'] } });
     assert.equal(result.status, 201);
     assert.deepEqual(result.data.user.permissions, ['settings']);
+});
+
+test('owner can create a custom membership-only role and the new permission is retained', async () => {
+    const token = await issueSession(users[0]);
+    mock.method(EmailVerification, 'findOne', () => query({ otpHash: crypto.createHash('sha256').update('123456').digest('hex'), expiresAt: new Date(Date.now() + 60000), attempts: 0 }));
+    mock.method(EmailVerification, 'deleteOne', async () => ({}));
+    mock.method(User, 'create', async fields => ({ ...fields, _id: 'new-user' }));
+    const result = await request('/auth/users', { method: 'POST', token, body: { name: 'Member Clerk', email: 'new@example.com', password: 'Temporary123', userId: 'ELI099', verificationCode: '123456', role: 'custom', jobRole: 'Membership Clerk', permissions: ['elite_members'] } });
+    assert.equal(result.status, 201);
+    assert.deepEqual(result.data.user.permissions, ['elite_members']);
+});
+
+test('owner can grant and revoke Elite Membership on an existing custom account', async () => {
+    const token = await issueSession(users[0]);
+    const target = users[3];
+    mock.method(User, 'findOne', () => query(users[0]));
+    for (const permissions of [['elite_members'], []]) {
+        const result = await request('/auth/users/' + target._id + '/access', { method: 'PUT', token, body: { permissions } });
+        assert.equal(result.status, 200);
+        assert.deepEqual(target.permissions, permissions);
+        assert.deepEqual(result.data.user.permissions, permissions);
+    }
+});
+
+test('dated log exports paginate all matching records using stable ordering and Philippine date bounds', async () => {
+    const token = await issueSession(users[0]);
+    for (const [path, model] of [['/system-audit', SystemAudit], ['/auth/login-activity', LoginActivity]]) {
+        const logs = Array.from({ length: 503 }, (_, index) => ({ _id: String(index), name: 'Log ' + index }));
+        mock.method(model, 'find', filter => {
+            assert.equal(filter.createdAt.$gte.toISOString(), '2026-10-02T16:00:00.000Z');
+            assert.equal(filter.createdAt.$lte.toISOString(), '2026-10-03T15:59:59.999Z');
+            let offset = 0, count;
+            return { sort(order) { assert.deepEqual(order, { createdAt: -1, _id: -1 }); return this; }, skip(value) { offset = value; return this; }, limit(value) { count = value; return this; }, lean: async () => logs.slice(offset, offset + count) };
+        });
+        const period = '?startDate=2026-10-03T00%3A00%3A00%2B08%3A00&endDate=2026-10-03T23%3A59%3A59.999%2B08%3A00';
+        const first = await request(path + period + '&page=1', { token });
+        assert.equal(first.status, 200);
+        assert.equal(first.data.data.length, 500);
+        assert.equal(first.data.hasMore, true);
+        const second = await request(path + period + '&page=2', { token });
+        assert.equal(second.data.data.length, 3);
+        assert.equal(second.data.hasMore, false);
+        assert.equal(second.data.data[0]._id, '500');
+        assert.equal((await request(path + period + '&page=0', { token })).status, 400);
+    }
 });
 
 test('an archived administrator cannot archive another account using an old session and password', async () => {

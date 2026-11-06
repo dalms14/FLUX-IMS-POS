@@ -7,6 +7,7 @@ export const PERMISSIONS = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'items', label: 'Items and POS' },
   { key: 'products', label: 'Products, Add-ons, Discounts' },
+  { key: 'elite_members', label: 'Elite Membership' },
   { key: 'sales', label: 'Sales' },
   { key: 'inventory', label: 'Inventory' },
   { key: 'purchase_orders', label: 'Purchase Orders' },
@@ -57,6 +58,7 @@ export const hasPermission = (user = {}, permission) => {
   }
 
   if ([ADMIN_ROLE, CUSTOM_ROLE].includes(normalizedRole)) {
+    if (permission === 'elite_members' && normalizedRole === CUSTOM_ROLE && !Array.isArray(user.permissions)) return false;
     const jobRole = String(user.jobRole || '').trim().toLowerCase();
     if (permission === 'purchase_orders' && normalizedRole === CUSTOM_ROLE && ['finance', 'hr'].includes(jobRole)) {
       return true;
@@ -80,6 +82,7 @@ export const getLandingPath = (user = {}) => {
     ['inventory', '/inventory'],
     ['purchase_orders', '/purchase-orders'],
     ['products', '/products'],
+    ['elite_members', '/elite-members'],
     ['transactions', '/transactions'],
     ['staff', '/staff'],
     ['history', '/history'],
@@ -88,3 +91,5 @@ export const getLandingPath = (user = {}) => {
 
   return landingOptions.find(([permission]) => hasPermission(user, permission))?.[1] || '/profile';
 };
+
+export const canManageEliteMembers = (user = {}) => Boolean(!user.archived && hasPermission(user, 'elite_members'));

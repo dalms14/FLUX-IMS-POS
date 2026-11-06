@@ -38,6 +38,9 @@ test('applying a template changes only role and permissions, which remain editab
   expect(screen.getByPlaceholderText('Auto-generated if blank')).toHaveValue('ELI999');
   fireEvent.click(screen.getByRole('checkbox', { name: 'Sales' }));
   expect(screen.getByRole('checkbox', { name: 'Sales' })).toBeChecked();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Elite Membership' }));
+  expect(screen.getByRole('checkbox', { name: 'Elite Membership' })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Products, Add-ons, Discounts' })).not.toBeChecked();
   expect(screen.getByLabelText('Reuse an existing role')).toHaveValue('');
   expect(axios.post).not.toHaveBeenCalled();
 });

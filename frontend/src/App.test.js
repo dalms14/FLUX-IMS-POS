@@ -31,6 +31,16 @@ test('an authorized owner still reaches the requested page', () => {
   render(<PermissionRoute permission="products"><div>Product administration</div></PermissionRoute>);
   expect(screen.getByText('Product administration')).toBeInTheDocument();
 });
+
+test('a custom role can open membership with its own permission and loses access when revoked', () => {
+  startSession({ email: 'clerk@example.com', role: 'custom', permissions: ['elite_members'], sessionToken: 'b'.repeat(64) });
+  const page = render(<PermissionRoute permission="elite_members"><div>Membership management</div></PermissionRoute>);
+  expect(screen.getByText('Membership management')).toBeInTheDocument();
+  startSession({ email: 'clerk@example.com', role: 'custom', permissions: ['products'], sessionToken: 'b'.repeat(64) });
+  page.rerender(<PermissionRoute permission="elite_members"><div>Membership management</div></PermissionRoute>);
+  expect(screen.queryByText('Membership management')).not.toBeInTheDocument();
+  expect(screen.getByTestId('redirect')).toHaveTextContent('/products');
+});
 test('the first real input just before idle expiry is reported immediately, while continuous input is throttled', () => {
   jest.useFakeTimers();
   const beginning = Date.now();

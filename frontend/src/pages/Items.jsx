@@ -1481,11 +1481,21 @@ const Items = () => {
           cart: verified?.items || buildTransactionItems(),
           subtotal, discount, total, serviceType, paymentMethod, amountTendered, change,
           ...(verified || {}),
-          gcashReference, cashier: verified?.cashier || user.name || 'Staff', customerType: verified?.customerType || customerType, eliteMember,
+          gcashReference, cashier: verified?.cashier || user.name || 'Staff', customerType: verified?.customerType || customerType, eliteMember: verified?.eliteMember ?? eliteMember,
           selectedDiscount: verified?.discountInfo || activeDiscount,
         });
         return response.data;
     } catch (err) {
+        if (err.response?.data?.code === 'INVALID_ELITE_MEMBER') {
+            setShowReceipt(false);
+            setCustomerType('customer');
+            setEliteMember(null);
+            setDiscountApplied(false);
+            setSelectedDiscount(null);
+            setShowEliteModal(true);
+            addNotification({ title: 'Select an active Elite Member', message: err.response.data.message, details: [] });
+            return;
+        }
         if (err.response?.data?.code === 'INSUFFICIENT_STOCK') {
             const shortages = err.response.data.shortages || [];
 

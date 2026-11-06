@@ -1,5 +1,5 @@
 const { authenticate } = require('../services/authSessions');
-const { hasPermission, isOwner, canManageAccounts } = require('../utils/permissions');
+const { hasPermission, isOwner, canManageAccounts, canManageEliteMembers } = require('../utils/permissions');
 const { credentialRateLimit } = require('./credentialRateLimit');
 
 const publicRoutes = new Set(['POST /auth/login', 'GET /auth/lockout-status', 'POST /auth/first-login-password', 'POST /auth/password-reset/request', 'POST /auth/password-reset/confirm']);
@@ -21,6 +21,8 @@ function authorizeApi(req, res, next) {
     else if (path.startsWith('/purchase-orders')) allowed = path === '/purchase-orders/my-deliveries' || /\/record-arrival$/.test(path) || any(['purchase_orders']);
     else if (path.startsWith('/notifications')) allowed = true;
     else if (path.startsWith('/sales-forecast')) allowed = any(['dashboard', 'sales']);
+    else if (/^\/elite-members(\/|$)/.test(path)) allowed = read || path === '/elite-members/verify' && method === 'POST'
+        ? any(['items']) || canManageEliteMembers(user) : canManageEliteMembers(user);
     else if (/^\/(products|categories|addons|discounts)(\/|$)/.test(path)) allowed = any(read ? ['products', 'items'] : ['products']);
     else if (/^\/inventory(\/|$|-stats$)/.test(path)) allowed = any(read ? ['inventory', 'products', 'purchase_orders', 'reports', 'items'] : ['inventory']);
     else if (/^\/(transactions|orders)(\/|$)/.test(path)) allowed = any(read ? ['dashboard', 'transactions', 'sales', 'history', 'reports', 'items'] : ['items']);

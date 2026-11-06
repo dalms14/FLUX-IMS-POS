@@ -2236,6 +2236,7 @@ export const SystemBackupSettings = () => {
         { key: 'addons', label: 'Add-ons' }, { key: 'discounts', label: 'Discounts' },
         { key: 'inventory', label: 'Inventory' }, { key: 'transactions', label: 'Transactions' },
         { key: 'refunds', label: 'Refunds' }, { key: 'recipes', label: 'Recipes' },
+        { key: 'eliteMembers', label: 'Elite Members' },
     ];
 
     const formatBackupDate = (dateString) => {

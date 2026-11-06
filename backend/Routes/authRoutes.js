@@ -18,6 +18,7 @@ const VALID_PERMISSIONS = new Set([
     'dashboard',
     'items',
     'products',
+    'elite_members',
     'sales',
     'inventory',
     'purchase_orders',
@@ -327,6 +328,8 @@ router.post('/first-login-password', async (req, res) => {
 router.get('/login-activity', async (req, res) => {
     try {
         const { role, email, userId, startDate, endDate } = req.query;
+        const page = req.query.page === undefined ? null : Number(req.query.page);
+        if (page !== null && (!Number.isSafeInteger(page) || page < 1 || page > 100000)) return res.status(400).json({ message: 'Select a valid report page.' });
         const filter = {};
         const normalizedRole = normalizeRole(role);
 
@@ -348,12 +351,11 @@ router.get('/login-activity', async (req, res) => {
             if (endDate) filter.createdAt.$lte = parseEndDate(endDate);
         }
 
-        const logs = await LoginActivity.find(filter)
-            .sort({ createdAt: -1 })
-            .limit(500)
-            .lean();
-
-        res.json({ success: true, count: logs.length, data: logs });
+        let query = LoginActivity.find(filter).sort({ createdAt: -1, _id: -1 });
+        if (page !== null) query = query.skip((page - 1) * 500);
+        const logs = await query.limit(page === null ? 500 : 501).lean();
+        const data = page === null ? logs : logs.slice(0, 500);
+        res.json({ success: true, count: data.length, data, ...(page === null ? {} : { page, hasMore: logs.length > 500 }) });
     } catch (err) {
         console.error('Error fetching login activity:', err);
         res.status(500).json({ message: 'Failed to fetch login activity' });
