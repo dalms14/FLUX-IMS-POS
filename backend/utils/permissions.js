@@ -5,6 +5,7 @@ const isOwner = user => Boolean(user && (role(user) === 'owner' || String(user.u
 const hasPermission = (user, key) => {
     if (!user || user.archived) return false;
     if (isOwner(user)) return true;
+    if (key === 'users' && !hasPermission(user, 'staff')) return false;
     if (!['staff', 'admin', 'custom'].includes(role(user))) return false;
     if (key === 'elite_members' && role(user) === 'custom' && !Array.isArray(user.permissions)) return false;
     if (key === 'purchase_orders' && role(user) === 'custom' && ['finance', 'hr'].includes(String(user.jobRole || '').toLowerCase())) return true;

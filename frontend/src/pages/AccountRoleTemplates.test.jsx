@@ -63,6 +63,26 @@ test('template access is sent through the normal verified-account creation flow'
   await waitFor(() => expect(axios.get).toHaveBeenCalledTimes(2));
 });
 
+test('Create Accounts is locked without Users and is cleared when Users is unchecked', async () => {
+  render(<UserAccountSettings />);
+  await applyRole();
+  const users = screen.getByRole('checkbox', { name: 'Users', exact: true });
+  const createAccounts = screen.getByRole('checkbox', { name: 'Create Accounts', exact: true });
+  expect(createAccounts).toBeDisabled();
+  expect(createAccounts).not.toBeChecked();
+  fireEvent.click(users);
+  expect(createAccounts).toBeEnabled();
+  expect(createAccounts).not.toBeChecked();
+  fireEvent.click(createAccounts);
+  expect(createAccounts).toBeChecked();
+  fireEvent.click(users);
+  expect(createAccounts).toBeDisabled();
+  expect(createAccounts).not.toBeChecked();
+  fireEvent.click(users);
+  expect(createAccounts).toBeEnabled();
+  expect(createAccounts).not.toBeChecked();
+});
+
 test('a template loading failure leaves manual creation available and supports retry', async () => {
   axios.get.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({ data: { data: roles } });
   render(<UserAccountSettings />);

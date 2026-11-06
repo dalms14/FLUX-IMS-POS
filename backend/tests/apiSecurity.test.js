@@ -192,7 +192,7 @@ test('logout revokes the same bearer token even if another email is supplied', a
 });
 
 test('restricted creators cannot grant implicit staff defaults or Finance/HR approval authority', async () => {
-    users[2].permissions = ['users'];
+    users[2].permissions = ['staff', 'users'];
     const token = await issueSession(users[2]);
     const body = { name: 'New user', email: 'new@example.com', password: 'Temporary123', userId: 'ELI099', verificationCode: '123456' };
     for (const fields of [{ role: 'staff' }, { role: 'staff', permissions: [] }, { role: 'custom', jobRole: 'Finance', permissions: [] }, { role: 'custom', jobRole: 'HR', permissions: [] }, { role: 'custom', jobRole: 'Membership Clerk', permissions: ['elite_members'] }]) {
@@ -202,7 +202,7 @@ test('restricted creators cannot grant implicit staff defaults or Finance/HR app
 });
 
 test('a custom account explicitly delegated users access can create a custom account within its own authority', async () => {
-    Object.assign(users[3], { jobRole: 'Operations', permissions: ['settings', 'users'] });
+    Object.assign(users[3], { jobRole: 'Operations', permissions: ['settings', 'staff', 'users'] });
     const token = await issueSession(users[3]);
     mock.method(EmailVerification, 'findOne', () => query({ otpHash: crypto.createHash('sha256').update('123456').digest('hex'), expiresAt: new Date(Date.now() + 60000), attempts: 0 }));
     mock.method(EmailVerification, 'deleteOne', async () => ({}));
@@ -232,6 +232,35 @@ test('owner can grant and revoke Elite Membership on an existing custom account'
         assert.deepEqual(target.permissions, permissions);
         assert.deepEqual(result.data.user.permissions, permissions);
     }
+});
+
+test('Create Accounts without Users cannot request verification or create accounts through the API', async () => {
+    Object.assign(users[3], { jobRole: 'Operations', permissions: ['users'] });
+    const token = await issueSession(users[3]);
+    for (const path of ['/auth/users/verification/request', '/auth/users']) {
+        assert.equal((await request(path, { method: 'POST', token, body: { email: 'new@example.com' } })).status, 403);
+    }
+});
+
+test('owner access updates remove Create Accounts unless Users is included', async () => {
+    const token = await issueSession(users[0]);
+    mock.method(User, 'findOne', () => query(users[0]));
+    for (const [permissions, expected] of [[['staff', 'users'], ['staff', 'users']], [['dashboard', 'users'], ['dashboard']]]) {
+        const result = await request('/auth/users/' + users[3]._id + '/access', { method: 'PUT', token, body: { permissions } });
+        assert.equal(result.status, 200);
+        assert.deepEqual(result.data.user.permissions, expected);
+        assert.deepEqual(users[3].permissions, expected);
+    }
+});
+
+test('account creation removes Create Accounts when the submitted custom role has no Users access', async () => {
+    const token = await issueSession(users[0]);
+    mock.method(EmailVerification, 'findOne', () => query({ otpHash: crypto.createHash('sha256').update('123456').digest('hex'), expiresAt: new Date(Date.now() + 60000), attempts: 0 }));
+    mock.method(EmailVerification, 'deleteOne', async () => ({}));
+    mock.method(User, 'create', async fields => ({ ...fields, _id: 'new-user' }));
+    const result = await request('/auth/users', { method: 'POST', token, body: { name: 'Assistant', email: 'new@example.com', password: 'Temporary123', userId: 'ELI099', verificationCode: '123456', role: 'custom', jobRole: 'Assistant', permissions: ['dashboard', 'users'] } });
+    assert.equal(result.status, 201);
+    assert.deepEqual(result.data.user.permissions, ['dashboard']);
 });
 
 test('dated log exports paginate all matching records using stable ordering and Philippine date bounds', async () => {

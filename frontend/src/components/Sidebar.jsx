@@ -28,6 +28,7 @@ export default function Sidebar() {
   const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate();
   const location = useLocation();
+  const isItemActive = item => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const visibleItems = navItems.filter(item => hasPermission(user, item.permission || item.key) && (!item.memberManagerOnly || canManageEliteMembers(user)));
@@ -90,7 +91,7 @@ export default function Sidebar() {
   const primaryMobileKeys = ['items', 'dashboard', 'transactions'];
   const mobilePrimaryItems = visibleItems.filter(item => primaryMobileKeys.includes(item.key));
   const mobileMoreItems = visibleItems.filter(item => !primaryMobileKeys.includes(item.key));
-  const isMoreActive = mobileMoreItems.some(item => location.pathname === item.path) || location.pathname === '/profile';
+  const isMoreActive = mobileMoreItems.some(isItemActive) || location.pathname === '/profile';
 
   return (
     <>
@@ -218,7 +219,7 @@ export default function Sidebar() {
       {/* Nav Items */}
       <nav style={{ flex: 1, padding: '8px 8px 0', overflowY: 'auto', overflowX: 'hidden' }}>
         {visibleItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive = isItemActive(item);
           const isHovered = hoveredKey === item.key;
           return (
             <button
@@ -327,7 +328,7 @@ export default function Sidebar() {
 
             <div className="flux-mobile-more-grid">
               {mobileMoreItems.map(item => {
-                const isActive = location.pathname === item.path;
+                const isActive = isItemActive(item);
                 return (
                   <button
                     key={item.key}
@@ -361,7 +362,7 @@ export default function Sidebar() {
 
       <nav className="flux-mobile-bottom-nav" aria-label="Mobile navigation">
         {mobilePrimaryItems.map(item => {
-          const isActive = location.pathname === item.path;
+          const isActive = isItemActive(item);
           return (
             <button
               key={item.key}

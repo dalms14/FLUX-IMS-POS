@@ -32,6 +32,16 @@ test('an authorized owner still reaches the requested page', () => {
   expect(screen.getByText('Product administration')).toBeInTheDocument();
 });
 
+test.each([
+  [['users'], false],
+  [['staff'], false],
+  [['staff', 'users'], true],
+])('account creation requires both Users and Create Accounts: %j', (permissions, allowed) => {
+  startSession({ email: 'clerk@example.com', role: 'custom', permissions, sessionToken: 'c'.repeat(64) });
+  render(<PermissionRoute permission="users"><div>Create Account form</div></PermissionRoute>);
+  expect(Boolean(screen.queryByText('Create Account form'))).toBe(allowed);
+});
+
 test('a custom role can open membership with its own permission and loses access when revoked', () => {
   startSession({ email: 'clerk@example.com', role: 'custom', permissions: ['elite_members'], sessionToken: 'b'.repeat(64) });
   const page = render(<PermissionRoute permission="elite_members"><div>Membership management</div></PermissionRoute>);

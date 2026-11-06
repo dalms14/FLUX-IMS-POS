@@ -22,6 +22,17 @@ export const PERMISSIONS = [
 export const DEFAULT_STAFF_PERMISSIONS = ['dashboard', 'items', 'transactions', 'history', 'settings'];
 export const DEFAULT_ADMIN_PERMISSIONS = PERMISSIONS.map(permission => permission.key);
 
+export const normalizePermissionDependencies = (permissions = []) => {
+  const selected = [...new Set(permissions)];
+  return selected.includes('staff') ? selected : selected.filter(key => key !== 'users');
+};
+
+export const togglePermissionSelection = (permissions, permission) => normalizePermissionDependencies(
+  permissions.includes(permission)
+    ? permissions.filter(key => key !== permission)
+    : [...permissions, permission]
+);
+
 export const normalizeRole = (role) => String(role || '').trim().toLowerCase();
 
 export const isOwnerRole = (role) => normalizeRole(role) === OWNER_ROLE;
@@ -47,6 +58,7 @@ export const getDefaultPermissions = (role) => {
 export const hasPermission = (user = {}, permission) => {
   if (!permission) return true;
   if (isOwnerAccount(user)) return true;
+  if (permission === 'users' && !hasPermission(user, 'staff')) return false;
 
   const normalizedRole = normalizeRole(user.role);
   if (normalizedRole === STAFF_ROLE) {

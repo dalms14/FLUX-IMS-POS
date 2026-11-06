@@ -9,7 +9,7 @@ import AppNotice from '../components/AppNotice';
 import AboutFluxSettings from '../components/AboutFluxSettings';
 import './SettingsOverview.css';
 import { focusInvalidField, clearInvalidField, firstInvalidField } from '../utils/formValidation';
-import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole } from '../utils/roles';
+import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole, normalizePermissionDependencies, togglePermissionSelection } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiDownload, FiLock, FiCheck } from 'react-icons/fi';
 
@@ -1732,15 +1732,7 @@ export const UserAccountSettings = () => {
 
     const togglePermission = (permission) => {
         setSelectedTemplateId('');
-        setForm(prev => {
-            const exists = prev.permissions.includes(permission);
-            return {
-                ...prev,
-                permissions: exists
-                    ? prev.permissions.filter(item => item !== permission)
-                    : [...prev.permissions, permission],
-            };
-        });
+        setForm(prev => ({ ...prev, permissions: togglePermissionSelection(prev.permissions, permission) }));
         setMessage(null);
     };
 
@@ -1882,7 +1874,7 @@ export const UserAccountSettings = () => {
             <form onSubmit={verification.pending ? handleVerifyAndCreateUser : handleCreateUser} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
                 <fieldset disabled={verification.pending} style={{ margin: 0, padding: 0, border: 0, minWidth: 0, opacity: verification.pending ? 0.58 : 1 }}>
                 <AccountRoleTemplates selectedId={selectedTemplateId} refreshKey={templatesVersion} onApply={template => {
-                    setForm(previous => ({ ...previous, role: template.role, jobRole: template.jobRole, permissions: [...template.permissions] }));
+                    setForm(previous => ({ ...previous, role: template.role, jobRole: template.jobRole, permissions: normalizePermissionDependencies(template.permissions) }));
                     setSelectedTemplateId(template.id);
                     setMessage(null);
                 }} />
@@ -1957,9 +1949,12 @@ export const UserAccountSettings = () => {
                             </p>
                             <label style={labelStyle}>{form.jobRole.trim() || 'Custom Role'} Access</label>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
-                                {PERMISSIONS.map(permission => (
+                                {PERMISSIONS.map(permission => {
+                                    const locked = permission.key === 'users' && !form.permissions.includes('staff');
+                                    return (
                                     <label
                                         key={permission.key}
+                                        title={locked ? 'Select Users to enable Create Accounts.' : undefined}
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -1968,7 +1963,8 @@ export const UserAccountSettings = () => {
                                             border: `1.5px solid ${form.permissions.includes(permission.key) ? '#8B5E3C' : '#ddd'}`,
                                             borderRadius: '8px',
                                             backgroundColor: form.permissions.includes(permission.key) ? '#FDF5EE' : '#fff',
-                                            cursor: 'pointer',
+                                            cursor: locked ? 'not-allowed' : 'pointer',
+                                            opacity: locked ? 0.5 : 1,
                                             fontSize: '12px',
                                             fontWeight: '700',
                                             color: form.permissions.includes(permission.key) ? '#8B5E3C' : '#555',
@@ -1977,12 +1973,15 @@ export const UserAccountSettings = () => {
                                         <input
                                             type="checkbox"
                                             checked={form.permissions.includes(permission.key)}
+                                            disabled={locked}
                                             onChange={() => togglePermission(permission.key)}
                                         />
                                         {permission.label}
                                     </label>
-                                ))}
+                                    );
+                                })}
                             </div>
+                            <p style={{ margin: '8px 0 0', color: '#777', fontSize: '11px' }}>Create Accounts requires Users access.</p>
                         </div>
                     )}
                 </div>
@@ -2346,7 +2345,6 @@ const MENU_ITEMS = [
     { key: 'inventory', label: 'PRODUCTS', permission: 'products', group: 'products' },
     { key: 'addons', label: 'ADD-ONS', permission: 'products', group: 'products' },
     { key: 'discounts', label: 'DISCOUNTS', permission: 'products', group: 'products' },
-    { key: 'users', label: 'CREATE ACCOUNT', permission: 'users' },
     { key: 'password', label: 'CHANGE PASSWORD' },
     { key: 'system', label: 'SYSTEM & BACKUP', ownerOnly: true },
     { key: 'about', label: 'ABOUT FLUX' },
@@ -2386,7 +2384,6 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
             case 'inventory': return hasPermission(currentUser, 'products') ? <InventorySettings /> : null;
             case 'addons': return hasPermission(currentUser, 'products') ? <AddonSettings /> : null;
             case 'discounts': return hasPermission(currentUser, 'products') ? <DiscountSettings /> : null;
-            case 'users': return hasPermission(currentUser, 'users') ? <UserAccountSettings /> : null;
             case 'password': return <ChangePasswordSettings />;
             case 'system': return isOwnerAccount(currentUser) ? <SystemBackupSettings /> : null;
             case 'about': return <AboutFluxSettings />;

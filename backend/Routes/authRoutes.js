@@ -53,11 +53,12 @@ function isOwnerAccount(user) {
 
 function normalizePermissions(permissions = []) {
     if (!Array.isArray(permissions)) return [];
-    return [...new Set(
+    const selected = [...new Set(
         permissions
             .map(permission => String(permission || '').trim())
             .filter(permission => VALID_PERMISSIONS.has(permission))
     )];
+    return selected.includes('staff') ? selected : selected.filter(permission => permission !== 'users');
 }
 
 async function generateUserId() {

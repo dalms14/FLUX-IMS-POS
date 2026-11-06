@@ -14,6 +14,7 @@ import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import SettingsPage from './pages/SettingsPage';
 import SalesPage from './pages/SalesPage';
 import StaffPage from './pages/StaffPage';
+import CreateAccountPage from './pages/CreateAccountPage';
 import ReportsPage from './pages/ReportsPage';
 import EliteMembersPage from './pages/EliteMembersPage';
 import { getLandingPath, hasPermission } from './utils/roles';
@@ -129,6 +130,7 @@ function App() {
               </PermissionRoute>
             }
           />
+          <Route path="/staff/create" element={<PermissionRoute permission="users"><CreateAccountPage /></PermissionRoute>} />
 
           <Route
             path="/reports"

@@ -37,4 +37,11 @@ These changes implement the two items selected for this revision. Implementation
 6. Edit/reactivate the card, repeat checkout, and compare the saved transaction with the member details.
 7. Confirm member maintenance appears in the system audit and member records are present in an owner backup.
 
-The remaining alpha feedback (tablet issues, general numeric inputs, other discount behavior, receiving details, account placement, and BIR scope) is reserved for the next review. This revision does not mark those items complete.
+## Account creation placement
+
+- Create Account is available from **Users**, with a **Back to Users** link on the creation page. It is no longer a Settings section.
+- **Create Accounts** requires **Users** access. The checkbox is locked until Users is selected, and unchecking Users clears Create Accounts in both creation and access editing.
+- The server removes Create Accounts from submitted roles without Users and denies account creation for existing roles that lack Users access.
+- Retest: select Users and Create Accounts, uncheck Users, and save. Confirm Create Accounts is cleared and the account cannot create users through either the page or API.
+
+The remaining alpha feedback (tablet issues, general numeric inputs, other discount behavior, receiving details, and BIR scope) is reserved for the next review. This revision does not mark those items complete.

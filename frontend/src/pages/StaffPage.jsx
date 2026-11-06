@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
-import { DEFAULT_ADMIN_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS, PERMISSIONS, isOwnerAccount } from '../utils/roles';
+import { DEFAULT_ADMIN_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS, PERMISSIONS, isOwnerAccount, hasPermission, normalizePermissionDependencies, togglePermissionSelection } from '../utils/roles';
 
 const USER_STATUS_REFRESH_MS = 5000;
 
 const getEditablePermissions = (user = {}) => {
-  if (Array.isArray(user.permissions)) return user.permissions;
+  if (Array.isArray(user.permissions)) return normalizePermissionDependencies(user.permissions);
   return user.role === 'admin' ? DEFAULT_ADMIN_PERMISSIONS : DEFAULT_STAFF_PERMISSIONS;
 };
 
@@ -43,9 +44,11 @@ const AccessEditModal = ({ user, permissions, saving, error, onToggle, onSave, o
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '9px' }}>
             {PERMISSIONS.map(permission => {
               const checked = permissions.includes(permission.key);
+              const locked = permission.key === 'users' && !permissions.includes('staff');
               return (
                 <label
                   key={permission.key}
+                  title={locked ? 'Select Users to enable Create Accounts.' : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -58,12 +61,14 @@ const AccessEditModal = ({ user, permissions, saving, error, onToggle, onSave, o
                     color: checked ? '#6F4A2F' : '#4A3A2A',
                     fontSize: '12px',
                     fontWeight: '800',
-                    cursor: 'pointer',
+                    cursor: locked ? 'not-allowed' : 'pointer',
+                    opacity: locked ? 0.5 : 1,
                   }}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
+                    disabled={saving || locked}
                     onChange={() => onToggle(permission.key)}
                     style={{ width: '15px', height: '15px', flexShrink: 0 }}
                   />
@@ -72,6 +77,7 @@ const AccessEditModal = ({ user, permissions, saving, error, onToggle, onSave, o
               );
             })}
           </div>
+          <p style={{ margin: '8px 0 0', color: '#777', fontSize: '11px' }}>Create Accounts requires Users access.</p>
 
           {error && (
             <p style={{ margin: '16px 0 0', padding: '11px 12px', borderRadius: '8px', backgroundColor: '#FFF5F5', border: '1px solid #FED7D7', color: '#C53030', fontSize: '12px', fontWeight: '800' }}>
@@ -319,11 +325,7 @@ const StaffPage = () => {
   };
 
   const toggleAccessPermission = (permission) => {
-    setAccessPermissions(prev => (
-      prev.includes(permission)
-        ? prev.filter(item => item !== permission)
-        : [...prev, permission]
-    ));
+    setAccessPermissions(prev => togglePermissionSelection(prev, permission));
     setAccessError('');
   };
 
@@ -444,6 +446,9 @@ const StaffPage = () => {
           description="View all owner, admin, and staff accounts registered in FLUX."
           actions={
             <>
+            {hasPermission(currentUser, 'users') && (
+              <Link to="/staff/create" style={{ alignSelf: 'center', padding: '13px 18px', borderRadius: '8px', backgroundColor: '#8B5E3C', color: '#fff', fontSize: '13px', fontWeight: '800', textDecoration: 'none' }}>Create Account</Link>
+            )}
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '8px', padding: '12px 16px', minWidth: '130px' }}>
               <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Total Users</p>
               <p style={{ margin: 0, fontSize: '24px', color: '#1a1a1a', fontWeight: '900' }}>{users.length}</p>
