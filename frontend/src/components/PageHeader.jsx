@@ -1,7 +1,7 @@
 import React from 'react';
 
-const PageHeader = ({ title, description, actions }) => (
-  <div style={{
+const PageHeader = ({ title, description, actions, className, actionsClassName }) => (
+  <div className={className} style={{
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -28,7 +28,7 @@ const PageHeader = ({ title, description, actions }) => (
     </div>
 
     {actions && (
-      <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
+      <div className={actionsClassName} style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', flexShrink: 0 }}>
         {actions}
       </div>
     )}

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import { DEFAULT_ADMIN_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS, PERMISSIONS, isOwnerAccount, hasPermission, normalizePermissionDependencies, togglePermissionSelection } from '../utils/roles';
+import './StaffPage.css';
 
 const USER_STATUS_REFRESH_MS = 5000;
 
@@ -440,20 +441,22 @@ const StaffPage = () => {
     <div className="mobile-app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#F5F0EB' }}>
       <Sidebar />
 
-      <div className="mobile-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
+      <div className="mobile-page-content staff-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px', minWidth: 0 }}>
         <PageHeader
+          className="staff-page-header"
+          actionsClassName="staff-header-actions"
           title="Users"
           description="View all owner, admin, and staff accounts registered in FLUX."
           actions={
             <>
             {hasPermission(currentUser, 'users') && (
-              <Link to="/staff/create" style={{ alignSelf: 'center', padding: '13px 18px', borderRadius: '8px', backgroundColor: '#8B5E3C', color: '#fff', fontSize: '13px', fontWeight: '800', textDecoration: 'none' }}>Create Account</Link>
+              <Link className="staff-create-account" to="/staff/create" style={{ alignSelf: 'center', padding: '13px 18px', borderRadius: '8px', backgroundColor: '#8B5E3C', color: '#fff', fontSize: '13px', fontWeight: '800', textDecoration: 'none' }}>Create Account</Link>
             )}
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '8px', padding: '12px 16px', minWidth: '130px' }}>
+            <div className="staff-summary-card" style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '8px', padding: '12px 16px', minWidth: '130px' }}>
               <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Total Users</p>
               <p style={{ margin: 0, fontSize: '24px', color: '#1a1a1a', fontWeight: '900' }}>{users.length}</p>
             </div>
-            <div style={{ backgroundColor: '#fff', border: '1px solid #BFE8CF', borderRadius: '8px', padding: '12px 16px', minWidth: '130px' }}>
+            <div className="staff-summary-card" style={{ backgroundColor: '#fff', border: '1px solid #BFE8CF', borderRadius: '8px', padding: '12px 16px', minWidth: '130px' }}>
               <p style={{ margin: '0 0 4px', fontSize: '11px', color: '#1F7A3A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Online Now</p>
               <p style={{ margin: 0, fontSize: '24px', color: '#14532D', fontWeight: '900' }}>{onlineCount}</p>
             </div>
@@ -461,7 +464,7 @@ const StaffPage = () => {
           }
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+        <div className="staff-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
           <button
             type="button"
             onClick={() => { setShowArchived(value => !value); setSearchQuery(''); }}
@@ -470,13 +473,15 @@ const StaffPage = () => {
             {showArchived ? 'Active Users' : 'Archived Users'}
           </button>
           <input
+            className="staff-search"
+            aria-label="Search users"
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder={showArchived ? 'Search archived users...' : 'Search users...'}
             style={{ width: '280px', padding: '11px 14px', border: '1.5px solid #D8CABB', borderRadius: '8px', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}
           />
-          <p style={{ margin: 0, fontSize: '12px', color: '#999' }}>
+          <p className="staff-result-count" style={{ margin: 0, fontSize: '12px', color: '#999' }}>
             Showing {filteredUsers.length} of {users.length} {showArchived ? 'archived' : 'active'} user{users.length === 1 ? '' : 's'}
           </p>
         </div>
@@ -511,7 +516,7 @@ const StaffPage = () => {
                   cursor: 'pointer',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div className="staff-user-identity" style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #8B5E3C, #6F4A2F)', color: '#fff', fontSize: '14px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
                     {user.profileImage
                       ? <img src={user.profileImage} alt={user.name || 'User'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -519,13 +524,13 @@ const StaffPage = () => {
                     }
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#1a1a1a', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name || 'Unnamed User'}</p>
+                    <p className="staff-user-name" style={{ margin: 0, fontSize: '13px', color: '#1a1a1a', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name || 'Unnamed User'}</p>
                     <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{user.jobRole || user.role}</p>
                   </div>
                 </div>
-                <p style={{ margin: 0, fontSize: '13px', color: '#555', wordBreak: 'break-word' }}>{user.email || '-'}</p>
-                <p style={{ margin: 0, fontSize: '13px', color: '#555', fontWeight: '700' }}>{user.userId || '-'}</p>
-                <div style={{ minWidth: 0 }}>
+                <p className="staff-user-email" data-label="Email" style={{ margin: 0, fontSize: '13px', color: '#555', wordBreak: 'break-word' }}>{user.email || '-'}</p>
+                <p className="staff-user-id" data-label="User ID" style={{ margin: 0, fontSize: '13px', color: '#555', fontWeight: '700' }}>{user.userId || '-'}</p>
+                <div className="staff-user-status" style={{ minWidth: 0 }}>
                   <span style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -543,12 +548,12 @@ const StaffPage = () => {
                     <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: user.isOnline ? '#22C55E' : '#9CA3AF', flexShrink: 0 }} />
                     {user.isOnline ? 'Online' : 'Offline'}
                   </span>
-                  <p style={{ margin: '5px 0 0', fontSize: '10px', color: '#8A7A6B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <p className="staff-user-last-seen" style={{ margin: '5px 0 0', fontSize: '10px', color: '#8A7A6B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     Last seen {formatDateTime(user.lastSeenAt)}
                   </p>
                 </div>
-                <p style={{ margin: 0, fontSize: '13px', color: '#777' }}>{formatDate(user.createdAt)}</p>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <p className="staff-user-created" data-label="Created" style={{ margin: 0, fontSize: '13px', color: '#777' }}>{formatDate(user.createdAt)}</p>
+                <div className="staff-user-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                   {!showArchived && ownerCanEditAccess && user.role !== 'owner' && (
                     <button
                       onClick={event => {

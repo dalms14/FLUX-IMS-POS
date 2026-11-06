@@ -8,7 +8,9 @@ if not exist "%FLUX_BRAVE_EXE%" (
     pause
     exit /b 1
 )
-rem Start the FLUX frontend and backend separately before opening this launcher.
+rem Open the live site by default. Use the --local argument for development.
+set "FLUX_APP_URL=https://fluxcafe.store/items"
+if /i "%~1"=="--local" set "FLUX_APP_URL=http://localhost:3000/items"
 rem Keep printing settings and sign-in separate from the regular Brave profile.
-start "" "%FLUX_BRAVE_EXE%" --user-data-dir="%LOCALAPPDATA%\FLUX-POS\BravePrinting" --kiosk-printing --no-first-run --no-default-browser-check --app="http://localhost:3000"
+start "" "%FLUX_BRAVE_EXE%" --user-data-dir="%LOCALAPPDATA%\FLUX-POS\BravePrinting" --kiosk-printing --no-first-run --no-default-browser-check --app="%FLUX_APP_URL%"
 endlocal
