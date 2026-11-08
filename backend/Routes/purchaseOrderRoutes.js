@@ -85,11 +85,15 @@ router.get('/my-deliveries', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const supplierName = String(req.body.supplierName || '').trim();
+        const supplierContact = req.body.supplierContact ?? '';
         const supplierEmail = String(req.body.supplierEmail || '').trim();
         const items = normalizeItems(req.body.items);
         const assignedReceiverEmail = String(req.body.assignedReceiverEmail || '').trim().toLowerCase();
         if (!supplierName || items.length === 0 || items.some(item => !item.name || !item.unit || item.orderedQuantity <= 0)) {
             return res.status(400).json({ message: 'Supplier and at least one valid order item are required' });
+        }
+        if (typeof supplierContact !== 'string' || (supplierContact !== '' && (supplierContact.length !== 11 || !/^[0-9]{11}$/.test(supplierContact)))) {
+            return res.status(400).json({ message: 'Supplier phone number must be exactly 11 digits.' });
         }
         if (supplierEmail && !/^[^\s@]+@[^\s@]+$/.test(supplierEmail)) {
             return res.status(400).json({ message: 'Enter a valid supplier email address' });
@@ -116,7 +120,7 @@ router.post('/', async (req, res) => {
         const order = await PurchaseOrder.create({
             purchaseOrderNo: await nextPurchaseOrderNo(),
             supplierName,
-            supplierContact: String(req.body.supplierContact || '').trim(),
+            supplierContact,
             supplierEmail,
             orderDate: validDate(req.body.orderDate) || new Date(),
             expectedDeliveryDate: validDate(req.body.expectedDeliveryDate),

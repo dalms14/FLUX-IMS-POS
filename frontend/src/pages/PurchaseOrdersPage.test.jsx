@@ -90,6 +90,24 @@ test('old supplier templates without email still fill the phone and clear a prev
   expect(screen.getByLabelText('Supplier Email Address')).toHaveValue('');
 });
 
+test('supplier phone removes non-digits, caps pasted input, and blocks a short number', async () => {
+  render(<PurchaseOrdersPage />);
+  await screen.findByText('PO-TEST');
+  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Supplier' } });
+  const phone = screen.getByLabelText('Supplier Phone Number');
+  fireEvent.change(phone, { target: { value: 'letters' } });
+  expect(phone).toHaveValue('');
+  fireEvent.change(phone, { target: { value: '09ab17-123 4567xyz890' } });
+  expect(phone).toHaveValue('09171234567');
+  expect(phone).toBeValid();
+  fireEvent.change(phone, { target: { value: '0917123456' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create Draft PO' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Supplier phone number must be exactly 11 digits.');
+  expect(phone).toHaveFocus();
+  expect(axios.post).not.toHaveBeenCalled();
+});
+
 test('invalid supplier email prevents creating an order', async () => {
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');

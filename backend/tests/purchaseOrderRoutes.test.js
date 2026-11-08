@@ -44,6 +44,19 @@ test('a purchase order can be assigned to an active admin and saves the supplier
     assert.equal(document.validateSync()?.errors.supplierEmail, undefined);
 });
 
+test('supplier phone rejects non-digits and lengths other than 11 before writing an order', async t => {
+    const create = t.mock.method(PurchaseOrder, 'create', async () => { throw new Error('Must not create'); });
+    for (const supplierContact of ['0917123456', '091712345678', '0917abc4567', '+9171234567', '0917 1234567', '09171234567\n', 91712345678]) {
+        const result = await post('/', {
+            supplierName: 'Supplier', supplierContact, assignedReceiverEmail: '__any_staff__',
+            items: [{ name: 'Beans', unit: 'kg', orderedQuantity: 2 }],
+        });
+        assert.equal(result.status, 400);
+        assert.equal(result.data.message, 'Supplier phone number must be exactly 11 digits.');
+    }
+    assert.equal(create.mock.callCount(), 0);
+});
+
 test('supplier email is optional for existing orders and invalid addresses are rejected', async t => {
     const document = new PurchaseOrder({ supplierName: 'Supplier' });
     assert.equal(document.supplierEmail, '');
