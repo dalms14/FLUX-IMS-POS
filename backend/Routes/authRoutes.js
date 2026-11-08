@@ -8,7 +8,10 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { issueSession } = require('../services/authSessions');
 const AuthSession = require('../models/AuthSession');
-const { all: accountPermissions, hasPermission } = require('../utils/permissions');
+const { all: accountPermissions, hasPermission, canManageAccounts } = require('../utils/permissions');
+const { defaultShiftSchedule, validateShiftSchedule } = require('../utils/shiftSchedule');
+const mongoose = require('mongoose');
+const { blockOffShiftLogin } = require('../services/shiftLogin');
 
 const loginAttempts = new Map();
 const MAX_ATTEMPTS = 3;
@@ -134,6 +137,7 @@ function serializeUser(user) {
         role: user.role,
         jobRole: user.jobRole,
         permissions: user.permissions,
+        shiftSchedule: user.shiftSchedule || defaultShiftSchedule(),
         userId: user.userId,
         profileImage: user.profileImage,
         isOnline,
@@ -251,6 +255,8 @@ router.post('/login', async (req, res) => {
 
         loginAttempts.delete(attemptKey);
 
+        if (await blockOffShiftLogin(req, res, user)) return;
+
         if (user.mustChangePassword) {
             const token = crypto.randomBytes(32).toString('hex');
             user.firstLoginTokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -312,9 +318,11 @@ router.post('/first-login-password', async (req, res) => {
         if (await bcrypt.compare(newPassword, user.password)) {
             return res.status(400).json({ message: 'Choose a password different from your temporary password.' });
         }
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        if (await blockOffShiftLogin(req, res, user)) return;
         // Consume the challenge atomically so concurrent submissions cannot reuse it.
         const updated = await User.findOneAndUpdate({ ...filter, _id: user._id }, {
-            $set: { password: await bcrypt.hash(newPassword, 10), mustChangePassword: false, firstLoginTokenHash: null, firstLoginTokenExpiresAt: null, isOnline: true, lastSeenAt: new Date() },
+            $set: { password: passwordHash, mustChangePassword: false, firstLoginTokenHash: null, firstLoginTokenExpiresAt: null, isOnline: true, lastSeenAt: new Date() },
         }, { returnDocument: 'after' });
         if (!updated) return res.status(401).json({ message: 'This request is no longer valid. Please sign in again.' });
         await logAuthAudit({ action: 'First Login Password Changed', user: updated, details: 'Temporary password replaced on first sign-in' });
@@ -459,7 +467,7 @@ router.get('/users', async (req, res) => {
 
     try {
         const users = await User.find(query)
-            .select('name email role jobRole permissions userId profileImage isOnline lastSeenAt archived archivedAt createdAt updatedAt')
+            .select('name email role jobRole permissions shiftSchedule userId profileImage isOnline lastSeenAt archived archivedAt createdAt updatedAt')
             .sort({ role: 1, name: 1 })
             .lean();
 
@@ -648,6 +656,35 @@ router.post('/users', async (req, res) => {
             return res.status(409).json({ message: 'Email or user ID already exists' });
         }
         res.status(500).json({ message: 'Failed to create user' });
+    }
+});
+
+router.put('/users/:id/shift', async (req, res) => {
+    if (!req.user || req.user.archived || !canManageAccounts(req.user)) {
+        return res.status(403).json({ message: 'Only the owner or an authorized admin can edit shifts.' });
+    }
+    if (!mongoose.isObjectIdOrHexString(req.params.id)) return res.status(400).json({ message: 'Select a valid user account.' });
+    const { schedule, error } = validateShiftSchedule(req.body.shiftSchedule);
+    if (error) return res.status(400).json({ message: error });
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user || user.archived) return res.status(404).json({ message: 'Active user account not found.' });
+        if (isOwnerAccount(user)) return res.status(400).json({ message: 'The owner account is exempt from shift scheduling.' });
+        const previous = user.shiftSchedule?.toObject?.() || user.shiftSchedule || defaultShiftSchedule();
+        user.shiftSchedule = schedule;
+        await user.save();
+        try {
+            await SystemAudit.create({
+                module: 'User Accounts', action: 'Updated Shift', entityId: String(user._id), entityName: user.name,
+                actor: req.user.name || req.user.email, actorEmail: req.user.email,
+                details: 'Shift schedule updated (Philippine time). Staff and custom accounts with restrictions enabled can sign in only during their allowed shift window. Owners and admins are exempt.',
+                changes: { previousShiftSchedule: previous, shiftSchedule: schedule },
+            });
+        } catch (auditError) { console.error('Shift audit error:', auditError.message); }
+        return res.json({ success: true, user: serializeUser(user) });
+    } catch (err) {
+        console.error('Error updating shift schedule:', err);
+        return res.status(500).json({ message: 'Failed to save the shift schedule.' });
     }
 });
 

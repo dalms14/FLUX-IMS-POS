@@ -1,3 +1,4 @@
+import ValidatedForm from '../components/ValidatedForm';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -145,6 +146,9 @@ const LoginPage = () => {
         } else if (status === 403 && err.response?.data?.code === 'ACCOUNT_ARCHIVED') {
           setAttemptsRemaining(3);
           setArchivedMessage(message);
+        } else if (status === 403 && ['OUTSIDE_SHIFT', 'SHIFT_SCHEDULE_INVALID'].includes(err.response?.data?.code)) {
+          setAttemptsRemaining(3);
+          setError(message);
         } else if (status === 423) {
           // Account locked
           setLocked(true);
@@ -276,7 +280,7 @@ const LoginPage = () => {
           </div>
         )}
 
-        <form onSubmit={handleLogin} aria-busy={loading}>
+        <ValidatedForm onSubmit={handleLogin} aria-busy={loading}>
           {/* Email */}
           <div style={{ marginBottom: '20px' }}>
             <label htmlFor="login-email" style={{
@@ -430,7 +434,7 @@ const LoginPage = () => {
           >
             {locked ? `Try again in ${lockoutTime}s` : connecting ? 'Connecting...' : loading ? 'Signing in...' : 'Sign In'}
           </button>
-        </form>
+        </ValidatedForm>
 
         <p className="loginFooter" style={{ marginTop: '48px', fontSize: '13px', color: '#ccc' }}>
           © 2026 FLUX · Eli Coffee & Tea, Antipolo

@@ -47,6 +47,7 @@ const PurchaseOrderSchema = new mongoose.Schema({
     purchaseOrderNo: { type: String, required: true, unique: true, trim: true },
     supplierName: { type: String, required: true, trim: true },
     supplierContact: { type: String, default: '', trim: true },
+    supplierEmail: { type: String, default: '', trim: true, match: [/^[^\s@]+@[^\s@]+$/, 'Enter a valid supplier email address'] },
     orderDate: { type: Date, default: Date.now },
     expectedDeliveryDate: { type: Date, default: null },
     status: {

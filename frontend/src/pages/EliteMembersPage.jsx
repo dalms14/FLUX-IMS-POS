@@ -5,11 +5,11 @@ import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import { canManageEliteMembers } from '../utils/roles';
 import { getSessionUser } from '../utils/session';
-import { isAllowedMemberNameInput, isValidMemberName, MEMBER_NAME_ERROR } from '../utils/memberValidation';
+import { isAllowedMemberNameInput, isValidMemberName, MEMBER_NAME_ERROR, isValidMemberEmail, MEMBER_EMAIL_ERROR } from '../utils/memberValidation';
 import './EliteMembersPage.css';
 
 const endpoint = 'http://localhost:5000/api/elite-members';
-const blank = { name: '', idNumber: '', status: 'active', notes: '' };
+const blank = { name: '', idNumber: '', email: '', status: 'active', notes: '' };
 const FieldError = ({ id, message }) => message ? <span id={id} className="elite-field-error" role="alert"><FiAlertCircle aria-hidden="true" /><span>{message}</span></span> : null;
 
 export default function EliteMembersPage() {
@@ -30,6 +30,7 @@ export default function EliteMembersPage() {
   const [archiveError, setArchiveError] = useState('');
   const nameInput = useRef(null);
   const cardInput = useRef(null);
+  const emailInput = useRef(null);
   const archiveCancel = useRef(null);
 
   useEffect(() => { if (archiveAction) archiveCancel.current?.focus(); }, [archiveAction]);
@@ -87,15 +88,16 @@ export default function EliteMembersPage() {
   const save = async event => {
     event.preventDefault();
     if (saving) return;
-    const values = { name: form.name.trim(), idNumber: form.idNumber, status: form.status, notes: (form.notes || '').trim() };
+    const values = { name: form.name.trim(), idNumber: form.idNumber, email: (form.email || '').trim(), status: form.status, notes: (form.notes || '').trim() };
     const errors = {};
     if (!values.name) errors.name = 'Please enter the member’s name.';
     else if (!isValidMemberName(values.name)) errors.name = MEMBER_NAME_ERROR;
     if (!values.idNumber) errors.idNumber = 'Please enter the card ID.';
     else if (!/^[0-9]{1,12}$/.test(values.idNumber)) errors.idNumber = 'Card ID must contain 1–12 digits.';
+    if (!isValidMemberEmail(values.email)) errors.email = MEMBER_EMAIL_ERROR;
     setFieldErrors(errors);
     setFormError('');
-    if (Object.keys(errors).length) { (errors.name ? nameInput : cardInput).current?.focus(); return; }
+    if (Object.keys(errors).length) { (errors.name ? nameInput : errors.idNumber ? cardInput : emailInput).current?.focus(); return; }
     setSaving(true);
     setFormError('');
     try {
@@ -136,6 +138,11 @@ export default function EliteMembersPage() {
             }} /><FieldError id="member-card-error" message={fieldErrors.idNumber} /><small id="member-card-help">1–12 digits. Leading zeroes are preserved.</small></label>
             <label>Status<select value={form.status} disabled={saving} onChange={event => setForm({ ...form, status: event.target.value })}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
           </div>
+          <label>Email address (optional)<input ref={emailInput} type="email" maxLength={254} value={form.email || ''} disabled={saving} aria-invalid={Boolean(fieldErrors.email)} aria-describedby={fieldErrors.email ? 'member-email-error' : undefined} onChange={event => {
+            setForm({ ...form, email: event.target.value });
+            setFieldErrors(previous => ({ ...previous, email: '' }));
+            setFormError('');
+          }} /><FieldError id="member-email-error" message={fieldErrors.email} /></label>
           <label>Notes (optional)<textarea maxLength={500} value={form.notes || ''} disabled={saving} onChange={event => setForm({ ...form, notes: event.target.value })} /></label>
           {formError && <p role="alert" className="elite-error">{formError}</p>}
           <div className="elite-form-actions"><button type="button" disabled={saving} onClick={() => setForm(null)}>Cancel</button><button className="elite-primary" disabled={saving}>{saving ? 'Saving…' : 'Save member'}</button></div>
@@ -143,9 +150,9 @@ export default function EliteMembersPage() {
         <section className="elite-members-table">
           <div className="elite-member-search"><label htmlFor="member-search">Search registered members</label><input id="member-search" type="search" maxLength={120} value={search} onChange={event => setSearch(event.target.value)} placeholder="Member name or card ID" /><button onClick={() => setRefresh(value => value + 1)} disabled={loading}>Refresh</button></div>
           <div className="data-scroll-box" tabIndex={0} role="region" aria-label="Elite Member records">
-            <table><thead><tr><th>Member name</th><th>Card ID</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
-              <tbody>{loading ? <tr><td colSpan={5}>Loading members…</td></tr> : members.length === 0 ? <tr><td colSpan={5}>{showArchived ? 'No archived members found.' : 'No members found.'}</td></tr> : members.map(member => <tr key={member._id}>
-                <td>{member.name}</td><td>{member.idNumber}</td><td><span className={`elite-status ${showArchived ? 'archived' : member.status}`}>{showArchived ? 'Archived' : member.status === 'active' ? 'Active' : 'Inactive'}</span></td><td>{member.notes || '—'}</td><td><div className="elite-row-actions">
+            <table><thead><tr><th>Member name</th><th>Card ID</th><th>Email address</th><th>Status</th><th>Notes</th><th>Actions</th></tr></thead>
+              <tbody>{loading ? <tr><td colSpan={6}>Loading members…</td></tr> : members.length === 0 ? <tr><td colSpan={6}>{showArchived ? 'No archived members found.' : 'No members found.'}</td></tr> : members.map(member => <tr key={member._id}>
+                <td>{member.name}</td><td>{member.idNumber}</td><td>{member.email || '—'}</td><td><span className={`elite-status ${showArchived ? 'archived' : member.status}`}>{showArchived ? 'Archived' : member.status === 'active' ? 'Active' : 'Inactive'}</span></td><td>{member.notes || '—'}</td><td><div className="elite-row-actions">
                   {showArchived ? <button disabled={saving || archiving} onClick={() => openArchive(member, true)} aria-label={`Restore ${member.name}, card ${member.idNumber}`}>Restore</button> : <>
                     <button disabled={saving || archiving} onClick={() => edit(member)} aria-label={`Edit ${member.name}, card ${member.idNumber}`}>Edit</button>
                     <button className="elite-archive-button" disabled={saving || archiving} onClick={() => openArchive(member)} aria-label={`Archive ${member.name}, card ${member.idNumber}`}>Archive</button>

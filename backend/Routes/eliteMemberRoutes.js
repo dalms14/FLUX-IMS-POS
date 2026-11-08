@@ -3,12 +3,13 @@ const mongoose = require('mongoose');
 const EliteMember = require('../models/EliteMember');
 const SystemAudit = require('../models/SystemAudit');
 const { canManageEliteMembers } = require('../utils/permissions');
-const { isValidMemberName, MEMBER_NAME_ERROR } = require('../utils/memberValidation');
+const { isValidMemberName, MEMBER_NAME_ERROR, isValidMemberEmail, MEMBER_EMAIL_ERROR } = require('../utils/memberValidation');
 
 const router = express.Router();
 const validCard = value => typeof value === 'string' && /^[0-9]{1,12}$/.test(value);
 const publicMember = member => ({ name: member.name, idNumber: member.idNumber });
 const fields = body => ({ name: typeof body.name === 'string' ? body.name.trim() : '',
+    ...(body.email !== undefined ? { email: typeof body.email === 'string' ? body.email.trim() : body.email } : {}),
     idNumber: body.idNumber, status: body.status ?? 'active', notes: typeof body.notes === 'string' ? body.notes.trim() : '' });
 const invalidFields = member => !isValidMemberName(member.name) || !validCard(member.idNumber)
     || !['active', 'inactive'].includes(member.status) || member.notes.length > 500;
@@ -35,7 +36,7 @@ router.get('/', async (req, res) => {
             const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             filter.$or = [{ name: { $regex: escaped, $options: 'i' } }, { idNumber: { $regex: escaped } }];
         }
-        const data = await EliteMember.find(filter).select(managing ? 'name idNumber status notes archived archivedAt archivedBy createdAt updatedAt' : 'name idNumber status')
+        const data = await EliteMember.find(filter).select(managing ? 'name idNumber email status notes archived archivedAt archivedBy createdAt updatedAt' : 'name idNumber status')
             .sort({ name: 1, idNumber: 1 }).limit(100).lean();
         res.json({ data, limit: 100 });
     } catch (error) { failure(res, error); }
@@ -54,6 +55,7 @@ router.post('/', async (req, res) => {
     if (!canManageEliteMembers(req.user)) return res.status(403).json({ message: 'Elite Membership access is required to manage members.' });
     const member = fields(req.body);
     if (!isValidMemberName(member.name)) return res.status(400).json({ message: MEMBER_NAME_ERROR });
+    if (!isValidMemberEmail(member.email)) return res.status(400).json({ message: MEMBER_EMAIL_ERROR });
     if (invalidFields(member)) return res.status(400).json({ message: 'Enter a name (up to 120 characters), a card ID of 1 to 12 digits, and a valid status. Notes may contain up to 500 characters.' });
     try {
         const created = await EliteMember.create(member);
@@ -67,6 +69,7 @@ router.patch('/:id', async (req, res) => {
     if (!mongoose.isObjectIdOrHexString(req.params.id)) return res.status(400).json({ message: 'Select a valid member record.' });
     const member = fields(req.body);
     if (!isValidMemberName(member.name)) return res.status(400).json({ message: MEMBER_NAME_ERROR });
+    if (!isValidMemberEmail(member.email)) return res.status(400).json({ message: MEMBER_EMAIL_ERROR });
     if (invalidFields(member)) return res.status(400).json({ message: 'Check the member name, card ID, status and notes.' });
     try {
         const updated = await EliteMember.findOneAndUpdate({ _id: req.params.id, archived: { $ne: true } }, { $set: member }, { new: true, runValidators: true });

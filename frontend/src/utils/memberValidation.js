@@ -2,3 +2,7 @@ export const MEMBER_NAME_ERROR = 'Member name must contain letters and may inclu
 export const isAllowedMemberNameInput = value => /^[\p{L}\p{M} .'’-]*$/u.test(value);
 export const isValidMemberName = value => typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 120
   && /\p{L}/u.test(value) && isAllowedMemberNameInput(value.trim());
+
+export const MEMBER_EMAIL_ERROR = 'Enter a valid email address (up to 254 characters), or leave it blank.';
+export const isValidMemberEmail = value => value === undefined || (typeof value === 'string'
+  && (value === '' || (value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))));

@@ -1,3 +1,5 @@
+import { loginActivityLabel, loginActivityDetails } from './loginActivity';
+
 export const REPORT_CSV_OPTIONS = [
   ['sales_transactions', 'Sales transactions'],
   ['financial_summary', 'Financial summary'],
@@ -54,9 +56,9 @@ export function buildReportCsvRows(type, { report, inventory, inventoryHistory, 
       return [['Date/time (Philippine time)', 'Module', 'Action', 'Record', 'Performed by', 'Details'],
         ...systemAudit.map(row => [timestamp(row.createdAt), row.module === 'Staff' ? 'User Accounts' : row.module, row.action, row.entityName || row.entityId, row.actor, row.details])];
     case 'login_activity':
-      return [['Date/time (Philippine time)', 'Name', 'Email', 'Role', 'Staff ID', 'Status', 'Device/browser'],
+      return [['Date/time (Philippine time)', 'Name', 'Email', 'Role', 'Staff ID', 'Status', 'Device/browser', 'Shift details'],
         ...loginActivity.map(row => [timestamp(row.createdAt), row.name, row.email, row.role, row.staffId,
-          row.action === 'login_blocked_archived' ? 'Blocked — Archived account' : row.action === 'logout' ? 'Signed out' : 'Signed in', row.userAgent])];
+          loginActivityLabel(row.action), row.userAgent, loginActivityDetails(row)])];
     default:
       throw new Error('Select a valid CSV record type.');
   }

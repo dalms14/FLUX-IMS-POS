@@ -31,13 +31,14 @@ test('a card deactivated after listing is rejected without applying the discount
   expect(onConfirm).not.toHaveBeenCalled();
 });
 
-test('search uses the registry and cancels the previous selection', async () => {
+test('card search limits input to 12 digits and cancels the previous selection', async () => {
   render(<EliteVerificationModal onConfirm={jest.fn()} onCancel={jest.fn()} />);
   await screen.findByRole('option', { name: `${member.name} — ${member.idNumber}` });
   fireEvent.change(screen.getByLabelText('Registered member'), { target: { value: member.idNumber } });
-  fireEvent.change(screen.getByLabelText('Search name or card ID'), { target: { value: '000' } });
+  fireEvent.change(screen.getByLabelText('Search card ID'), { target: { value: '00ab123456789012345' } });
+  expect(screen.getByLabelText('Search card ID')).toHaveValue('001234567890');
   expect(screen.getByRole('button', { name: 'Confirm' })).toBeDisabled();
-  await waitFor(() => expect(axios.get).toHaveBeenLastCalledWith('http://localhost:5000/api/elite-members?search=000'));
+  await waitFor(() => expect(axios.get).toHaveBeenLastCalledWith('http://localhost:5000/api/elite-members?search=001234567890'));
 });
 
 test('unregistered browser-saved entries cannot substitute for registry records', async () => {

@@ -12,4 +12,9 @@ const canReceiveOrder = (order, user) => {
     return Boolean(assigned && assigned === String(user.email || '').trim().toLowerCase());
 };
 
-module.exports = { isStaffReceiver, canReceiveOrder };
+const isAssignableReceiver = user => isStaffReceiver(user) || Boolean(user && !user.archived
+    && String(user.role || '').trim().toLowerCase() === 'admin'
+    && String(user.email || '').trim().toLowerCase() !== 'admin@elicoffee.com'
+    && String(user.userId || '').trim().toUpperCase() !== 'ELI001');
+
+module.exports = { isStaffReceiver, isAssignableReceiver, canReceiveOrder };

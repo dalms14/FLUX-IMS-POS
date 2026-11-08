@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { buildReportCsvRows, REPORT_CSV_OPTIONS } from './reportCsv';
+import { loginActivityLabel, loginActivityDetails } from './loginActivity';
 
 export const manilaToday = () => new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
 const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
@@ -80,9 +81,9 @@ export async function loadReportCsv({ type, mode, startDate, endDate, loginQuery
     case 'login_activity': {
       const query = loginQuery.trim().toLowerCase();
       data.loginActivity = (await getLogs('auth/login-activity')).filter(row => {
-        const status = row.action === 'logout' ? 'Signed out' : row.action === 'login_blocked_archived' ? 'Blocked — Archived account' : 'Signed in';
+        const status = loginActivityLabel(row.action);
         return (loginRole === 'all' || String(row.role || '').toLowerCase() === loginRole)
-          && (!query || [row.name, row.email, row.staffId, row.role, status].some(value => String(value || '').toLowerCase().includes(query)));
+          && (!query || [row.name, row.email, row.staffId, row.role, status, loginActivityDetails(row)].some(value => String(value || '').toLowerCase().includes(query)));
       });
       break;
     }

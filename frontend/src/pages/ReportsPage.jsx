@@ -14,8 +14,7 @@ import {
   FiShoppingBag,
 } from 'react-icons/fi';
 import { LuPhilippinePeso } from 'react-icons/lu';
-
-const loginActivityLabel = (action) => action === 'login_blocked_archived' ? 'Blocked — Archived account' : action === 'logout' ? 'Signed out' : 'Signed in';
+import { loginActivityLabel, loginActivityDetails, isBlockedLogin } from '../utils/loginActivity';
 
 const today = new Date();
 const toDateInput = (date) => {
@@ -117,6 +116,7 @@ const downloadBlob = (content, filename, type) => {
 const formatDateTime = (value) => {
   if (!value) return '-';
   return new Date(value).toLocaleString('en-PH', {
+    timeZone: 'Asia/Manila',
     year: 'numeric',
     month: 'short',
     day: '2-digit',
@@ -320,10 +320,10 @@ const ReportsPage = () => {
       })),
       ...loginActivity.map(row => ({
         date: row.createdAt,
-        type: row.action === 'login_blocked_archived' ? 'Blocked Login' : row.action === 'logout' ? 'Logout' : 'Login',
+        type: isBlockedLogin(row.action) ? 'Blocked Login' : row.action === 'logout' ? 'Logout' : 'Login',
         reference: row.staffId || row.email,
         actor: row.name,
-        detail: `${row.role}: ${loginActivityLabel(row.action)}`,
+        detail: `${row.role}: ${loginActivityLabel(row.action)} ${loginActivityDetails(row)}`.trim(),
         amount: '',
       })),
       ...systemAudit.map(row => ({
@@ -388,7 +388,7 @@ const ReportsPage = () => {
   const filteredLoginActivity = useMemo(() => {
     const query = loginQuery.trim().toLowerCase();
     return loginActivity.filter((row) => {
-      const matchesQuery = !query || [row.name, row.email, row.staffId, row.role, loginActivityLabel(row.action)]
+      const matchesQuery = !query || [row.name, row.email, row.staffId, row.role, loginActivityLabel(row.action), loginActivityDetails(row)]
         .some((value) => String(value || '').toLowerCase().includes(query));
       const matchesRole = loginRole === 'all' || String(row.role || '').toLowerCase() === loginRole;
       return matchesQuery && matchesRole;
@@ -721,10 +721,11 @@ const ReportsPage = () => {
               <option value="owner">Owner</option>
               <option value="admin">Admin</option>
               <option value="staff">Staff</option>
+              <option value="custom">Custom staff role</option>
             </select>
           </div>
           <DataTable
-            headers={['Activity Time', 'Name', 'Email', 'Role', 'Staff ID', 'Status', 'Device']}
+            headers={['Activity Time', 'Name', 'Email', 'Role', 'Staff ID', 'Status', 'Device', 'Shift details']}
             rows={filteredLoginActivity}
             emptyText={loginQuery || loginRole !== 'all' ? 'No login activity matches those filters.' : 'No login activity for this period.'}
             renderRow={(row, index) => (
@@ -734,8 +735,9 @@ const ReportsPage = () => {
                 <td style={tdStyle}>{row.email || '-'}</td>
                 <td style={{ ...tdStyle, textTransform: 'capitalize', fontWeight: '900', color: row.role === 'admin' ? '#6B46C1' : '#8B5E3C' }}>{row.role || '-'}</td>
                 <td style={tdStyle}>{row.staffId || '-'}</td>
-                <td style={tdStyle}><span style={{ display: 'inline-block', padding: '5px 9px', borderRadius: '999px', whiteSpace: 'nowrap', fontWeight: '800', fontSize: '12px', backgroundColor: row.action === 'login_blocked_archived' ? '#FEF2F2' : '#F0FDF4', color: row.action === 'login_blocked_archived' ? '#B91C1C' : '#166534' }}>{loginActivityLabel(row.action)}</span></td>
+                <td style={tdStyle}><span style={{ display: 'inline-block', padding: '5px 9px', borderRadius: '999px', whiteSpace: 'nowrap', fontWeight: '800', fontSize: '12px', backgroundColor: isBlockedLogin(row.action) ? '#FEF2F2' : '#F0FDF4', color: isBlockedLogin(row.action) ? '#B91C1C' : '#166534' }}>{loginActivityLabel(row.action)}</span></td>
                 <td style={{ ...tdStyle, minWidth: '280px', color: '#666' }}>{row.userAgent || '-'}</td>
+                <td style={{ ...tdStyle, minWidth: '250px', color: '#666' }}>{loginActivityDetails(row) || '—'}</td>
               </tr>
             )}
           />

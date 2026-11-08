@@ -12,16 +12,48 @@ async function post(path, body, params = {}) {
     return result;
 }
 
-test('creating a specific staff assignment rejects admin, owner and archived accounts on the server', async t => {
+test('creating a specific assignment rejects owners and archived staff or admins on the server', async t => {
     let receiver;
     t.mock.method(User, 'findOne', async () => receiver);
     const create = t.mock.method(PurchaseOrder, 'create', async () => { throw new Error('Must not create'); });
-    for (const account of [{ role: 'admin' }, { role: 'owner' }, { role: 'staff', archived: true }]) {
+    for (const account of [{ role: 'owner' }, { role: 'staff', archived: true }, { role: 'admin', archived: true }, { role: 'admin', email: 'admin@elicoffee.com' }]) {
         receiver = account;
         const result = await post('/', { supplierName: 'Supplier', assignedReceiverEmail: 'test@example.com', items: [{ name: 'Beans', unit: 'kg', orderedQuantity: 2 }] });
         assert.equal(result.status, 400);
         assert.match(result.data.message, /active staff/);
     }
+    assert.equal(create.mock.callCount(), 0);
+});
+
+test('a purchase order can be assigned to an active admin and saves the supplier email', async t => {
+    const receiver = { _id: 'admin-id', role: 'admin', name: 'Receiving Admin', email: 'receiving@example.com' };
+    t.mock.method(User, 'findOne', async () => receiver);
+    t.mock.method(PurchaseOrder, 'countDocuments', async () => 0);
+    t.mock.method(PurchaseOrder, 'create', async data => ({ ...data, _id: 'po1' }));
+    t.mock.method(SystemAudit, 'create', async () => ({}));
+    const result = await post('/', {
+        supplierName: 'Supplier', supplierContact: '09171234567', supplierEmail: ' orders@supplier.com ',
+        assignedReceiverEmail: receiver.email, items: [{ name: 'Beans', unit: 'kg', orderedQuantity: 2 }],
+    });
+    assert.equal(result.status, 201);
+    assert.equal(result.data.order.supplierEmail, 'orders@supplier.com');
+    assert.equal(result.data.order.supplierContact, '09171234567');
+    assert.deepEqual(result.data.order.assignedReceiver, { userId: receiver._id, name: receiver.name, email: receiver.email });
+    const document = new PurchaseOrder(result.data.order);
+    assert.equal(document.supplierEmail, 'orders@supplier.com');
+    assert.equal(document.validateSync()?.errors.supplierEmail, undefined);
+});
+
+test('supplier email is optional for existing orders and invalid addresses are rejected', async t => {
+    const document = new PurchaseOrder({ supplierName: 'Supplier' });
+    assert.equal(document.supplierEmail, '');
+    assert.equal(document.validateSync()?.errors.supplierEmail, undefined);
+    document.supplierEmail = 'invalid-address';
+    assert.ok(document.validateSync().errors.supplierEmail);
+    const create = t.mock.method(PurchaseOrder, 'create', async () => { throw new Error('Must not create'); });
+    const result = await post('/', { supplierName: 'Supplier', supplierEmail: 'invalid-address', items: [{ name: 'Beans', unit: 'kg', orderedQuantity: 2 }] });
+    assert.equal(result.status, 400);
+    assert.match(result.data.message, /valid supplier email/);
     assert.equal(create.mock.callCount(), 0);
 });
 

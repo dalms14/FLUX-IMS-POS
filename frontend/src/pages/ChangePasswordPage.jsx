@@ -1,3 +1,4 @@
+import ValidatedForm from '../components/ValidatedForm';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -108,7 +109,7 @@ const ChangePasswordPage = () => {
           {error && <div className="password-reset-notice is-error" role="alert">{error}</div>}
           {success && step !== 'done' && <div className="password-reset-notice is-success" role="status"><Check size={17} />{success}</div>}
 
-          {step === 'request' && <form className="password-reset-form" onSubmit={submit}>
+          {step === 'request' && <ValidatedForm className="password-reset-form" onSubmit={submit}>
             <div className="password-reset-field">
               <label htmlFor="reset-email">Account email</label>
               <div className="password-reset-input-wrap">
@@ -120,9 +121,9 @@ const ChangePasswordPage = () => {
             <button type="submit" className="password-reset-primary" disabled={loading}>
               {loading ? <span className="password-reset-loading">Sending code…</span> : <>Send verification code <span aria-hidden="true">→</span></>}
             </button>
-          </form>}
+          </ValidatedForm>}
 
-          {step === 'verify' && <form className="password-reset-form" onSubmit={submit}>
+          {step === 'verify' && <ValidatedForm className="password-reset-form" onSubmit={submit}>
             <div className="password-reset-destination">
               <div><Mail size={18} aria-hidden="true" /><span><small>Code sent to</small><strong>{form.email}</strong></span></div>
               <button type="button" onClick={useDifferentEmail}>Change</button>
@@ -154,7 +155,7 @@ const ChangePasswordPage = () => {
               {loading ? <span className="password-reset-loading">Updating password…</span> : 'Update password'}
             </button>
             <button type="button" className="password-reset-secondary" disabled={loading} onClick={requestCode}>Send a new code</button>
-          </form>}
+          </ValidatedForm>}
 
           {step === 'done' && <div className="password-reset-complete">
             <div className="password-reset-complete-check" aria-hidden="true"><Check size={22} /></div>

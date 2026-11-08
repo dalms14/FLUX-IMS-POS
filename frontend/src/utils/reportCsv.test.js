@@ -39,3 +39,13 @@ test('an empty record category retains its headers, and unknown categories are r
   expect(buildReportCsvRows('login_activity', { ...data, loginActivity: [] })).toHaveLength(1);
   expect(() => buildReportCsvRows('mixed', data)).toThrow('Select a valid CSV record type');
 });
+
+test('off-shift login CSV preserves status and the schedule snapshot, while archived attempts retain their label', () => {
+  const rows = buildReportCsvRows('login_activity', { ...data, loginActivity: [
+    { action: 'login_blocked_off_shift', shiftSchedule: { workdays: ['monday'], startTime: '22:00', endTime: '06:00', earlyLoginMinutes: 15 } },
+    { action: 'login_blocked_archived' }, { action: 'login' }, { action: 'logout' },
+  ] });
+  expect(rows.map(row => row[5]).slice(1)).toEqual(['Blocked — Outside shift', 'Blocked — Archived account', 'Signed in', 'Signed out']);
+  expect(rows[1][7]).toContain('Mon · 10:00 PM–6:00 AM (+1 day) · PHT');
+  expect(rows[1][7]).toContain('Early login allowance: 15 minutes');
+});

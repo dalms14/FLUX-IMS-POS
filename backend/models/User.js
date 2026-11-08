@@ -1,5 +1,15 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { SHIFT_DAYS, SHIFT_TIME_ZONE, defaultShiftSchedule, validateShiftSchedule } = require('../utils/shiftSchedule');
+
+const ShiftScheduleSchema = new mongoose.Schema({
+    workdays: { type: [{ type: String, enum: SHIFT_DAYS }], default: [] },
+    startTime: { type: String, default: '' },
+    endTime: { type: String, default: '' },
+    restrictLogin: { type: Boolean, default: false },
+    earlyLoginMinutes: { type: Number, default: 15, min: 0, max: 120 },
+    timeZone: { type: String, enum: [SHIFT_TIME_ZONE], default: SHIFT_TIME_ZONE },
+}, { _id: false });
 
 const UserSchema = new mongoose.Schema({
     name: String,
@@ -10,6 +20,12 @@ const UserSchema = new mongoose.Schema({
     firstLoginTokenExpiresAt: { type: Date, default: null, select: false },
     role: String,
     jobRole: String,
+    shiftSchedule: {
+        type: ShiftScheduleSchema,
+        default: defaultShiftSchedule,
+        validate: { validator: value => !validateShiftSchedule(value.toObject()).error, message: 'Enter a complete, valid shift schedule.' },
+        required: true,
+    },
     permissions: {
         type: [String],
         default: undefined,

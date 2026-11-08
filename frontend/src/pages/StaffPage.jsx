@@ -1,8 +1,13 @@
+import ValidatedForm from '../components/ValidatedForm';
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
+import { FiClock, FiShield, FiTrash2, FiRotateCcw } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
+import UserShiftModal from '../components/UserShiftModal';
+import { shiftSummary, isShiftExempt } from '../utils/shiftSchedule';
+import { loginActivityLabel, loginActivityDetails, isBlockedLogin } from '../utils/loginActivity';
 import { DEFAULT_ADMIN_PERMISSIONS, DEFAULT_STAFF_PERMISSIONS, PERMISSIONS, isOwnerAccount, hasPermission, normalizePermissionDependencies, togglePermissionSelection } from '../utils/roles';
 import './StaffPage.css';
 
@@ -121,7 +126,7 @@ const DeleteUserModal = ({ user, password, error, deleting, onPasswordChange, on
       onClick={onClose}
       style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 18, 8, 0.55)', zIndex: 1800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px', fontFamily: 'Segoe UI, sans-serif' }}
     >
-      <form
+      <ValidatedForm
         onClick={event => event.stopPropagation()}
         onSubmit={onConfirm}
         style={{ width: 'min(390px, 100%)', backgroundColor: '#fff', borderRadius: '14px', padding: '26px', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}
@@ -174,20 +179,20 @@ const DeleteUserModal = ({ user, password, error, deleting, onPasswordChange, on
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
-      </form>
+      </ValidatedForm>
     </div>
   );
 };
 
 const RestoreUserModal = ({ user, password, error, restoring, onPasswordChange, onConfirm, onClose }) => (
   <div onClick={onClose} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(26, 18, 8, 0.55)', zIndex: 1800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px', fontFamily: 'Segoe UI, sans-serif' }}>
-    <form onClick={event => event.stopPropagation()} onSubmit={onConfirm} style={{ width: 'min(390px, 100%)', backgroundColor: '#fff', borderRadius: '14px', padding: '26px', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
+    <ValidatedForm onClick={event => event.stopPropagation()} onSubmit={onConfirm} style={{ width: 'min(390px, 100%)', backgroundColor: '#fff', borderRadius: '14px', padding: '26px', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
       <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: '900', color: '#1a1a1a', textAlign: 'center' }}>Restore this account?</h3>
       <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#777', lineHeight: 1.5, textAlign: 'center' }}>{user?.name || user?.email} will be able to sign in again. Enter your password to confirm.</p>
       <label style={{ display: 'block', marginBottom: '14px' }}><span style={{ display: 'block', marginBottom: '6px', fontSize: '12px', color: '#4A3A2A', fontWeight: '800' }}>Your password</span><input type="password" value={password} onChange={event => onPasswordChange(event.target.value)} autoFocus placeholder="Enter your password" style={{ width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1.5px solid #D8CABB', borderRadius: '8px', fontSize: '13px', outline: 'none' }} /></label>
       {error && <p style={{ margin: '0 0 14px', padding: '10px 12px', borderRadius: '8px', backgroundColor: '#FFF5F5', border: '1px solid #FED7D7', color: '#C53030', fontSize: '12px', fontWeight: '700' }}>{error}</p>}
       <div style={{ display: 'flex', gap: '10px' }}><button type="button" onClick={onClose} disabled={restoring} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', backgroundColor: '#f5f5f5', color: '#555', fontSize: '13px', fontWeight: '700', cursor: restoring ? 'not-allowed' : 'pointer' }}>Cancel</button><button type="submit" disabled={restoring || !password.trim()} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', backgroundColor: restoring || !password.trim() ? '#9AE6B4' : '#276749', color: '#fff', fontSize: '13px', fontWeight: '800', cursor: restoring || !password.trim() ? 'not-allowed' : 'pointer' }}>{restoring ? 'Restoring...' : 'Restore'}</button></div>
-    </form>
+    </ValidatedForm>
   </div>
 );
 
@@ -213,9 +218,12 @@ const StaffPage = () => {
   const [restorePassword, setRestorePassword] = useState('');
   const [restoreError, setRestoreError] = useState('');
   const [restoringId, setRestoringId] = useState('');
+  const [userToEditShift, setUserToEditShift] = useState(null);
+  const [shiftMessage, setShiftMessage] = useState('');
 
   const currentUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
   const ownerCanEditAccess = isOwnerAccount(currentUser);
+  const canEditShifts = ownerCanEditAccess || (String(currentUser.role || '').toLowerCase() === 'admin' && hasPermission(currentUser, 'users'));
   const isCurrentUser = (user) => (
     Boolean(currentUser.email) &&
     String(user.email || '').trim().toLowerCase() === String(currentUser.email).trim().toLowerCase()
@@ -301,6 +309,7 @@ const StaffPage = () => {
   const formatFullDateTime = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleString('en-PH', {
+      timeZone: 'Asia/Manila',
       year: 'numeric',
       month: 'short',
       day: '2-digit',
@@ -486,8 +495,9 @@ const StaffPage = () => {
           </p>
         </div>
 
+        {shiftMessage && <p role="status" className="staff-shift-success">{shiftMessage}</p>}
         <div className="staff-table-card data-scroll-box data-scroll-box-grid" role="region" aria-label="User accounts" tabIndex={0} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <div className="staff-list-head" style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1.15fr 1fr 190px', gap: '12px', padding: '14px 18px', backgroundColor: '#1A1208' }}>
+          <div className="staff-list-head" style={{ display: 'grid', gridTemplateColumns: 'minmax(145px, 1.5fr) minmax(170px, 1.5fr) 70px minmax(100px, 1fr) 80px 260px', gap: '12px', padding: '14px 18px', backgroundColor: '#1A1208' }}>
             {['User', 'Email', 'User ID', 'Status', 'Created', 'Action'].map(header => (
               <p key={header} style={{ margin: 0, fontSize: '11px', color: '#C4894A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
             ))}
@@ -507,7 +517,7 @@ const StaffPage = () => {
                 onClick={() => openUserDetails(user)}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '2fr 2fr 1fr 1.15fr 1fr 190px',
+                  gridTemplateColumns: 'minmax(145px, 1.5fr) minmax(170px, 1.5fr) 70px minmax(100px, 1fr) 80px 260px',
                   gap: '12px',
                   padding: '14px 18px',
                   alignItems: 'center',
@@ -526,6 +536,7 @@ const StaffPage = () => {
                   <div style={{ minWidth: 0 }}>
                     <p className="staff-user-name" style={{ margin: 0, fontSize: '13px', color: '#1a1a1a', fontWeight: '800', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.name || 'Unnamed User'}</p>
                     <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{user.jobRole || user.role}</p>
+                    <p className="staff-shift-summary">{isOwnerAccount(user) ? 'Shift exempt' : shiftSummary(user.shiftSchedule)}</p>
                   </div>
                 </div>
                 <p className="staff-user-email" data-label="Email" style={{ margin: 0, fontSize: '13px', color: '#555', wordBreak: 'break-word' }}>{user.email || '-'}</p>
@@ -553,54 +564,39 @@ const StaffPage = () => {
                   </p>
                 </div>
                 <p className="staff-user-created" data-label="Created" style={{ margin: 0, fontSize: '13px', color: '#777' }}>{formatDate(user.createdAt)}</p>
-                <div className="staff-user-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="staff-user-actions" role="group" aria-label={`Actions for ${user.name || user.email}`}>
+                  {!showArchived && canEditShifts && !isOwnerAccount(user) && <button className="staff-action" onClick={event => { event.stopPropagation(); setShiftMessage(''); setUserToEditShift(user); }}><FiClock aria-hidden="true" />Edit Shift</button>}
                   {!showArchived && ownerCanEditAccess && user.role !== 'owner' && (
                     <button
+                      className="staff-action"
                       onClick={event => {
                         event.stopPropagation();
                         openAccessEditModal(user);
                       }}
-                      style={{
-                        padding: '8px 10px',
-                        border: '1px solid #BEE3F8',
-                        borderRadius: '7px',
-                        backgroundColor: '#EBF8FF',
-                        color: '#2B6CB0',
-                        fontSize: '12px',
-                        fontWeight: '800',
-                        cursor: 'pointer',
-                      }}
                     >
-                      Edit Access
+                      <FiShield aria-hidden="true" />Edit Access
                     </button>
                   )}
                   {showArchived ? (
                   <button
+                    className="staff-action staff-action-restore"
                     onClick={event => { event.stopPropagation(); openRestoreUserModal(user); }}
                     disabled={restoringId === user._id}
-                    style={{ padding: '8px 10px', border: '1px solid #9AE6B4', borderRadius: '7px', backgroundColor: '#F0FFF4', color: '#276749', fontSize: '12px', fontWeight: '800', cursor: restoringId === user._id ? 'not-allowed' : 'pointer' }}
                   >
-                    {restoringId === user._id ? 'Restoring...' : 'Restore'}
+                    <FiRotateCcw aria-hidden="true" />{restoringId === user._id ? 'Restoring...' : 'Restore'}
                   </button>
                   ) : !isCurrentUser(user) && !isOwnerAccount(user) && (
                   <button
+                    className="staff-action staff-action-delete"
+                    aria-label={deletingId === user._id ? 'Deleting...' : 'Delete'}
+                    title={`Delete ${user.name || user.email}`}
                     onClick={event => {
                       event.stopPropagation();
                       openDeleteUserModal(user);
                     }}
                     disabled={deletingId === user._id}
-                    style={{
-                      padding: '8px 10px',
-                      border: '1px solid #FED7D7',
-                      borderRadius: '7px',
-                      backgroundColor: deletingId === user._id ? '#F3F4F6' : '#FFF5F5',
-                      color: deletingId === user._id ? '#999' : '#C53030',
-                      fontSize: '12px',
-                      fontWeight: '800',
-                      cursor: deletingId === user._id ? 'not-allowed' : 'pointer',
-                    }}
                   >
-                    {deletingId === user._id ? 'Deleting...' : 'Delete'}
+                    <FiTrash2 aria-hidden="true" />
                   </button>
                   )}
                 </div>
@@ -608,6 +604,12 @@ const StaffPage = () => {
             ))
           )}
         </div>
+        {userToEditShift && <UserShiftModal user={userToEditShift} onClose={() => setUserToEditShift(null)} onSaved={updated => {
+          setUsers(current => current.map(user => user._id === updated._id ? updated : user));
+          setSelectedUser(current => current?._id === updated._id ? updated : current);
+          setUserToEditShift(null);
+          setShiftMessage('Shift schedule saved. Staff login restrictions apply when the toggle is on. Owners and admins are exempt.');
+        }} />}
         {userToEditAccess && (
           <AccessEditModal
             user={userToEditAccess}
@@ -678,6 +680,16 @@ const StaffPage = () => {
                 ))}
               </div>
 
+              <section className="staff-shift-details" aria-label="Shift schedule">
+                <h3>Shift schedule</h3>
+                <p>{isOwnerAccount(selectedUser) ? 'Owner account — exempt from shift scheduling.' : shiftSummary(selectedUser.shiftSchedule)}</p>
+                {!isOwnerAccount(selectedUser) && <>
+                  <p>Restrict login to shift: {isShiftExempt(selectedUser) ? 'Exempt (admin)' : selectedUser.shiftSchedule?.restrictLogin ? 'On' : 'Off'}</p>
+                  <p>Early login allowance: {selectedUser.shiftSchedule?.earlyLoginMinutes ?? 15} minutes</p>
+                  <p>Philippine time (Asia/Manila)</p>
+                  {!showArchived && canEditShifts && <button className="staff-edit-shift" onClick={() => setUserToEditShift(selectedUser)}>Edit Shift</button>}
+                </>}
+              </section>
               <div style={{ padding: '20px 22px' }}>
                 <h3 style={{ margin: '0 0 12px', fontSize: '15px', fontWeight: '900', color: '#1a1a1a' }}>Login / Logout Times</h3>
                 {activityLoading ? (
@@ -691,14 +703,16 @@ const StaffPage = () => {
                     {activityLogs.map((log, index) => {
                       const action = log.action || 'login';
                       const isLogin = action === 'login';
+                      const blocked = isBlockedLogin(action);
                       return (
                         <div key={log._id || `${log.createdAt}-${index}`} style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr)', gap: '12px', padding: '12px 14px', alignItems: 'center', borderBottom: index === activityLogs.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
                           <span style={{ display: 'inline-flex', justifyContent: 'center', padding: '5px 9px', borderRadius: '999px', backgroundColor: isLogin ? '#ECFDF3' : '#FFF5F5', color: isLogin ? '#166534' : '#C53030', border: `1px solid ${isLogin ? '#BFE8CF' : '#FED7D7'}`, fontSize: '11px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                            {isLogin ? 'Logged in' : 'Logged out'}
+                            {blocked ? loginActivityLabel(action) : isLogin ? 'Logged in' : 'Logged out'}
                           </span>
                           <div>
                             <p style={{ margin: 0, fontSize: '13px', color: '#1a1a1a', fontWeight: '900' }}>{formatFullDateTime(log.createdAt)}</p>
                             <p style={{ margin: '3px 0 0', fontSize: '10px', color: '#999' }}>{log.ipAddress || 'No IP recorded'}</p>
+                            {blocked && <p style={{ margin: '5px 0 0', fontSize: '11px', color: '#6f6254', lineHeight: 1.5 }}>{loginActivityDetails(log)}</p>}
                           </div>
                         </div>
                       );

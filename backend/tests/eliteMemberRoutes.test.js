@@ -56,6 +56,55 @@ test('registration records validated card details and the authenticated audit ac
     assert.equal(audit.actorEmail, users.admin.email);
     assert.equal(saved._id, undefined);
 });
+
+test('registration and editing save a trimmed optional email and support clearing it', async t => {
+    t.mock.method(EliteMember, 'create', async values => ({ ...values, _id: member._id }));
+    t.mock.method(EliteMember, 'findOneAndUpdate', async (_filter, update) => ({ ...member, ...update.$set }));
+    t.mock.method(SystemAudit, 'create', async () => ({}));
+    for (const [path, method] of [['', 'POST'], ['/' + member._id, 'PATCH']]) {
+        for (const email of [' member@example.com ', '']) {
+            const result = await request(path, { user: 'owner', method, body: { ...member, email } });
+            assert.equal(result.status, method === 'POST' ? 201 : 200);
+            assert.equal(result.data.member.email, email.trim());
+        }
+    }
+});
+
+test('older clients that omit email do not clear an existing email during editing', async t => {
+    t.mock.method(EliteMember, 'findOneAndUpdate', async (_filter, update) => {
+        assert.equal(Object.hasOwn(update.$set, 'email'), false);
+        return { ...member, email: 'existing@example.com', ...update.$set };
+    });
+    t.mock.method(SystemAudit, 'create', async () => ({}));
+    const result = await request('/' + member._id, { user: 'owner', method: 'PATCH', body: member });
+    assert.equal(result.status, 200);
+    assert.equal(result.data.member.email, 'existing@example.com');
+});
+
+test('invalid emails are rejected on create and edit before database writes', async t => {
+    const create = t.mock.method(EliteMember, 'create', async () => { throw new Error('Must not create'); });
+    const update = t.mock.method(EliteMember, 'findOneAndUpdate', async () => { throw new Error('Must not update'); });
+    for (const email of ['invalid', 'member@', 'member @example.com', 'member@example.com\nother@example.com', 'x'.repeat(243) + '@example.com', 123, { $ne: '' }]) {
+        for (const [path, method] of [['', 'POST'], ['/' + member._id, 'PATCH']]) {
+            const result = await request(path, { user: 'owner', method, body: { ...member, email } });
+            assert.equal(result.status, 400);
+            assert.match(result.data.message, /valid email address/);
+        }
+    }
+    assert.equal(create.mock.callCount(), 0);
+    assert.equal(update.mock.callCount(), 0);
+});
+
+test('the model stores optional email and validates provided addresses', () => {
+    const legacy = new EliteMember(member);
+    assert.equal(legacy.email, '');
+    assert.equal(legacy.validateSync(), undefined);
+    const withEmail = new EliteMember({ ...member, email: ' member@example.com ' });
+    assert.equal(withEmail.email, 'member@example.com');
+    assert.equal(withEmail.validateSync(), undefined);
+    withEmail.email = 'invalid';
+    assert.ok(withEmail.validateSync().errors.email);
+});
 test('duplicate IDs return a useful conflict and the schema enforces a unique card index', async t => {
     t.mock.method(EliteMember, 'create', async () => { throw Object.assign(new Error('Duplicate'), { code: 11000 }); });
     const result = await request('', { user: 'owner', method: 'POST', body: member });
@@ -71,9 +120,11 @@ test('staff lookup always selects active records and does not expose management 
     assert.deepEqual(filter.archived, { $ne: true });
     assert.equal(filter.$or[0].name.$regex, '\\[');
     assert.equal(projection.includes('notes'), false);
+    assert.equal(projection.includes('email'), false);
     await request('?includeInactive=true', { user: 'owner' });
     assert.equal(filter.status, undefined);
     assert.equal(projection.includes('notes'), true);
+    assert.equal(projection.includes('email'), true);
     assert.deepEqual(filter.archived, { $ne: true });
     await request('?includeInactive=true&archived=true', { user: 'owner' });
     assert.equal(filter.archived, true);

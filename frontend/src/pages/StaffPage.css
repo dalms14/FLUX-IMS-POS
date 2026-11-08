@@ -5,6 +5,20 @@
   box-sizing: border-box;
 }
 
+.staff-list-head > p:last-child { text-align: right; }
+.staff-user-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: nowrap; min-width: 0; }
+.staff-user-actions .staff-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #e0d5cb; border-radius: 7px; background: #fff; color: #5a4634; font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; transition: background-color .15s, border-color .15s; }
+.staff-action svg { width: 14px; height: 14px; flex-shrink: 0; }
+.staff-user-actions .staff-action:hover { background: #faf5ef; border-color: #c4a88b; }
+.staff-user-actions .staff-action-delete { flex: 0 0 36px; width: 36px; padding: 0; margin-left: 4px; border-color: #f0d5d0; color: #b83d30; background: #fffaf9; }
+.staff-user-actions .staff-action-delete:hover { background: #fff0ed; border-color: #da9c91; }
+.staff-user-actions .staff-action-restore { color: #276749; border-color: #bfe8cf; background: #f0fff4; }
+.staff-user-actions .staff-action:focus-visible { outline: 2px solid #8b5e3c; outline-offset: 3px; }
+.staff-user-actions .staff-action:disabled { opacity: .5; cursor: not-allowed; }
+@media (min-width: 769px) {
+  .staff-page-content .staff-list-head, .staff-page-content .staff-list-row { min-width: 1000px !important; }
+}
+
 .staff-header-actions {
   max-width: 100%;
 }
@@ -17,6 +31,38 @@
   min-width: 0;
   max-width: 100%;
 }
+
+.staff-shift-summary { margin: 5px 0 0; color: #6f6254; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.staff-shift-success { padding: 12px 14px; background: #e6f4e9; color: #216b38; border-radius: 8px; font-size: 13px; }
+.staff-edit-shift { padding: 8px 10px; border: 1px solid #d4b89a; border-radius: 7px; background: #faf7f4; color: #6f4a2f; font-size: 12px; font-weight: 800; cursor: pointer; }
+.staff-shift-details { padding: 18px 22px; border-bottom: 1px solid #f0e8e0; color: #4a3a2a; }
+.staff-shift-details h3 { font-size: 15px; margin: 0 0 10px; }
+.staff-shift-details p { font-size: 12px; line-height: 1.6; margin: 6px 0; }
+.user-shift-overlay { position: fixed; inset: 0; z-index: 1900; padding: 18px; background: rgba(26,18,8,.55); display: flex; justify-content: center; align-items: center; }
+.user-shift-dialog { width: min(620px, 100%); box-sizing: border-box; max-height: 90vh; overflow: auto; padding: 24px; border-radius: 14px; background: #fff; color: #4a3a2a; box-shadow: 0 24px 64px rgba(0,0,0,.28); }
+.user-shift-heading { display: flex; gap: 16px; justify-content: space-between; align-items: start; }
+.user-shift-heading h2 { margin: 0; font-size: 21px; color: #1a1a1a; }
+.user-shift-heading p { margin: 6px 0 0; font-size: 13px; }
+.user-shift-notice { background: #fdf5ee; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.6; }
+.user-shift-days { border: 1px solid #e0d5cb; border-radius: 8px; padding: 12px; display: flex; flex-wrap: wrap; gap: 12px 18px; margin: 18px 0; }
+.user-shift-days legend, .user-shift-times label, .user-shift-allowance { font-size: 13px; font-weight: 700; }
+.user-shift-days label, .user-shift-toggle { display: flex; align-items: center; gap: 7px; font-size: 13px; cursor: pointer; }
+.user-shift-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.user-shift-times input, .user-shift-allowance input { display: block; box-sizing: border-box; width: 100%; margin-top: 7px; padding: 10px; border: 1px solid #d4b89a; border-radius: 8px; font: inherit; }
+.user-shift-allowance { display: block; margin-top: 18px; }
+.user-shift-allowance input { max-width: 180px; }
+.user-shift-help { font-size: 12px; color: #6f6254; line-height: 1.6; margin: 8px 0 16px; }
+.user-shift-preview { font-size: 13px; line-height: 1.6; background: #faf7f4; padding: 12px; border-radius: 8px; }
+.user-shift-preview p { margin: 5px 0 0; }
+.user-shift-error { font-size: 13px; padding: 12px; background: #fff0f0; color: #a32525; border-radius: 8px; }
+.user-shift-dialog button { padding: 10px 13px; border: 1px solid #d4b89a; border-radius: 8px; background: #fff; color: #6f4a2f; font-weight: 700; cursor: pointer; }
+.user-shift-dialog .user-shift-primary { background: #8b5e3c; color: #fff; }
+.user-shift-dialog button:disabled { opacity: .55; cursor: not-allowed; }
+.user-shift-actions { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+.user-shift-actions > div { display: flex; gap: 8px; }
+.user-shift-dialog input:focus-visible, .user-shift-dialog button:focus-visible { outline: 2px solid #8b5e3c; outline-offset: 2px; }
+
+@media (max-width: 480px) { .user-shift-dialog { padding: 18px; } .user-shift-times { grid-template-columns: 1fr; } .user-shift-actions > div { flex: 1; justify-content: flex-end; } }
 
 @media (max-width: 768px) {
   .staff-page-header > div:first-child {
@@ -137,7 +183,14 @@
   }
 
   .staff-user-actions button {
-    flex: 1 1 120px;
+    flex: 1 1 auto;
+    min-width: 0;
     min-height: 44px;
   }
+  .staff-user-actions .staff-action-delete { flex: 0 0 44px; width: 44px; margin-left: 0; }
+}
+
+@media (max-width: 480px) {
+  .staff-user-actions .staff-action { font-size: 11px; padding: 0 8px; gap: 5px; }
+  .staff-user-actions .staff-action-delete { padding: 0; }
 }

@@ -70,6 +70,18 @@ test('network timeout clears the loader and offers a retry instead of claiming t
   expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/auth/login', expect.any(Object), { timeout: 30000 });
 });
 
+test.each(['OUTSIDE_SHIFT', 'SHIFT_SCHEDULE_INVALID'])('shift denial explains the restriction without creating a session or counting a wrong password: %s', async code => {
+  axios.post.mockRejectedValue({ response: { status: 403, data: { code, message: 'You cannot sign in outside your assigned shift. Next allowed sign-in: Monday at 7:45 AM (Philippine time).' } } });
+  fireEvent.submit(open());
+  expect(await screen.findByRole('alert')).toHaveTextContent('outside your assigned shift');
+  expect(screen.getByRole('button', { name: 'Sign In' })).toBeEnabled();
+  expect(screen.getByLabelText('Email')).toHaveValue('staff@example.com');
+  expect(getSessionUser()).toBeNull();
+  expect(loadSystemPage).not.toHaveBeenCalled();
+  expect(axios.get).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText(/attempts remaining/)).not.toBeInTheDocument();
+});
+
 test('hosted sign-in waits for readiness and ignores duplicate submissions before sending the password once', async () => {
   let ready;
   needsLoginWarmup.mockReturnValue(true);

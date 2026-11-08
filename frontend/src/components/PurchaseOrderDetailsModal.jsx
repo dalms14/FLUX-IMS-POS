@@ -9,6 +9,7 @@ export default function PurchaseOrderDetailsModal({ order, onClose }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '12px' }}><div><h2 style={{ margin: '0 0 6px', fontSize: '20px' }}>{order.purchaseOrderNo}</h2><span style={{ color: '#777', fontSize: '13px' }}>{order.status} · View only</span></div><button onClick={onClose} aria-label="Close details" style={{ border: '1px solid #D8CABB', borderRadius: '6px', background: '#fff', padding: '7px 10px', cursor: 'pointer' }}>Close</button></div>
       <div style={{ fontSize: '13px', lineHeight: 1.7, margin: '18px 0' }}>
         <div><strong>Supplier:</strong> {order.supplierName}{order.supplierContact ? ` · ${order.supplierContact}` : ''}</div>
+        {order.supplierEmail && <div><strong>Supplier email:</strong> {order.supplierEmail}</div>}
         <div><strong>Order date:</strong> {formatDate(order.orderDate)}</div>
         <div><strong>Expected delivery:</strong> {formatDate(order.expectedDeliveryDate)}</div>
         <div><strong>Assigned receiver:</strong> {order.assignedReceiver?.name || 'Not assigned'}</div>

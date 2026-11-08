@@ -23,7 +23,7 @@ test('owner can register issued cards and keep leading zeroes', async () => {
   fireEvent.change(within(form).getByLabelText(/Card ID/), { target: { value: '00ab123456789012345' } });
   expect(within(form).getByLabelText(/Card ID/)).toHaveValue('001234567890');
   fireEvent.click(within(form).getByRole('button', { name: 'Save member' }));
-  await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/elite-members', { name: 'New Member', idNumber: '001234567890', status: 'active', notes: '' }));
+  await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/elite-members', { name: 'New Member', idNumber: '001234567890', email: '', status: 'active', notes: '' }));
   expect(await screen.findByRole('status')).toHaveTextContent('registered');
 });
 
@@ -35,7 +35,57 @@ test('admin can edit member details and deactivate the existing card', async () 
   const form = screen.getByRole('form', { name: 'Edit member' });
   fireEvent.change(within(form).getByLabelText('Status'), { target: { value: 'inactive' } });
   fireEvent.click(within(form).getByRole('button', { name: 'Save member' }));
-  await waitFor(() => expect(axios.patch).toHaveBeenCalledWith('http://localhost:5000/api/elite-members/member-1', { name: member.name, idNumber: member.idNumber, status: 'inactive', notes: '' }));
+  await waitFor(() => expect(axios.patch).toHaveBeenCalledWith('http://localhost:5000/api/elite-members/member-1', { name: member.name, idNumber: member.idNumber, email: '', status: 'inactive', notes: '' }));
+});
+
+test('registration saves an optional email and displays it in the member list', async () => {
+  let rows = [member];
+  axios.get.mockImplementation(() => Promise.resolve({ data: { data: rows } }));
+  axios.post.mockImplementation((url, values) => {
+    rows = [{ ...member, ...values }];
+    return Promise.resolve({ data: { member: rows[0] } });
+  });
+  render(<EliteMembersPage />);
+  await screen.findByText(member.name);
+  fireEvent.click(screen.getByRole('button', { name: 'Register card' }));
+  const email = screen.getByLabelText('Email address (optional)');
+  expect(email).not.toBeRequired();
+  fireEvent.change(screen.getByLabelText('Member name'), { target: { value: 'New Member' } });
+  fireEvent.change(screen.getByLabelText('Card ID'), { target: { value: '000123' } });
+  fireEvent.change(email, { target: { value: ' member@example.com ' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save member' }));
+  await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/elite-members', expect.objectContaining({ email: 'member@example.com' })));
+  expect(await screen.findByRole('cell', { name: 'member@example.com' })).toBeInTheDocument();
+});
+
+test.each(['updated@example.com', ''])('editing preloads the email and allows changing or clearing it: %s', async email => {
+  axios.get.mockResolvedValue({ data: { data: [{ ...member, email: 'existing@example.com' }] } });
+  axios.patch.mockResolvedValue({ data: { member } });
+  render(<EliteMembersPage />);
+  fireEvent.click(await screen.findByRole('button', { name: /Edit Registered Member/ }));
+  const input = screen.getByLabelText('Email address (optional)');
+  expect(input).toHaveValue('existing@example.com');
+  fireEvent.change(input, { target: { value: email } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save member' }));
+  await waitFor(() => expect(axios.patch).toHaveBeenCalledWith('http://localhost:5000/api/elite-members/member-1', expect.objectContaining({ email })));
+});
+
+test('invalid email shows an inline error and blocks saving until corrected', async () => {
+  axios.patch.mockResolvedValue({ data: { member } });
+  render(<EliteMembersPage />);
+  fireEvent.click(await screen.findByRole('button', { name: /Edit Registered Member/ }));
+  const email = screen.getByLabelText('Email address (optional)');
+  expect(email).toHaveValue('');
+  fireEvent.change(email, { target: { value: 'invalid-email' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save member' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Enter a valid email address');
+  expect(email).toHaveFocus();
+  expect(email).toHaveAttribute('aria-invalid', 'true');
+  expect(axios.patch).not.toHaveBeenCalled();
+  fireEvent.change(email, { target: { value: '' } });
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Save member' }));
+  await waitFor(() => expect(axios.patch).toHaveBeenCalledWith('http://localhost:5000/api/elite-members/member-1', expect.objectContaining({ email: '' })));
 });
 
 test('custom membership-only role can load the member page and register cards', async () => {

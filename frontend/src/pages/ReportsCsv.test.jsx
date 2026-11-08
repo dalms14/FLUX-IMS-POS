@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import axios from 'axios';
 import ReportsPage from './ReportsPage';
 
@@ -62,4 +62,29 @@ test('a specific day selected inside the export dialog fetches that day instead 
   expect(csv).toContain('2026-10-03 10:00:00');
   expect(csv).not.toContain('TODAY');
   expect(HTMLAnchorElement.prototype.click.mock.instances[0].download).toBe('flux-sales-transactions-2026-10-03.csv');
+});
+
+test('off-shift attempts are labeled and searchable in Login Activity and exported with shift details', async () => {
+  const original = axios.get.getMockImplementation();
+  axios.get.mockImplementation(url => url.includes('/login-activity') ? Promise.resolve({ data: { data: [{
+    name: 'Off Shift Staff', email: 'staff@example.com', role: 'staff', action: 'login_blocked_off_shift',
+    createdAt: '2026-11-08T23:00:00Z', blockedReason: 'off_shift', nextAllowedAt: '2026-11-08T23:45:00Z',
+    shiftSchedule: { workdays: ['monday'], startTime: '08:00', endTime: '17:00', earlyLoginMinutes: 15 },
+  }] } }) : original(url));
+  render(<ReportsPage />);
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Export CSV' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'Activity Logs' }));
+  expect(screen.getByText('Blocked — Outside shift')).toBeInTheDocument();
+  const activity = within(screen.getByRole('heading', { name: 'Login Activity Report' }).closest('section'));
+  expect(activity.getByText(/Mon · 8:00 AM–5:00 PM · PHT/)).toHaveTextContent('Early login allowance: 15 minutes');
+  fireEvent.change(screen.getByPlaceholderText('Search name, email, staff ID, or role...'), { target: { value: 'outside shift' } });
+  expect(activity.getByText('Off Shift Staff')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+  fireEvent.change(screen.getByLabelText('Record category'), { target: { value: 'login_activity' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Download CSV' }));
+  await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalledTimes(1));
+  const csv = await readDownload();
+  expect(csv).toContain('Blocked — Outside shift');
+  expect(csv).toContain('Early login allowance: 15 minutes');
+  expect(csv).toContain('Next allowed sign-in:');
 });

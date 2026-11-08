@@ -1,3 +1,4 @@
+import ValidatedForm from '../components/ValidatedForm';
 // Items.jsx
 import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
@@ -798,7 +799,7 @@ const DiscountPeopleModal = ({ discount, cart, initialCount, onConfirm, onCancel
   const max = cart.reduce((sum, item) => sum + item.quantity, 0);
   const valid = /^\d+$/.test(count) && Number(count) >= 1 && Number(count) <= max;
   return <div style={{ position: 'fixed', inset: 0, zIndex: 2100, background: 'rgba(26,18,8,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}>
-    <form className="cashier-dialog" role="dialog" aria-modal="true" aria-label="Discounted people" onSubmit={event => { event.preventDefault(); if (valid) onConfirm(Number(count)); }} style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: 'min(380px, 100%)', maxHeight: '90vh', overflowY: 'auto' }}>
+    <ValidatedForm className="cashier-dialog" role="dialog" aria-modal="true" aria-label="Discounted people" onSubmit={event => { event.preventDefault(); if (valid) onConfirm(Number(count)); }} style={{ background: '#fff', borderRadius: '12px', padding: '24px', width: 'min(380px, 100%)', maxHeight: '90vh', overflowY: 'auto' }}>
       <h3 style={{ margin: '0 0 12px' }}>{discount.name}</h3>
       <label htmlFor="discount-people">How many people have this discount?</label>
       <input id="discount-people" type="number" min="1" max={max} step="1" value={count} onChange={event => setCount(event.target.value)} autoFocus style={{ width: '100%', boxSizing: 'border-box', padding: '10px', marginTop: '10px', border: '1px solid #D8CABB', borderRadius: '8px' }} />
@@ -808,7 +809,7 @@ const DiscountPeopleModal = ({ discount, cart, initialCount, onConfirm, onCancel
         <button type="button" onClick={onCancel} className="cashier-secondary" style={{ padding: '10px 14px' }}>Cancel</button>
         <button disabled={!valid} className="cashier-checkout" style={{ padding: '10px 14px', background: '#8B5E3C', color: '#fff', border: 0, borderRadius: '8px' }}>Apply Discount</button>
       </div>
-    </form>
+    </ValidatedForm>
   </div>;
 };
 

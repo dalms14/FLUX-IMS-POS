@@ -95,6 +95,19 @@ test('archiving, password replacement and missing records invalidate server sess
     assert.equal((await request('/inventory', { token })).status, 401);
 });
 
+test('off-shift staff cannot obtain a session or bypass shift editing authorization', async () => {
+    const today = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', weekday: 'long' }).format(new Date()).toLowerCase();
+    const workday = today === 'monday' ? 'friday' : 'monday';
+    users[1].shiftSchedule = { workdays: [workday], startTime: '08:00', endTime: '17:00', restrictLogin: true, earlyLoginMinutes: 0, timeZone: 'Asia/Manila' };
+    const result = await request('/auth/login', { method: 'POST', body: { email: users[1].email, password: 'ValidSecret123' } });
+    assert.equal(result.status, 403);
+    assert.equal(result.data.code, 'OUTSIDE_SHIFT');
+    assert.equal(result.data.sessionToken, undefined);
+    const staffSession = await issueSession(users[1]);
+    assert.equal((await request('/auth/users/507f1f77bcf86cd799439011/shift', { method: 'PUT', body: { shiftSchedule: users[1].shiftSchedule } })).status, 401);
+    assert.equal((await request('/auth/users/507f1f77bcf86cd799439011/shift', { token: staffSession, method: 'PUT', body: { shiftSchedule: users[1].shiftSchedule } })).status, 403);
+});
+
 test('heartbeat does not extend idle time, fresh input does, and an expired token cannot be revived', async () => {
     const token = await issueSession(users[0]);
     const row = [...sessions.values()][0];

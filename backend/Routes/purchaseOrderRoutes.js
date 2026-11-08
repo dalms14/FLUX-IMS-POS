@@ -5,7 +5,7 @@ const Inventory = require('../models/Inventory');
 const SystemAudit = require('../models/SystemAudit');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
-const { isStaffReceiver, canReceiveOrder } = require('../utils/purchaseOrderReceiver');
+const { isStaffReceiver, isAssignableReceiver, canReceiveOrder } = require('../utils/purchaseOrderReceiver');
 
 const roundQuantity = value => Math.round((Number(value) || 0) * 1000) / 1000;
 const validDate = value => {
@@ -85,10 +85,14 @@ router.get('/my-deliveries', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const supplierName = String(req.body.supplierName || '').trim();
+        const supplierEmail = String(req.body.supplierEmail || '').trim();
         const items = normalizeItems(req.body.items);
         const assignedReceiverEmail = String(req.body.assignedReceiverEmail || '').trim().toLowerCase();
         if (!supplierName || items.length === 0 || items.some(item => !item.name || !item.unit || item.orderedQuantity <= 0)) {
             return res.status(400).json({ message: 'Supplier and at least one valid order item are required' });
+        }
+        if (supplierEmail && !/^[^\s@]+@[^\s@]+$/.test(supplierEmail)) {
+            return res.status(400).json({ message: 'Enter a valid supplier email address' });
         }
         if (isPastCalendarDate(req.body.orderDate) || isPastCalendarDate(req.body.expectedDeliveryDate)) {
             return res.status(400).json({ message: 'Order date and expected delivery date must be today or a future date.' });
@@ -102,7 +106,7 @@ router.post('/', async (req, res) => {
             : assignedReceiverEmail === '__anyone__' ? 'anyone' : 'assigned';
         const assignedReceiver = receiverMode === 'assigned' && assignedReceiverEmail
             ? await User.findOne({ email: assignedReceiverEmail, archived: { $ne: true } }) : null;
-        if (receiverMode === 'assigned' && !isStaffReceiver(assignedReceiver)) return res.status(400).json({ message: 'Assign an active staff account to receive this purchase order' });
+        if (receiverMode === 'assigned' && !isAssignableReceiver(assignedReceiver)) return res.status(400).json({ message: 'Assign an active staff or admin account to receive this purchase order' });
         const receiverDetails = receiverMode === 'any-staff'
             ? { userId: null, name: 'Any Staff', email: '__any_staff__' }
             : receiverMode === 'anyone'
@@ -113,6 +117,7 @@ router.post('/', async (req, res) => {
             purchaseOrderNo: await nextPurchaseOrderNo(),
             supplierName,
             supplierContact: String(req.body.supplierContact || '').trim(),
+            supplierEmail,
             orderDate: validDate(req.body.orderDate) || new Date(),
             expectedDeliveryDate: validDate(req.body.expectedDeliveryDate),
             notes: String(req.body.notes || '').trim(),

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import axios from 'axios';
 import PurchaseOrdersPage from './PurchaseOrdersPage';
@@ -9,7 +9,7 @@ jest.mock('axios');
 jest.mock('../components/Sidebar', () => () => null);
 
 const order = {
-  _id: 'po1', purchaseOrderNo: 'PO-TEST', supplierName: 'Coffee Supplier', status: 'Approved',
+  _id: 'po1', purchaseOrderNo: 'PO-TEST', supplierName: 'Coffee Supplier', supplierEmail: 'orders@supplier.com', status: 'Approved',
   assignedReceiver: { name: 'Any Staff', email: '__any_staff__' },
   items: [{ _id: 'item1', name: 'Coffee Beans', unit: 'kg', orderedQuantity: 10, receivedQuantity: 2 }],
 };
@@ -23,26 +23,83 @@ beforeEach(() => {
     url.endsWith('/auth/users') ? { data: [
       { _id: 'owner', role: 'owner', name: 'Owner', email: 'owner@example.com' },
       { _id: 'admin', role: 'admin', name: 'Admin', email: 'admin@example.com' },
+      { _id: 'archived-admin', role: 'admin', name: 'Archived Admin', email: 'archived@example.com', archived: true },
       { _id: 'staff', role: 'staff', name: 'Staff', email: 'staff@example.com' },
       { _id: 'operations', role: 'custom', jobRole: 'Operations', name: 'Athan Scott Saroca', userId: 'ELI020', email: 'operations@example.com' },
     ] } : url.endsWith('/purchase-orders') ? [order] : url.includes('/my-deliveries') ? { data: [order] } : [],
   }));
 });
 
-test('new orders sort ingredients, list only staff, and shared assignments do not require a specific person', async () => {
+test('new orders sort ingredients, list staff and admins, and shared assignments do not require a specific person', async () => {
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
   fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
   fireEvent.focus(screen.getByRole('combobox', { name: 'Ingredient / material' }));
   const ingredient = screen.getByRole('listbox', { name: 'Inventory items' });
   expect(within(ingredient).getAllByRole('option').map(option => option.textContent)).toEqual(['New inventory item...', 'Apple (kg)', 'Zucchini (kg)']);
-  expect(screen.queryByRole('option', { name: /Admin — admin/ })).not.toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'Admin — admin' })).toHaveValue('admin@example.com');
+  expect(screen.queryByRole('option', { name: /Archived Admin/ })).not.toBeInTheDocument();
   expect(screen.queryByRole('option', { name: /Owner — owner/ })).not.toBeInTheDocument();
   const receiver = screen.getByRole('option', { name: /Staff — staff/ }).parentElement;
   expect(receiver).toBeRequired();
   expect(screen.getByRole('option', { name: 'Athan Scott Saroca — Operations (ELI020)' })).toHaveValue('operations@example.com');
   fireEvent.click(screen.getByRole('button', { name: /Any Staff/ }));
   expect(receiver).not.toBeRequired();
+});
+
+test('supplier templates save and restore name, phone and email when assigning an admin', async () => {
+  axios.post.mockImplementation((url, data) => Promise.resolve({ data: { order: {
+    ...order, ...data, status: 'Draft', assignedReceiver: { name: 'Admin', email: data.assignedReceiverEmail },
+  } } }));
+  render(<PurchaseOrdersPage />);
+  await screen.findByText('PO-TEST');
+  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Metro Food Supply' } });
+  fireEvent.change(screen.getByLabelText('Supplier Phone Number'), { target: { value: '09171234567' } });
+  fireEvent.change(screen.getByLabelText('Supplier Email Address'), { target: { value: 'orders@metro.com' } });
+  fireEvent.change(screen.getByLabelText('Assigned Receiver (Staff / Admin) *'), { target: { value: 'admin@example.com' } });
+  fireEvent.focus(screen.getByRole('combobox', { name: 'Ingredient / material' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Apple (kg)' }));
+  fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create Draft PO' }));
+  await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/purchase-orders', expect.objectContaining({
+    supplierName: 'Metro Food Supply', supplierContact: '09171234567', supplierEmail: 'orders@metro.com', assignedReceiverEmail: 'admin@example.com',
+  })));
+  await screen.findByText('PO-TEST created as a draft.');
+  expect(JSON.parse(localStorage.getItem('flux.purchaseOrderSupplierHistory'))).toEqual([
+    { name: 'Metro Food Supply', contact: '09171234567', email: 'orders@metro.com' },
+  ]);
+  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  fireEvent.focus(screen.getByLabelText('Supplier *'));
+  expect(screen.getByText('orders@metro.com')).toBeInTheDocument();
+  fireEvent.mouseDown(screen.getByRole('button', { name: 'Remove Metro Food Supply from supplier history' }).parentElement);
+  expect(screen.getByLabelText('Supplier *')).toHaveValue('Metro Food Supply');
+  expect(screen.getByLabelText('Supplier Phone Number')).toHaveValue('09171234567');
+  expect(screen.getByLabelText('Supplier Email Address')).toHaveValue('orders@metro.com');
+});
+
+test('old supplier templates without email still fill the phone and clear a previous email', async () => {
+  localStorage.setItem('flux.purchaseOrderSupplierHistory', JSON.stringify([{ name: 'Old Supplier', contact: '09170000000' }]));
+  render(<PurchaseOrdersPage />);
+  await screen.findByText('PO-TEST');
+  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  fireEvent.change(screen.getByLabelText('Supplier Email Address'), { target: { value: 'different@supplier.com' } });
+  fireEvent.focus(screen.getByLabelText('Supplier *'));
+  fireEvent.mouseDown(screen.getByRole('button', { name: 'Remove Old Supplier from supplier history' }).parentElement);
+  expect(screen.getByLabelText('Supplier Phone Number')).toHaveValue('09170000000');
+  expect(screen.getByLabelText('Supplier Email Address')).toHaveValue('');
+});
+
+test('invalid supplier email prevents creating an order', async () => {
+  render(<PurchaseOrdersPage />);
+  await screen.findByText('PO-TEST');
+  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Supplier' } });
+  fireEvent.change(screen.getByLabelText('Supplier Email Address'), { target: { value: 'invalid-address' } });
+  fireEvent.click(screen.getByRole('button', { name: /Any Staff/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Create Draft PO' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Enter a valid email address.');
+  expect(axios.post).not.toHaveBeenCalled();
 });
 
 test('owners can view a staff-only purchase order without receiving it or editing its details', async () => {
@@ -52,6 +109,7 @@ test('owners can view a staff-only purchase order without receiving it or editin
   fireEvent.click(screen.getByRole('button', { name: 'View' }));
   const dialog = screen.getByRole('dialog', { name: 'Purchase order details' });
   expect(dialog).toHaveTextContent('Coffee Beans');
+  expect(dialog).toHaveTextContent('orders@supplier.com');
   expect(dialog).toHaveTextContent('10 kg');
   expect(dialog).toHaveTextContent('8 kg');
   expect(within(dialog).queryByRole('textbox')).not.toBeInTheDocument();

@@ -4,6 +4,9 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 # User-specific files
+# Local test artifacts and temporary release checkouts
+/tmp/
+
 *.rsuser
 *.suo
 *.user

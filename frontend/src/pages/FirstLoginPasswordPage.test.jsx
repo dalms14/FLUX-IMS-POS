@@ -50,3 +50,13 @@ test('expired challenges cannot open a session and offer return to sign in', asy
   fireEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
   expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
 });
+
+test('a shift ending during password setup cannot create a session', async () => {
+  axios.post.mockRejectedValue({ response: { status: 403, data: { code: 'OUTSIDE_SHIFT', message: 'You cannot sign in outside your assigned shift.' } } });
+  openPage();
+  submit();
+  expect(await screen.findByRole('alert')).toHaveTextContent('outside your assigned shift');
+  expect(getSessionUser()).toBeNull();
+  expect(loadSystemPage).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Back to sign in' })).toBeEnabled();
+});

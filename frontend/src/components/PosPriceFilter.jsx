@@ -1,3 +1,4 @@
+import ValidatedForm from './ValidatedForm';
 import React, { useState } from 'react';
 import './PosPriceFilter.css';
 
@@ -11,7 +12,7 @@ export default function PosPriceFilter({ budget, onChange }) {
             {budget ? `Below ₱${Number(budget).toLocaleString()}` : 'Price filter'}
         </button>
         {open && <div id="pos-price-options" className="pos-price-options">
-            <form onSubmit={event => {
+            <ValidatedForm onSubmit={event => {
                 event.preventDefault();
                 if (!/^\d+(?:\.\d{1,2})?$/.test(amount) || Number(amount) <= 0 || Number(amount) > 1000000) { setError('Enter a budget above 0, with up to two decimal places.'); return; }
                 apply(amount);
@@ -22,7 +23,7 @@ export default function PosPriceFilter({ budget, onChange }) {
                     <button type="submit">Apply</button>
                     <button type="button" onClick={() => setOpen(false)}>Close</button>
                 </div>
-            </form>
+            </ValidatedForm>
             {error && <p id="pos-price-error" role="alert">{error}</p>}
             <p>Shows solo prices below your budget. Variants and add-ons may cost extra.</p>
         </div>}

@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { isStaffReceiver, canReceiveOrder } = require('../utils/purchaseOrderReceiver');
+const { isStaffReceiver, isAssignableReceiver, canReceiveOrder } = require('../utils/purchaseOrderReceiver');
 const order = email => ({ assignedReceiver: { email } });
 
 test('staff-only orders exclude admins and owners, including approvers', () => {
@@ -26,4 +26,15 @@ test('custom staff roles such as Operations can receive staff assignments; admin
     assert.equal(canReceiveOrder(order('__any_staff__'), operations), true);
     assert.equal(canReceiveOrder(order(operations.email), operations), true);
     for (const role of ['admin', 'owner']) assert.equal(isStaffReceiver({ role, email: 'other@example.com' }), false);
+});
+
+test('admins can be assigned individually and receive only their own specific deliveries', () => {
+    const admin = { role: 'Admin', email: 'admin@example.com' };
+    assert.equal(isAssignableReceiver(admin), true);
+    assert.equal(canReceiveOrder(order(admin.email), admin), true);
+    assert.equal(canReceiveOrder(order('other@example.com'), admin), false);
+    assert.equal(canReceiveOrder(order('__any_staff__'), admin), false);
+    assert.equal(isAssignableReceiver({ ...admin, archived: true }), false);
+    assert.equal(isAssignableReceiver({ ...admin, role: 'owner' }), false);
+    assert.equal(isAssignableReceiver({ ...admin, userId: 'ELI001' }), false);
 });

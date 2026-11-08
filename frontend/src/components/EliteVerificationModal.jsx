@@ -1,3 +1,4 @@
+import ValidatedForm from './ValidatedForm';
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { canManageEliteMembers } from '../utils/roles';
@@ -48,7 +49,7 @@ export default function EliteVerificationModal({ onConfirm, onCancel }) {
 
   return (
     <div className="elite-verification-overlay">
-      <form onSubmit={handleConfirm} onKeyDown={event => {
+      <ValidatedForm onSubmit={handleConfirm} onKeyDown={event => {
         if (event.key === 'Escape' && !verifying) onCancel();
         if (event.key !== 'Tab') return;
         const controls = Array.from(event.currentTarget.querySelectorAll('input:not(:disabled), select:not(:disabled), button:not(:disabled), a[href]'));
@@ -59,8 +60,8 @@ export default function EliteVerificationModal({ onConfirm, onCancel }) {
         <div className="elite-verification-divider" />
         <p className="elite-verification-help" style={{ marginBottom: '16px' }}>Match the customer's issued card to an active registered member before applying the Elite discount.</p>
         <div className="elite-verification-field">
-          <label htmlFor="elite-member-search">Search name or card ID</label>
-          <input autoFocus id="elite-member-search" value={search} maxLength={120} disabled={verifying} onChange={event => setSearch(event.target.value)} placeholder="Enter a name or card ID" autoComplete="off" />
+          <label htmlFor="elite-member-search">Search card ID</label>
+          <input autoFocus id="elite-member-search" type="text" inputMode="numeric" pattern="[0-9]{1,12}" value={search} maxLength={12} disabled={verifying} onChange={event => setSearch(event.target.value.replace(/[^0-9]/g, '').slice(0, 12))} placeholder="Enter up to 12 digits" autoComplete="off" />
         </div>
         <div className="elite-verification-field">
           <label htmlFor="elite-registered-member">Registered member</label>
@@ -78,7 +79,7 @@ export default function EliteVerificationModal({ onConfirm, onCancel }) {
           <button type="button" className="cashier-secondary" disabled={verifying} onClick={onCancel}>Cancel</button>
           <button type="submit" className="elite-verification-confirm" disabled={!selected || loading || verifying}>{verifying ? 'Verifying…' : 'Confirm'}</button>
         </div>
-      </form>
+      </ValidatedForm>
     </div>
   );
 }

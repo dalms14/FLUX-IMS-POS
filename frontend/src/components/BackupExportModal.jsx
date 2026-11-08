@@ -1,3 +1,4 @@
+import ValidatedForm from './ValidatedForm';
 import React, { useEffect, useRef, useState } from 'react';
 import { FiDownload, FiEye, FiEyeOff, FiLock, FiX } from 'react-icons/fi';
 import './BackupExportModal.css';
@@ -16,7 +17,7 @@ export default function BackupExportModal({ busy, error, onConfirm, onClose }) {
     event.preventDefault();
     if (!busy) onClose();
   }} onClick={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
-    <form onSubmit={event => { event.preventDefault(); if (password && !busy) onConfirm(password); }}>
+    <ValidatedForm onSubmit={event => { event.preventDefault(); if (password && !busy) onConfirm(password); }}>
       <div className="backup-export-header">
         <span className="backup-export-icon"><FiLock aria-hidden="true" /></span>
         <button className="backup-export-close" type="button" onClick={onClose} disabled={busy} aria-label="Close backup export"><FiX /></button>
@@ -35,6 +36,6 @@ export default function BackupExportModal({ busy, error, onConfirm, onClose }) {
         <button type="button" className="backup-export-cancel" onClick={onClose} disabled={busy}>Cancel</button>
         <button type="submit" className="backup-export-confirm" disabled={busy || !password}><FiDownload aria-hidden="true" />{busy ? 'Exporting...' : 'Export backup'}</button>
       </div>
-    </form>
+    </ValidatedForm>
   </dialog>;
 }

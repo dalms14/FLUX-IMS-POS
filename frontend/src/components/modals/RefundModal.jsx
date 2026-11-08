@@ -1,3 +1,4 @@
+import ValidatedForm from '../ValidatedForm';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FiX } from 'react-icons/fi';
@@ -90,7 +91,7 @@ export default function RefundModal({ isOpen, transaction, onClose, onSuccess })
           <div><h2 id="refund-title">Refund transaction</h2><p>{transaction.receiptNo}</p></div>
           <button type="button" aria-label="Close refund" onClick={onClose} disabled={saving}><FiX /></button>
         </header>
-        <form onSubmit={submit}>
+        <ValidatedForm onSubmit={submit}>
           <div className="refund-body">
             {loading && <p role="status">Loading receipt...</p>}
             {error && <p role="alert" className="refund-error">{error}</p>}
@@ -127,7 +128,7 @@ export default function RefundModal({ isOpen, transaction, onClose, onSuccess })
             <button type="button" onClick={onClose} disabled={saving}>Cancel</button>
             <button type="submit" disabled={!valid || loading || saving}>{saving ? 'Saving...' : 'Confirm refund'}</button>
           </footer>
-        </form>
+        </ValidatedForm>
       </section>
     </div>, document.body);
 }

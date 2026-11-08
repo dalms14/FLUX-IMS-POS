@@ -1,3 +1,4 @@
+import ValidatedForm from '../components/ValidatedForm';
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
@@ -1326,17 +1327,17 @@ const AddonSettings = () => {
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: '20px' }}>
-            <form onSubmit={handleSubmit} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', height: 'fit-content' }}>
+            <ValidatedForm onSubmit={handleSubmit} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', height: 'fit-content' }}>
                 <h3 style={{ margin: '0 0 14px', fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>
                     {editing ? 'Edit Add-on' : 'Add New Add-on'}
                 </h3>
                 <div style={{ marginBottom: '14px' }}>
                     <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Name</label>
-                    <input value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. Extra Shot" style={inputStyle} />
+                    <input required aria-label="Add-on name" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. Extra Shot" style={inputStyle} />
                 </div>
                 <div style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Price</label>
-                    <input type="number" min="0" value={form.price} onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))} placeholder="e.g. 30" style={inputStyle} />
+                    <input type="number" required aria-label="Add-on price" min="0" step="0.01" value={form.price} onChange={e => setForm(prev => ({ ...prev, price: e.target.value }))} placeholder="e.g. 30" style={inputStyle} />
                 </div>
                 {message && (
                     <div style={{ padding: '10px 12px', borderRadius: '8px', marginBottom: '14px', fontSize: '12px', fontWeight: '700', color: message.type === 'success' ? '#276749' : '#C53030', backgroundColor: message.type === 'success' ? '#F0FFF4' : '#FFF5F5', border: `1px solid ${message.type === 'success' ? '#C6F6D5' : '#FED7D7'}` }}>
@@ -1353,7 +1354,7 @@ const AddonSettings = () => {
                         {saving ? 'Saving...' : editing ? 'Save Add-on' : 'Add Add-on'}
                     </button>
                 </div>
-            </form>
+            </ValidatedForm>
 
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 18px 0' }}>
@@ -1554,17 +1555,17 @@ const DiscountSettings = () => {
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: '20px' }}>
-            <form onSubmit={handleSubmit} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', height: 'fit-content' }}>
+            <ValidatedForm onSubmit={handleSubmit} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', height: 'fit-content' }}>
                 <h3 style={{ margin: '0 0 14px', fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>
                     {editing ? 'Edit Discount' : 'Add New Discount'}
                 </h3>
                 <div style={{ marginBottom: '14px' }}>
                     <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Name</label>
-                    <input value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. Student Discount" style={inputStyle} />
+                    <input required aria-label="Discount name" value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. Student Discount" style={inputStyle} />
                 </div>
                 <div style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Discount %</label>
-                    <input type="number" min="0" max="100" step="0.01" value={form.percentage} onChange={e => setForm(prev => ({ ...prev, percentage: e.target.value }))} placeholder="e.g. 20" style={inputStyle} />
+                    <input type="number" required aria-label="Discount percentage" min="0" max="100" step="0.01" value={form.percentage} onChange={e => setForm(prev => ({ ...prev, percentage: e.target.value }))} placeholder="e.g. 20" style={inputStyle} />
                 </div>
                 <div style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', marginBottom: '7px', fontSize: '11px', color: '#666', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Applies To</label>
@@ -1591,7 +1592,7 @@ const DiscountSettings = () => {
                         {saving ? 'Saving...' : editing ? 'Save Discount' : 'Add Discount'}
                     </button>
                 </div>
-            </form>
+            </ValidatedForm>
 
             <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 18px 0' }}>
@@ -1864,7 +1865,7 @@ export const UserAccountSettings = () => {
 
     return (
         <div className="settings-form-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 260px', gap: '20px', alignItems: 'start' }}>
-            <form onSubmit={verification.pending ? handleVerifyAndCreateUser : handleCreateUser} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
+            <ValidatedForm onSubmit={verification.pending ? handleVerifyAndCreateUser : handleCreateUser} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
                 <fieldset disabled={verification.pending} style={{ margin: 0, padding: 0, border: 0, minWidth: 0, opacity: verification.pending ? 0.58 : 1 }}>
                 <AccountRoleTemplates selectedId={selectedTemplateId} refreshKey={templatesVersion} onApply={template => {
                     setForm(previous => ({ ...previous, role: template.role, jobRole: template.jobRole, permissions: normalizePermissionDependencies(template.permissions) }));
@@ -2039,7 +2040,7 @@ export const UserAccountSettings = () => {
                         ? (verification.pending ? 'Verifying Email...' : 'Sending Verification Code...')
                         : (verification.pending ? 'Verify Email & Create User' : 'Create User & Send Verification Code')}
                 </button>
-            </form>
+            </ValidatedForm>
 
             <aside style={{ backgroundColor: '#F0E8E0', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '18px' }}>
                 <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: '900', color: '#3D1F0D' }}>New account setup</h3>
@@ -2134,7 +2135,7 @@ const ChangePasswordSettings = () => {
 
     return (
         <div className="change-password-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 460px) 260px', gap: '20px', alignItems: 'start' }}>
-            <form onSubmit={handleChangePassword} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
+            <ValidatedForm onSubmit={handleChangePassword} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px' }}>
                 <div style={{ marginBottom: '16px' }}>
                     <label style={labelStyle}>Current Password *</label>
                     <input
@@ -2197,7 +2198,7 @@ const ChangePasswordSettings = () => {
                     }}>
                     {saving ? 'Changing Password...' : 'Change Password'}
                 </button>
-            </form>
+            </ValidatedForm>
 
             <aside style={{ backgroundColor: '#F0E8E0', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '18px' }}>
                 <h3 style={{ margin: '0 0 10px', fontSize: '14px', fontWeight: '900', color: '#3D1F0D' }}>Account security</h3>

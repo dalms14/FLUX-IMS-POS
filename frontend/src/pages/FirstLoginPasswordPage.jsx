@@ -1,3 +1,4 @@
+import ValidatedForm from '../components/ValidatedForm';
 import React, { useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -58,7 +59,7 @@ export default function FirstLoginPasswordPage() {
       <h1 id="first-login-title">Make this account yours</h1>
       <p className="first-login-description">Replace your temporary password before continuing. Your new password will be used for future sign-ins.</p>
       <p className="first-login-email">{challenge.email}</p>
-      <form onSubmit={submit}>
+      <ValidatedForm onSubmit={submit}>
         <label htmlFor="first-new-password">New password</label>
         <input id="first-new-password" type="password" autoComplete="new-password" autoFocus required minLength={8} value={newPassword} onChange={e => setNewPassword(e.target.value)} disabled={saving || expired} aria-describedby="first-password-help" />
         <p id="first-password-help" className="first-login-help">At least 8 characters with uppercase, lowercase, and a number. Must differ from your temporary password.</p>
@@ -67,7 +68,7 @@ export default function FirstLoginPasswordPage() {
         {error && <p role="alert" className="first-login-error">{error}</p>}
         <button className="first-login-save" type="submit" disabled={saving || expired}>{saving ? 'Saving password...' : 'Save password and continue'}</button>
         <button className="first-login-back" type="button" disabled={saving} onClick={() => { clearSession(); navigate('/login', { replace: true }); }}>Back to sign in</button>
-      </form>
+      </ValidatedForm>
     </section>
   </main>;
 }

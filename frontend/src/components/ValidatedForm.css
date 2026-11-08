@@ -1,0 +1,40 @@
+.app-form-validation-error {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #ebc9b8;
+  border-radius: 8px;
+  background: #fff4eb;
+  color: #923d27;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.app-form-validation-error svg {
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.app-form-validation-error p {
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+form[data-inline-validation] .product-invalid-field {
+  border-color: #a7442d !important;
+  outline: 2px solid rgba(167, 68, 45, 0.25);
+  outline-offset: 2px;
+}
