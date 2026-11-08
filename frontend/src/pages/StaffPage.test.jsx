@@ -65,8 +65,8 @@ test('legacy users start with restriction off and an empty schedule', async () =
   expect(within(dialog).getByRole('checkbox', { name: 'Restrict login to shift' })).not.toBeChecked();
   expect(within(dialog).getByLabelText('Shift start')).toHaveValue('');
   expect(within(dialog).getByLabelText('Shift end')).toHaveValue('');
-  expect(within(dialog).getByLabelText('Early login allowance (minutes)')).toHaveValue(15);
-  expect(within(dialog).getByText(/Outside-shift attempts are recorded in Login Activity/)).toBeInTheDocument();
+  expect(within(dialog).getByLabelText('Early login (0–120 minutes)')).toHaveValue(15);
+  expect(within(dialog).getByText('Limit sign-in to shift hours, including early access.')).toBeInTheDocument();
   expect(axios.put).not.toHaveBeenCalled();
 });
 
@@ -84,7 +84,7 @@ test('an overnight shift saves, survives a reload, and appears in the user detai
   fireEvent.change(screen.getByLabelText('Shift start'), { target: { value: '22:00' } });
   fireEvent.change(screen.getByLabelText('Shift end'), { target: { value: '06:00' } });
   fireEvent.click(screen.getByRole('checkbox', { name: 'Restrict login to shift' }));
-  expect(screen.getByText(/This shift ends the following day/)).toBeInTheDocument();
+  expect(screen.getByText(/Ends the next day/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Save shift' }));
   await waitFor(() => expect(axios.put).toHaveBeenCalledWith('http://localhost:5000/api/auth/users/clerk/shift', { shiftSchedule: shift }));
   expect(await screen.findByRole('status')).toHaveTextContent('Shift schedule saved');
