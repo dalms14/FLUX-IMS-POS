@@ -4,11 +4,13 @@ import axios from 'axios';
 import LoginPage from './LoginPage';
 import { getSessionUser } from '../utils/session';
 import { loadSystemPage } from '../utils/documentNavigation';
+import { needsLoginWarmup, waitForLoginServer } from '../utils/loginServer';
 
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({ useNavigate: () => mockNavigate, Navigate: ({ to }) => <span>Redirecting to {to}</span> }), { virtual: true });
 jest.mock('axios');
 jest.mock('../utils/documentNavigation', () => ({ loadSystemPage: jest.fn() }));
+jest.mock('../utils/loginServer', () => ({ needsLoginWarmup: jest.fn(), waitForLoginServer: jest.fn() }));
 beforeEach(() => {
   jest.resetAllMocks(); localStorage.clear(); sessionStorage.clear();
   axios.get.mockResolvedValue({ data: { locked: false, attemptsRemaining: 3 } });
@@ -66,4 +68,45 @@ test('network timeout clears the loader and offers a retry instead of claiming t
   expect(await screen.findByText(/Unable to connect/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Sign In' })).toBeEnabled();
   expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/auth/login', expect.any(Object), { timeout: 30000 });
+});
+
+test('hosted sign-in waits for readiness and ignores duplicate submissions before sending the password once', async () => {
+  let ready;
+  needsLoginWarmup.mockReturnValue(true);
+  waitForLoginServer.mockImplementation(() => new Promise(resolve => { ready = resolve; }));
+  axios.post.mockResolvedValue({ data: { email: 'staff@example.com', name: 'Staff', role: 'staff', sessionToken: 'a'.repeat(64) } });
+  const form = open();
+  fireEvent.submit(form);
+  fireEvent.submit(form);
+  expect(screen.getByRole('status')).toHaveTextContent('up to two minutes');
+  expect(screen.getByRole('button', { name: 'Connecting...' })).toBeDisabled();
+  expect(axios.post).not.toHaveBeenCalled();
+  expect(waitForLoginServer).toHaveBeenCalledTimes(1);
+  await act(async () => ready());
+  expect(axios.post).toHaveBeenCalledTimes(1);
+  expect(loadSystemPage).toHaveBeenCalledWith('/dashboard');
+});
+
+test('a server that does not wake leaves credentials unsent and allows a manual retry', async () => {
+  needsLoginWarmup.mockReturnValue(true);
+  waitForLoginServer.mockRejectedValue({ code: 'LOGIN_SERVER_UNAVAILABLE' });
+  fireEvent.submit(open());
+  expect(await screen.findByRole('alert')).toHaveTextContent('Your password has not been submitted');
+  expect(axios.post).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Sign In' })).toBeEnabled();
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(getSessionUser()).toBeNull();
+});
+
+test('leaving the login page cancels its outstanding warmup', () => {
+  needsLoginWarmup.mockReturnValue(true);
+  waitForLoginServer.mockReturnValue(new Promise(() => {}));
+  const { unmount } = render(<LoginPage />);
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'staff@example.com' } });
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'ValidSecret123' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Sign In' }).closest('form'));
+  const signal = waitForLoginServer.mock.calls[0][0];
+  unmount();
+  expect(signal.aborted).toBe(true);
+  expect(axios.post).not.toHaveBeenCalled();
 });

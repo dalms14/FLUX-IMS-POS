@@ -5,6 +5,7 @@ import { FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi';
 import { getLandingPath } from '../utils/roles';
 import { clearSession, getSessionUser, startSession } from '../utils/session';
 import { loadSystemPage } from '../utils/documentNavigation';
+import { needsLoginWarmup, waitForLoginServer } from '../utils/loginServer';
 import './LoginPage.module.css';
 
 const normalizeLoginEmail = (value = '') => value.toLowerCase().trim();
@@ -14,6 +15,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [locked, setLocked] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
@@ -23,6 +25,9 @@ const LoginPage = () => {
   const archivedDialog = useRef(null);
   const signInPending = useRef(false);
   const enteringSystem = useRef(false);
+  const warmupController = useRef(null);
+
+  useEffect(() => () => warmupController.current?.abort(), []);
 
   useEffect(() => {
     if (archivedMessage) archivedDialog.current?.showModal();
@@ -89,6 +94,12 @@ const LoginPage = () => {
     setLoading(true);
     
     try {
+        if (needsLoginWarmup()) {
+          warmupController.current = new AbortController();
+          setConnecting(true);
+          await waitForLoginServer(warmupController.current.signal);
+          setConnecting(false);
+        }
         const response = await axios.post('http://localhost:5000/api/auth/login', {
             email: loginEmail, password,
         }, { timeout: 30000 });
@@ -122,11 +133,14 @@ const LoginPage = () => {
             loadSystemPage(getLandingPath(user));
         }
     } catch (err) {
+        if (warmupController.current?.signal.aborted) return;
         enteringSystem.current = false;
         const status = err.response?.status;
         const message = err.response?.data?.message;
         
-        if (!err.response) {
+        if (err.code === 'LOGIN_SERVER_UNAVAILABLE') {
+          setError('The sign-in server is taking longer than expected to start. Please try again shortly. Your password has not been submitted.');
+        } else if (!err.response) {
           setError('Unable to connect. Please check your connection and try signing in again.');
         } else if (status === 403 && err.response?.data?.code === 'ACCOUNT_ARCHIVED') {
           setAttemptsRemaining(3);
@@ -147,6 +161,8 @@ const LoginPage = () => {
           setError(message || 'Invalid email or password. Please try again.');
         }
     } finally {
+        setConnecting(false);
+        warmupController.current = null;
         if (!enteringSystem.current) {
           signInPending.current = false;
           setLoading(false);
@@ -218,7 +234,7 @@ const LoginPage = () => {
 
         {/* Error */}
         {error && (
-          <div style={{
+          <div role="alert" style={{
             backgroundColor: locked ? '#FEF2F2' : '#fff1f1',
             border: `1px solid ${locked ? '#FECACA' : '#fca5a5'}`,
             color: locked ? '#991B1B' : '#b91c1c',
@@ -392,6 +408,11 @@ const LoginPage = () => {
           </div>
 
           {/* Button */}
+          {connecting && (
+            <p role="status" style={{ fontSize: '14px', color: '#8B5E3C', lineHeight: '1.5' }}>
+              Connecting to the sign-in server. It may be starting up; please keep this page open for up to two minutes.
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading || locked}
@@ -407,7 +428,7 @@ const LoginPage = () => {
               cursor: locked || loading ? 'not-allowed' : 'pointer',
             }}
           >
-            {locked ? `Try again in ${lockoutTime}s` : loading ? 'Signing in...' : 'Sign In'}
+            {locked ? `Try again in ${lockoutTime}s` : connecting ? 'Connecting...' : loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
