@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import axios from 'axios';
 import Items from './Items';
@@ -54,6 +54,47 @@ test('budget filtering combines with category and search, excludes the boundary,
   expect(screen.getByRole('button', { name: 'Price filter' })).toBeInTheDocument();
   expect(screen.getByText('Premium Brew')).toBeInTheDocument();
   expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1);
+});
+
+test('rapid Add clicks update the cart immediately while a shared background refresh is still pending', async () => {
+  localStorage.clear();
+  const product = { _id: 'fast', name: 'Quick Coffee', soloPrice: 100, image: 'data:image/png;base64,test' };
+  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/products') ? [product] : url.endsWith('/discounts') ? { data: [] } : { recipe: null } }));
+  render(<Items />);
+  const add = await screen.findByRole('button', { name: 'Add', exact: true });
+  let completeDetails;
+  axios.get.mockClear();
+  axios.get.mockImplementation(url => url.endsWith('/recipe') ? Promise.resolve({ data: { recipe: null } }) : new Promise(resolve => { completeDetails = resolve; }));
+  for (let index = 0; index < 5; index++) fireEvent.click(add);
+  expect(screen.getByText('5x Quick Coffee')).toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart[0]).toMatchObject({ quantity: 5, price: 100 });
+  expect(axios.get).toHaveBeenCalledTimes(2);
+  await act(async () => completeDetails({ data: { ...product, soloPrice: 120 } }));
+  // A late refresh must neither discard clicks nor silently reprice the cart.
+  expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart[0]).toMatchObject({ quantity: 5, price: 100 });
+  axios.post.mockRejectedValue({ response: { data: { code: 'CHECKOUT_CHANGED', message: 'Product prices or discounts have changed. Refresh the POS and review the order before paying.' } } });
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
+  fireEvent.change(screen.getByPlaceholderText(/Minimum/), { target: { value: '600' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+  await screen.findByText('Order failed');
+  expect(screen.queryByRole('dialog', { name: 'Saved receipt' })).not.toBeInTheDocument();
+  expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart[0].quantity).toBe(5);
+});
+
+test('product options open immediately and stay selected when background stock changes', async () => {
+  localStorage.clear();
+  const product = { _id: 'options', name: 'Quick Meal', soloPrice: 100, platterPrice: 300, image: 'data:image/png;base64,test' };
+  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/products') ? [product] : url.endsWith('/discounts') ? { data: [] } : { recipe: null } }));
+  render(<Items />);
+  const add = await screen.findByRole('button', { name: 'Options', exact: true });
+  let completeRecipe;
+  axios.get.mockImplementation(url => url.endsWith('/recipe') ? new Promise(resolve => { completeRecipe = resolve; }) : Promise.resolve({ data: product }));
+  fireEvent.click(add);
+  expect(screen.getByRole('button', { name: /Platter/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Platter/ }));
+  await act(async () => completeRecipe({ data: { recipe: { ingredients: [{ inventoryId: { _id: 'rice', stock: 0, unit: 'g' }, name: 'Rice', unit: 'g', amountPerServing: 100 }] } } }));
+  expect(screen.getByRole('button', { name: /Platter/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Unavailable', exact: true })).toBeInTheDocument();
 });
 
 test.each(['Cash', 'GCash'])('%s checkout opens the receipt and returns to an empty POS without an order board', async payment => {

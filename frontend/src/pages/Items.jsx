@@ -1,6 +1,6 @@
 import ValidatedForm from '../components/ValidatedForm';
 // Items.jsx
-import React, { useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiImage, FiPlus } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
@@ -1078,6 +1078,7 @@ const ReceiptModal = ({ cart, subtotal, discount, vatRemoved = 0, total, custome
 const Items = () => {
   const [savedCashierSession] = useState(loadCashierSession);
   const [products, setProducts] = useState([]);
+  const productRefreshes = useRef(new Map());
   const [categories, setCategories] = useState([]);
   const [discounts, setDiscounts] = useState(DEFAULT_DISCOUNTS);
   const [cart, setCart] = useState(savedCashierSession.cart);
@@ -1268,7 +1269,43 @@ const Items = () => {
     }));
   }, [cart, customerType, eliteMember, discountApplied, discountEligibility, discountPeople, selectedDiscount]);
 
-  const handleAddToCart = async (product) => {
+  useEffect(() => {
+    const refreshes = productRefreshes.current;
+    return () => {
+      refreshes.forEach(entry => entry.controller.abort());
+      refreshes.clear();
+    };
+  }, []);
+
+  const refreshProductInBackground = (product) => {
+    const previous = productRefreshes.current.get(product._id);
+    // Rapid clicks share a refresh; do not build a queue of stock requests.
+    if (previous && (previous.pending || Date.now() - previous.updatedAt < 15000)) return;
+    const controller = new AbortController();
+    const entry = { controller, pending: true, updatedAt: 0 };
+    productRefreshes.current.set(product._id, entry);
+    (async () => {
+      try {
+        const [details, recipeRes] = await Promise.all([
+          axios.get(`http://localhost:5000/api/products/${product._id}`, { signal: controller.signal }),
+          axios.get(`http://localhost:5000/api/products/${product._id}/recipe`, { signal: controller.signal }),
+        ]);
+        if (controller.signal.aborted) return;
+        const recipe = recipeRes.data?.recipe;
+        const latestProduct = { ...product, ...details.data, recipe, stockStatus: buildProductStockStatus(recipe) };
+        // Refresh future selections without changing an order already being entered.
+        setProducts(prev => prev.map(p => p._id === product._id ? latestProduct : p));
+        entry.updatedAt = Date.now();
+      } catch (err) {
+        if (!controller.signal.aborted) console.error('Error refreshing product:', err);
+      } finally {
+        entry.pending = false;
+      }
+    })();
+  };
+
+  const handleAddToCart = (product) => {
+    refreshProductInBackground(product);
     if (product.stockStatus?.level === 'out') {
       vibrateCannotOrder();
       addNotification({
@@ -1279,38 +1316,18 @@ const Items = () => {
       return;
     }
 
-    let latestProduct = product;
-
-    try {
-      const res = await axios.get(`http://localhost:5000/api/products/${product._id}`);
-      latestProduct = await enrichProductStockStatus({ ...product, ...(res.data || {}) });
-      setProducts(prev => prev.map(p => p._id === latestProduct._id ? { ...p, ...latestProduct } : p));
-    } catch (err) {
-      console.error('Error fetching latest product:', err);
-    }
-
-    if (latestProduct.stockStatus?.level === 'out') {
-      vibrateCannotOrder();
-      addNotification({
-        title: `${latestProduct.name} cannot be ordered`,
-        message: latestProduct.stockStatus.label === 'Recipe Issue' ? 'Correct the ingredient mapping before ordering this product.' : 'One or more ingredients are out of stock or below the amount needed for one serving.',
-        details: latestProduct.stockStatus.details || [],
-      });
-      return;
-    }
-
-    if (latestProduct.addons?.length > 0 || normalizeProductVariantGroups(latestProduct).length > 0 || latestProduct.platterPrice) {
-      setSelectedProduct(latestProduct);
+    if (product.addons?.length > 0 || normalizeProductVariantGroups(product).length > 0 || product.platterPrice) {
+      setSelectedProduct(product);
       return;
     }
 
     addToCart({
-      ...latestProduct,
+      ...product,
       selectedVariant: null,
       selectedVariantGroups: {},
       variantPrice: 0,
       size: 'solo',
-      price: latestProduct.soloPrice ?? latestProduct.price,
+      price: product.soloPrice ?? product.price,
       upgrades: [],
     });
   };
