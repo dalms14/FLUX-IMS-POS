@@ -229,6 +229,33 @@ test('two PWD diners automatically discount only the top two units and preserve 
   }));
 });
 
+test('a saved VAT-removing discount updates the cart and the submitted eligible checkout amount', async () => {
+  localStorage.setItem('fluxCashierSession', JSON.stringify({ cart: [
+    { _id: 'coffee', cartKey: 'coffee', name: 'Coffee', price: 112, quantity: 2 },
+  ] }));
+  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/discounts') ? { data: [
+    { _id: 'senior', name: 'Senior offer', percentage: 20, scope: 'item', vatExempt: true },
+  ] } : [] }));
+  axios.post.mockResolvedValue({ data: { success: true, receiptNo: 'FLX-VAT' } });
+  render(<Items />);
+  await screen.findByText('No products found.');
+  fireEvent.click(screen.getByRole('button', { name: 'Apply Discount' }));
+  fireEvent.click(await screen.findByRole('button', { name: /Senior offer/ }));
+  fireEvent.change(screen.getByLabelText('How many people have this discount?'), { target: { value: '1' } });
+  fireEvent.click(within(screen.getByRole('dialog', { name: 'Discounted people' })).getByRole('button', { name: 'Apply Discount' }));
+  expect(screen.getByText('VAT removed (12%):')).toBeInTheDocument();
+  expect(screen.getByText('-₱12')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
+  fireEvent.change(screen.getByPlaceholderText(/Minimum/), { target: { value: '224' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+  await screen.findByRole('dialog', { name: 'Saved receipt' });
+  expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/transactions', expect.objectContaining({
+    subtotal: 224, discount: 32, total: 192,
+    discountInfo: expect.objectContaining({ name: 'Senior offer', vatExempt: true }),
+    items: [expect.objectContaining({ discountEligibleQuantity: 1 })],
+  }));
+});
+
 test('the printed receipt uses the saved checkout items returned by the server', async () => {
   axios.post.mockResolvedValue({ data: { success: true, receiptNo: 'FLX-VERIFIED', checkout: {
     items: [{ productId: 'coffee', name: 'Saved Coffee Name', price: 100, quantity: 2 }],

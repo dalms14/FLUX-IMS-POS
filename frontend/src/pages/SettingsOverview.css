@@ -1,3 +1,12 @@
+/* Keep product navigation and controls visible while the records scroll. */
+@media (min-width: 769px) {
+  .products-inventory-content.products-inventory-content { overflow: hidden !important; }
+  .products-inventory-content .settings-section-content,
+  .products-inventory-content .products-inventory-layout { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+  .products-inventory-content .products-toolbar { flex-shrink: 0; }
+  .products-inventory-content .products-table-card.data-scroll-box { flex: 1; min-height: 0; max-height: none; }
+}
+
 .settings-overview { color: #1A1208; min-width: 0; }
 .settings-feature-card { background: #fff; border: 1px solid #E0D5CB; border-radius: 14px; padding: 24px; min-width: 0; }
 .settings-feature-card h3 { margin: 0 0 9px; font-size: 17px; font-weight: 800; }

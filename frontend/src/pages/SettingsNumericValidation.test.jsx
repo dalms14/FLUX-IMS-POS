@@ -43,6 +43,6 @@ test('discount percentages show the same error design and prevent invalid writes
     expect(axios.post).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText('Discount percentage'), { target: { value: '20' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add Discount' }));
-    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/discounts', { name: 'Student', percentage: 20, scope: 'item' }));
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/discounts', { name: 'Student', percentage: 20, scope: 'item', vatExempt: false }));
     await screen.findByText('Discount added.');
 });

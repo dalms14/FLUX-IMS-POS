@@ -21,6 +21,7 @@ import { getLandingPath, hasPermission } from './utils/roles';
 import { getSessionCredentials, getSessionUser, SESSION_CHANGED_EVENT } from './utils/session';
 import useSessionSync from './utils/useSessionSync';
 import { sendSessionHeartbeat } from './utils/sessionHeartbeat';
+import ShiftEndCountdown from './components/ShiftEndCountdown';
 import './App.css';
 
 // Protect routes that require login
@@ -73,6 +74,7 @@ function App() {
   return (
     <Router>
       <div className="App">
+        <ShiftEndCountdown />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/first-login-password" element={<FirstLoginPasswordPage />} />

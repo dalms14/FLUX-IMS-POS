@@ -10,6 +10,7 @@ import ReceiptViewModal from '../components/ReceiptViewModal';
 import EliteVerificationModal from '../components/EliteVerificationModal';
 import { isValidEliteMember } from '../utils/eliteMemberHistory';
 import { allocateDiscountUnits } from '../utils/discountAllocation';
+import { calculateDiscount } from '../utils/discountPricing';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
 
 const ALL_CATEGORY = 'ALL';
@@ -49,6 +50,7 @@ const normalizeDiscount = (discount) => {
     percentage,
     code,
     scope,
+    vatExempt: discount.vatExempt === true,
   };
 };
 
@@ -846,7 +848,7 @@ const compressGcashProof = async (file) => {
   });
 };
 
-const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMember, selectedDiscount, onConfirm, onCancel }) => {
+const ReceiptModal = ({ cart, subtotal, discount, vatRemoved = 0, total, customerType, eliteMember, selectedDiscount, onConfirm, onCancel }) => {
   const [serviceType, setServiceType] = useState('Dine In');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [amountTendered, setAmountTendered] = useState('');
@@ -962,7 +964,8 @@ const ReceiptModal = ({ cart, subtotal, discount, total, customerType, eliteMemb
           {[
             ['Subtotal', `₱${subtotal.toLocaleString()}`],
             ...(isScopedDiscount ? [[`${scopedDiscountName} eligible`, `₱${eligibleDiscountSubtotal.toLocaleString()}`]] : []),
-            [`Discount${discountLabel ? ` (${discountLabel})` : ''}`, discount > 0 ? `-₱${discount.toLocaleString()}` : '₱0'],
+            ...(vatRemoved > 0 ? [['VAT removed (12%)', `-₱${vatRemoved.toLocaleString()}`]] : []),
+            [`Discount${discountLabel ? ` (${discountLabel})` : ''}`, discount > vatRemoved ? `-₱${(Math.round((discount - vatRemoved) * 100) / 100).toLocaleString()}` : '₱0'],
           ].map(([label, value]) => (
             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#666', marginBottom: '4px' }}>
               <span>{label}</span><span>{value}</span>
@@ -1234,7 +1237,9 @@ const Items = () => {
       latestDiscount &&
       (latestDiscount.percentage !== selectedDiscount.percentage ||
         latestDiscount.name !== selectedDiscount.name ||
-        latestDiscount.code !== selectedDiscount.code)
+        latestDiscount.code !== selectedDiscount.code ||
+        latestDiscount.scope !== selectedDiscount.scope ||
+        latestDiscount.vatExempt !== selectedDiscount.vatExempt)
     ) {
       setSelectedDiscount(latestDiscount);
     }
@@ -1380,9 +1385,8 @@ const Items = () => {
   }, 0);
   const tax = 0; // VAT already included in product prices
   const discountBase = isScopedDiscount ? eligibleDiscountSubtotal : subtotal;
-  const discountRate = discountApplied ? (Number(activeDiscount?.percentage) || 0) / 100 : 0;
-  const discount = Math.round(discountBase * discountRate);
-  const total = subtotal - discount;
+  const { discount, vatRemoved, percentageDiscount } = calculateDiscount(discountBase, discountApplied ? activeDiscount : null);
+  const total = Math.round((subtotal - discount) * 100) / 100;
 
   const filteredProducts = products.filter(p => {
     const productCategory = p.category || p.categoryId?.name;
@@ -1443,6 +1447,7 @@ const Items = () => {
           percentage: activeDiscount.percentage,
           code: activeDiscount.code,
           scope: activeDiscount.scope,
+          vatExempt: activeDiscount.vatExempt,
         } : null,
         reason: 'Checkout cancelled from transaction summary',
       });
@@ -1473,6 +1478,7 @@ const Items = () => {
               percentage: activeDiscount.percentage,
               code: activeDiscount.code,
               scope: activeDiscount.scope,
+              vatExempt: activeDiscount.vatExempt,
             } : null,
             paymentMethod, amountTendered, change,
             gcashReference: gcashReference || null,
@@ -1773,7 +1779,8 @@ const Items = () => {
         <div style={{ borderTop: '1px solid #eee', padding: '14px', backgroundColor: '#FAF7F4' }}>
           {[['Subtotal:', `₱${subtotal.toLocaleString()}`],
           ...(isScopedDiscount && discountApplied ? [[`${scopedDiscountName} eligible:`, `₱${eligibleDiscountSubtotal.toLocaleString()}`]] : []),
-          [`Discount${activeDiscountLabel ? ` (${activeDiscountLabel})` : ''}:`, discount > 0 ? `-₱${discount.toLocaleString()}` : '₱0.00']]
+          ...(vatRemoved > 0 ? [['VAT removed (12%):', `-₱${vatRemoved.toLocaleString()}`]] : []),
+          [`Discount${activeDiscountLabel ? ` (${activeDiscountLabel})` : ''}:`, percentageDiscount > 0 ? `-₱${percentageDiscount.toLocaleString()}` : '₱0.00']]
           .map(([label, value]) => (
             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#666', marginBottom: '5px' }}>
               <span>{label}</span><span style={{ color: label.includes('Discount') && discount > 0 ? '#8B5E3C' : '#666' }}>{value}</span>
@@ -1802,7 +1809,7 @@ const Items = () => {
     <ReceiptModal cart={cart.map(item => ({
           ...item,
           discountEligibleQuantity: isScopedDiscount ? Math.min(discountEligibility[item.cartKey] || 0, item.quantity) : item.quantity,
-        }))} subtotal={subtotal} tax={tax} discount={discount} total={total}
+        }))} subtotal={subtotal} tax={tax} discount={discount} vatRemoved={vatRemoved} total={total}
         customerType={customerType} eliteMember={eliteMember} selectedDiscount={activeDiscount}
         onConfirm={handleConfirmOrder} onCancel={handleCancelCheckout} />
       )}

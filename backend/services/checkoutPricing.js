@@ -69,7 +69,7 @@ async function priceCheckout(body, { cancelled = false } = {}) {
             const nameKey = String(body.discountInfo?.name || '').trim().toLowerCase();
             const saved = nameKey ? await Discount.findOne({ nameKey, active: true }).lean() : null;
             if (!saved || codeFor(saved.name) !== customerType || !numeric(saved.percentage) || saved.percentage < 0 || saved.percentage > 100) invalid('This discount is unavailable.');
-            discountInfo = { name: saved.name, percentage: saved.percentage, scope: ['item', 'order'].includes(saved.scope) ? saved.scope : ['pwd_senior', 'pagibig'].includes(customerType) ? 'item' : 'order', code: codeFor(saved.name) };
+            discountInfo = { name: saved.name, percentage: saved.percentage, scope: ['item', 'order'].includes(saved.scope) ? saved.scope : ['pwd_senior', 'pagibig'].includes(customerType) ? 'item' : 'order', code: codeFor(saved.name), vatExempt: saved.vatExempt === true };
         }
     }
     const subtotal = money(items.reduce((sum, item) => sum + item.subtotal, 0));
@@ -84,7 +84,13 @@ async function priceCheckout(body, { cancelled = false } = {}) {
         }
         base = items.reduce((sum, item) => sum + item.price * item.discountEligibleQuantity, 0);
     } else for (const item of items) item.discountEligibleQuantity = discountInfo ? item.quantity : 0;
-    const discount = discountInfo ? Math.round(base * discountInfo.percentage / 100) : 0;
+    const vatRemoved = discountInfo?.vatExempt ? money(base - base / 1.12) : 0;
+    const eligibleBase = discountInfo?.vatExempt ? money(base - vatRemoved) : base;
+    const roundedDiscount = discountInfo ? Math.round(eligibleBase * discountInfo.percentage / 100) : 0;
+    const percentageDiscount = discountInfo?.vatExempt ? Math.min(eligibleBase, roundedDiscount) : roundedDiscount;
+    // Keep total savings in the existing discount field for reporting/refunds.
+    const discount = money(vatRemoved + percentageDiscount);
+    if (discountInfo?.vatExempt) Object.assign(discountInfo, { vatRemoved, percentageDiscount });
     const total = money(subtotal - discount);
     for (const [key, value] of Object.entries({ subtotal, discount, total, tax: 0 })) {
         if (body[key] !== undefined && (!numeric(body[key]) || money(body[key]) !== value)) changed();

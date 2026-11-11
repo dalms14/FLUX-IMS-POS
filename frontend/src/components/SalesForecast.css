@@ -51,13 +51,25 @@
 .forecast-model-check summary { cursor: pointer; font-weight: 800; }
 .forecast-model-check summary:focus-visible { outline: 2px solid #8B5E3C; outline-offset: 2px; }
 .forecast-model-check p { margin: 8px 0 0; }
-.forecast-tracking { margin: 12px 22px 22px; padding: 16px; border: 1px solid #E0D5CB; border-radius: 8px; color: #6F4A2F; font-size: 12px; line-height: 1.6; min-width: 0; }
-.forecast-tracking h3 { margin: 0; color: #1A1208; font-size: 16px; }
-.forecast-comparison-scroll { max-height: 320px; overflow: auto; }
-.forecast-tracking table { width: 100%; border-collapse: collapse; min-width: 580px; text-align: left; }
-.forecast-tracking th { background: #F5F0EB; position: sticky; top: 0; }
-.forecast-tracking th, .forecast-tracking td { padding: 10px; border-bottom: 1px solid #E0D5CB; }
-@media (max-width: 600px) { .forecast-tracking { margin: 12px 16px 16px; padding: 12px; } }
+.forecast-ingredients { margin: 12px 22px 22px; padding: 16px; border: 1px solid #E0D5CB; border-radius: 8px; color: #6F4A2F; font-size: 12px; line-height: 1.6; min-width: 0; }
+.forecast-ingredients h3 { margin: 0; color: #1A1208; font-size: 16px; }
+.ingredient-demand-scroll { max-height: 360px; overflow: auto; }
+.forecast-ingredients table { width: 100%; border-collapse: collapse; min-width: 640px; text-align: left; }
+.forecast-ingredients thead th { background: #F5F0EB; position: sticky; top: 0; }
+.forecast-ingredients th, .forecast-ingredients td { padding: 10px; border-bottom: 1px solid #E0D5CB; }
+.forecast-ingredients tbody th { font-weight: 600; }
+.forecast-ingredients td { white-space: nowrap; }
+.forecast-ingredients td small { display: block; white-space: normal; }
+.forecast-ingredients summary { cursor: pointer; font-weight: 700; margin-top: 12px; }
+.forecast-ingredients summary:focus-visible, .ingredient-demand-scroll:focus-visible { outline: 2px solid #8B5E3C; outline-offset: 2px; }
+.forecast-ingredients button { background: #fff; border: 1px solid #D4B89A; border-radius: 6px; padding: 8px 12px; color: #6F4A2F; cursor: pointer; }
+.ingredient-sample-notice { background: #FBF6EA; border-left: 3px solid #D4B89A; padding: 8px 10px; }
+.ingredient-outlook { display: inline-block; padding: 2px 9px; border-radius: 12px; background: #EAF3ED; color: #27563A; font-size: 11px; font-weight: 700; }
+.ingredient-shortage { background: #FBECE7; color: #953C25; }
+.ingredient-empty-title { font-weight: 700; }
+.ingredient-period { font-size: 11px; }
+.ingredient-issues { max-height: 220px; overflow: auto; padding-left: 20px; }
+@media (max-width: 600px) { .forecast-ingredients { margin: 12px 16px 16px; padding: 12px; } }
 @media (max-width: 768px) {
   .forecast-days { padding: 0 16px 12px; }
   .forecast-day { gap: 10px; grid-template-columns: 52px minmax(0, 1fr) minmax(65px, auto); }

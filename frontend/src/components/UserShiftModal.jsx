@@ -61,6 +61,7 @@ export default function UserShiftModal({ user, onClose, onSaved }) {
         </div>
         <p className="user-shift-help">Philippine time. Select the days the shift starts.{overnight ? ' Ends the next day.' : ''}</p>
         <label className="user-shift-toggle"><input type="checkbox" checked={schedule.restrictLogin} disabled={saving || isShiftExempt(user)} onChange={event => change('restrictLogin', event.target.checked)} />Restrict login to shift</label>
+        {!isShiftExempt(user) && <p className="user-shift-notice">When enabled, active sessions show a 5-minute countdown at shift end, then sign out automatically. All times use Philippine time.</p>}
         {!isShiftExempt(user) && <p className="user-shift-help">Existing sessions stay active after the shift.</p>}
         <label className="user-shift-allowance">Early login (0–120 minutes)<input type="number" min="0" max="120" step="1" required value={schedule.earlyLoginMinutes} disabled={saving} onChange={event => change('earlyLoginMinutes', event.target.value === '' ? '' : Number(event.target.value))} /></label>
         <div className="user-shift-preview"><strong>Preview</strong><p>{shiftSummary(schedule)}</p></div>

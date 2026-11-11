@@ -24,6 +24,7 @@ const DiscountSchema = new mongoose.Schema(
       enum: ['item', 'order'],
       default: 'order',
     },
+    vatExempt: { type: Boolean, default: false },
     active: {
       type: Boolean,
       default: true,

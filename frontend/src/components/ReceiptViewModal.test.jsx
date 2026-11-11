@@ -37,6 +37,18 @@ test('allows retry when printing fails', async () => {
     expect(screen.getByRole('button', { name: 'Print Receipt' })).toBeEnabled();
 });
 
+test('VAT removal and the percentage discount are separate on a saved receipt', () => {
+    render(<ReceiptViewModal {...props}
+        cart={[{ name: 'Coffee', price: 112, quantity: 2, discountEligibleQuantity: 1 }]}
+        subtotal={224} discount={32} total={192}
+        discountInfo={{ name: 'Senior offer', percentage: 20, scope: 'item', vatExempt: true, vatRemoved: 12, percentageDiscount: 20 }}
+    />);
+    expect(screen.getByText('VAT removed (12%):')).toBeInTheDocument();
+    expect(screen.getByText('-₱12')).toBeInTheDocument();
+    expect(screen.getByText('-₱20')).toBeInTheDocument();
+    expect(screen.getByText('₱192')).toBeInTheDocument();
+});
+
 test('automatic checkout printing runs once in Strict Mode and leaves only New Order', async () => {
     const page = render(<React.StrictMode><ReceiptViewModal {...props} autoPrint /></React.StrictMode>);
     await waitFor(() => expect(printReceipt).toHaveBeenCalledTimes(1));

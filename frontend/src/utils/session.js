@@ -14,8 +14,10 @@ export const startSession = (user) => {
   // One storage write publishes both identity and expiry to every tab together.
   const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const now = Date.now();
-  const { sessionToken, ...identity } = user;
-  localStorage.setItem('user', JSON.stringify({ ...identity, _session: { id, token: sessionToken, version: 2, lastActiveAt: now, expiresAt: now + SESSION_DURATION_MS } }));
+  const { sessionToken, shiftSession, serverNow, ...identity } = user;
+  localStorage.setItem('user', JSON.stringify({ ...identity, _session: { id, token: sessionToken, version: 2, lastActiveAt: now, expiresAt: now + SESSION_DURATION_MS,
+    shiftSession: shiftSession || null, serverNow, clockOffset: serverNow ? new Date(serverNow).getTime() - now : 0,
+  } }));
   window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 };
 
@@ -45,6 +47,22 @@ export const getSessionId = () => readSession()?.id || null;
 export const getSessionCredentials = () => {
   const session = readSession();
   return session ? { id: session.id, token: session.user._session.token, lastActiveAt: session.user._session.lastActiveAt } : null;
+};
+
+export const getSessionShift = () => {
+  const metadata = readSession()?.user._session;
+  return metadata?.shiftSession ? { ...metadata.shiftSession, clockOffset: metadata.clockOffset || 0 } : null;
+};
+
+export const updateSessionShift = (id, { shiftSession, serverNow } = {}) => {
+  const session = readSession();
+  if (!session || session.id !== id || !serverNow || shiftSession === undefined) return;
+  const timestamp = new Date(serverNow).getTime();
+  if (!Number.isFinite(timestamp) || timestamp < new Date(session.user._session.serverNow || 0).getTime()) return;
+  localStorage.setItem('user', JSON.stringify({ ...session.user, _session: {
+    ...session.user._session, shiftSession, serverNow, clockOffset: timestamp - Date.now(),
+  } }));
+  window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 };
 
 export const recordSessionActivity = () => {

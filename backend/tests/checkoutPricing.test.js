@@ -65,6 +65,53 @@ test('legacy Drinks Large pricing and GCash tender remain compatible; cancelled 
     assert.equal(cancelled.paymentMethod, 'Cancelled');
 });
 
+test('VAT removal comes from the saved discount and applies only to eligible units before the percentage', async t => {
+    t.mock.method(Product, 'findById', () => ({ lean: async () => ({ ...product, soloPrice: 112 }) }));
+    let saved = { name: 'Senior offer', percentage: 20, scope: 'item', vatExempt: true };
+    t.mock.method(Discount, 'findOne', () => ({ lean: async () => saved }));
+    const body = order();
+    Object.assign(body, { customerType: 'pwd_senior', discountInfo: { name: 'Senior offer', vatExempt: false } });
+    Object.assign(body.items[0], { price: 112, discountEligibleQuantity: 1 });
+    const quote = await priceCheckout(body);
+    assert.equal(quote.subtotal, 224);
+    assert.equal(quote.discountInfo.vatRemoved, 12);
+    assert.equal(quote.discountInfo.percentageDiscount, 20);
+    assert.equal(quote.discount, 32);
+    assert.equal(quote.total, 192);
+    assert.equal(quote.change, 808);
+    const receipt = new Transaction({ ...quote, receiptNo: 'VAT-TEST', cashier: 'Owner' });
+    await receipt.validate();
+    assert.equal(receipt.discountInfo.vatExempt, true);
+    assert.equal(receipt.discountInfo.vatRemoved, 12);
+
+    saved = { ...saved, vatExempt: false };
+    body.discountInfo.vatExempt = true;
+    const regular = await priceCheckout(body);
+    assert.equal(regular.discount, 22);
+    assert.equal(regular.total, 202);
+    body.total = 192;
+    await assert.rejects(priceCheckout(body), error => error.code === 'CHECKOUT_CHANGED');
+});
+
+test('whole-order VAT removal handles centavos, zero and full percentage discounts and cancelled checkout', async t => {
+    t.mock.method(Product, 'findById', () => ({ lean: async () => ({ ...product, soloPrice: 112.67 }) }));
+    let percentage = 0;
+    t.mock.method(Discount, 'findOne', () => ({ lean: async () => ({ name: 'Offer', percentage, scope: 'order', vatExempt: true }) }));
+    const body = order();
+    Object.assign(body, { customerType: 'custom_discount', discountInfo: { name: 'Offer' } });
+    Object.assign(body.items[0], { price: 112.67, quantity: 1 });
+    const quote = await priceCheckout(body);
+    assert.equal(quote.discount, 12.07);
+    assert.equal(quote.total, 100.6);
+    percentage = 100;
+    const full = await priceCheckout(body);
+    assert.equal(full.discount, 112.67);
+    assert.equal(full.total, 0);
+    const cancelled = await priceCheckout(body, { cancelled: true });
+    assert.equal(cancelled.total, 0);
+    assert.equal(cancelled.discountInfo.vatRemoved, 12.07);
+});
+
 test('canonical checkout items validate against the actual transaction model with and without variant groups', async t => {
     let saved = product;
     t.mock.method(Product, 'findById', () => ({ lean: async () => saved }));

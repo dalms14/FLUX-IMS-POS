@@ -219,6 +219,10 @@ function parseDiscountPayload(body = {}) {
   const name = normalizeDiscountName(body.name);
   const percentage = Number(body.percentage);
 
+  if (body.vatExempt !== undefined && typeof body.vatExempt !== 'boolean') {
+    return { error: 'VAT removal must be on or off' };
+  }
+
   if (!name) {
     return { error: 'Discount name is required' };
   }
@@ -233,6 +237,7 @@ function parseDiscountPayload(body = {}) {
       nameKey: normalizeDiscountKey(name),
       percentage,
       scope: normalizeDiscountScope(body.scope, name),
+      vatExempt: body.vatExempt === true,
     }
   };
 }
@@ -459,7 +464,7 @@ app.post('/api/discounts', async (req, res) => {
       entityId: discount._id,
       entityName: discount.name,
       details: `Discount ${existing ? 'restored' : 'created'}`,
-      changes: { name: discount.name, percentage: discount.percentage, scope: discount.scope },
+      changes: { name: discount.name, percentage: discount.percentage, scope: discount.scope, vatExempt: discount.vatExempt === true },
     });
 
     res.status(existing ? 200 : 201).json({ success: true, discount });
@@ -515,7 +520,7 @@ app.put('/api/discounts/:id', async (req, res) => {
       entityId: discount._id,
       entityName: discount.name,
       details: 'Discount details updated',
-      changes: { name: discount.name, percentage: discount.percentage, scope: discount.scope },
+      changes: { name: discount.name, percentage: discount.percentage, scope: discount.scope, vatExempt: discount.vatExempt === true },
     });
 
     res.json({ success: true, discount });

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { FiRefreshCw } from 'react-icons/fi';
+import IngredientDemandForecast from './IngredientDemandForecast';
 import './SalesForecast.css';
 
 const money = value => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(value);
@@ -68,30 +69,7 @@ export default function SalesForecast() {
           <strong>{money(row.sales)}{row.closed && <small>Closed</small>}</strong>
         </div>)}
       </div>
-      {current.tracking && <div className="forecast-tracking">
-        <h3>Forecast vs. Actual{demo ? ' (sample)' : ''}</h3>
-        <p>Compare saved estimates with sales after each day ends.</p>
-        {demo && <p>Sample data only — not Eli Coffee sales.</p>}
-        {current.tracking.unavailable ? <p role="alert">Forecast tracking is unavailable. Predictions could not be saved or compared. Reload to retry.</p> : <>
-          {current.tracking.comparedDays > 0
-            ? <p><strong>Average difference: {money(current.tracking.mae)} per day</strong> · {current.tracking.comparedDays} days checked. Lower is better.</p>
-            : <p>Results will appear after a saved forecast day ends.</p>}
-          <div className="data-scroll-box forecast-comparison-scroll" tabIndex={0} role="region" aria-label="Saved forecast comparisons">
-            <table><thead><tr><th>Date</th><th>Estimate</th><th>{demo ? 'Sample sales' : 'Actual sales'}</th><th>Difference</th><th>Status</th></tr></thead>
-              <tbody>{current.tracking.rows.map(row => <tr key={row.date}>
-                <td>{row.date}</td><td>{money(row.predicted)}</td><td>{row.actual === null ? '—' : money(row.actual)}</td>
-                <td>{row.error === null ? '—' : money(row.error)}</td><td>{row.status === 'compared' ? 'Checked' : row.status === 'missing-sales' ? 'Missing sales' : 'Waiting'}</td>
-              </tr>)}</tbody>
-            </table>
-          </div>
-          <details><summary>Details</summary>
-            <p>Opening this page saves the first estimate for tomorrow onward. Refreshing keeps it unchanged. Comparisons cover the last 30 completed days.</p>
-            <p>Difference means how far the estimate was above or below sales. The average uses completed comparisons only.</p>
-            <p>Sales are after discounts, before refunds. Missing records are not counted as zero unless the day is confirmed closed.</p>
-            {demo && <p>Sample comparisons do not measure accuracy for Eli Coffee.</p>}
-          </details>
-        </>}
-      </div>}
+      <IngredientDemandForecast source={source} refresh={refresh} />
       <details className="forecast-model-check"><summary>How the forecast works</summary>
         <p>A linear regression model learns weekday patterns and the sales trend from past daily sales, then estimates the coming week.</p>
         <p>History through {dateLabel(current.trainedThrough)} (Philippine time). Date filters above do not change the forecast.</p>

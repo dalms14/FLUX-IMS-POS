@@ -78,6 +78,10 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
     const discountLabel = formatDiscountLabel(discountMeta);
     const isScopedDiscount = isItemScopedDiscount(discountMeta, customerType);
     const scopedDiscountName = getItemScopedDiscountName(discountMeta, customerType);
+    const vatRemoved = discountMeta?.vatExempt ? (
+        discountMeta.vatRemoved ?? Math.round(((isScopedDiscount ? eligibleDiscountSubtotal : subtotal) * 12 / 112) * 100) / 100
+    ) : 0;
+    const percentageDiscount = Math.round((discount - vatRemoved) * 100) / 100;
 
     const divider = (dashed = false) => (
         <div style={{
@@ -192,7 +196,8 @@ const ReceiptViewModal = ({ receiptNo, orderNo, serviceType, cart, subtotal, dis
                     {row('Subtotal:', `₱${subtotalBeforeVat.toLocaleString()}`)}
                     {row(`VAT (12%):`, `₱${vatAmount.toLocaleString()}`)}
                     {isScopedDiscount && row(`${scopedDiscountName} eligible:`, `₱${eligibleDiscountSubtotal.toLocaleString()}`)}
-                    {row(`Discount${discountLabel ? ` (${discountLabel})` : ' (None)'}:`, discount > 0 ? `-₱${discount.toLocaleString()}` : '₱0.00')}
+                    {vatRemoved > 0 && row('VAT removed (12%):', `-₱${vatRemoved.toLocaleString()}`)}
+                    {row(`Discount${discountLabel ? ` (${discountLabel})` : ' (None)'}:`, percentageDiscount > 0 ? `-₱${percentageDiscount.toLocaleString()}` : '₱0.00')}
 
                     {divider()}
 

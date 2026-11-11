@@ -33,6 +33,9 @@ const TransactionSchema = new mongoose.Schema({
         percentage: Number,
         code:       String,
         scope:      String,
+        vatExempt:  Boolean,
+        vatRemoved: Number,
+        percentageDiscount: Number,
     },
     items: [{
         productId:       { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },

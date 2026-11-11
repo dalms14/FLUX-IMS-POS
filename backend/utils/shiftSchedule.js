@@ -1,5 +1,6 @@
 const SHIFT_DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const SHIFT_TIME_ZONE = 'Asia/Manila';
+const SHIFT_END_GRACE_MS = 5 * 60 * 1000;
 const defaultShiftSchedule = () => ({ workdays: [], startTime: '', endTime: '', restrictLogin: false, earlyLoginMinutes: 15, timeZone: SHIFT_TIME_ZONE });
 
 function validateShiftSchedule(value) {
@@ -23,7 +24,7 @@ function validateShiftSchedule(value) {
     } };
 }
 
-function getShiftLoginAccess(user, now = new Date()) {
+function getShiftAccess(user, now, graceMs) {
     const { isOwner, role } = require('./permissions');
     if (isOwner(user) || role(user) === 'admin') return { allowed: true, exempt: true };
     const saved = user?.shiftSchedule?.toObject?.() || user?.shiftSchedule;
@@ -47,10 +48,21 @@ function getShiftLoginAccess(user, now = new Date()) {
         const shiftStart = date + (startMinutes - 8 * 60) * 60000;
         const opens = shiftStart - schedule.earlyLoginMinutes * 60000;
         const closes = date + (endMinutes - 8 * 60) * 60000 + (endMinutes < startMinutes ? dayMs : 0);
-        if (now.getTime() >= opens && now.getTime() < closes) return { allowed: true, schedule };
+        if (now.getTime() >= opens && now.getTime() < closes + graceMs) return {
+            allowed: true, schedule, shiftEndsAt: new Date(closes), signOutAt: new Date(closes + graceMs),
+        };
         if (opens > now.getTime() && (!nextAllowedAt || opens < nextAllowedAt.getTime())) nextAllowedAt = new Date(opens);
     }
     return { allowed: false, reason: 'off_shift', schedule, nextAllowedAt };
 }
 
-module.exports = { SHIFT_DAYS, SHIFT_TIME_ZONE, defaultShiftSchedule, validateShiftSchedule, getShiftLoginAccess };
+const getShiftLoginAccess = (user, now = new Date()) => getShiftAccess(user, now, 0);
+const getShiftSessionAccess = (user, now = new Date()) => getShiftAccess(user, now, SHIFT_END_GRACE_MS);
+function shiftSessionStatus(user, now = new Date()) {
+    const access = getShiftSessionAccess(user, now);
+    return { serverNow: now, shiftSession: access.shiftEndsAt ? {
+        shiftEndsAt: access.shiftEndsAt, signOutAt: access.signOutAt, timeZone: SHIFT_TIME_ZONE,
+    } : null };
+}
+
+module.exports = { SHIFT_DAYS, SHIFT_TIME_ZONE, SHIFT_END_GRACE_MS, defaultShiftSchedule, validateShiftSchedule, getShiftLoginAccess, getShiftSessionAccess, shiftSessionStatus };

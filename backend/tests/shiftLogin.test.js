@@ -6,7 +6,7 @@ const AuthSession = require('../models/AuthSession');
 const LoginActivity = require('../models/LoginActivity');
 const SystemAudit = require('../models/SystemAudit');
 const router = require('../Routes/authRoutes');
-const { defaultShiftSchedule, getShiftLoginAccess } = require('../utils/shiftSchedule');
+const { defaultShiftSchedule, getShiftLoginAccess, getShiftSessionAccess } = require('../utils/shiftSchedule');
 
 const shift = { ...defaultShiftSchedule(), workdays: ['monday'], startTime: '08:00', endTime: '17:00', restrictLogin: true };
 const access = (date, schedule = shift, role = 'staff') => getShiftLoginAccess({ role, shiftSchedule: schedule }, new Date(date));
@@ -64,6 +64,24 @@ test('overnight shifts continue into the next unselected day and stop at the end
         ['2026-11-10T06:00:00+08:00', false], ['2026-11-10T22:00:00+08:00', false],
     ]) assert.equal(access(time, overnight).allowed, allowed, time);
     assert.equal(access('2026-11-09T05:00:00+08:00', { ...overnight, workdays: ['sunday'] }).allowed, true);
+});
+
+test('active sessions get exactly five minutes to wrap up, while new sign-ins close at shift end', () => {
+    for (const [schedule, end] of [
+        [{ ...shift, startTime: '07:00', endTime: '12:30' }, '2026-11-09T12:30:00+08:00'],
+        [{ ...shift, startTime: '22:00', endTime: '06:00' }, '2026-11-10T06:00:00+08:00'],
+        [{ ...shift, startTime: '16:00', endTime: '23:59' }, '2026-11-09T23:59:00+08:00'],
+    ]) {
+        const user = { role: 'staff', shiftSchedule: schedule };
+        const ends = new Date(end).getTime();
+        assert.equal(getShiftLoginAccess(user, new Date(ends)).allowed, false);
+        const access = getShiftSessionAccess(user, new Date(ends));
+        assert.equal(access.allowed, true);
+        assert.equal(access.shiftEndsAt.getTime(), ends);
+        assert.equal(access.signOutAt.getTime(), ends + 300000);
+        assert.equal(getShiftSessionAccess(user, new Date(ends + 299999)).allowed, true);
+        assert.equal(getShiftSessionAccess(user, new Date(ends + 300000)).allowed, false);
+    }
 });
 
 test('early access crosses midnight, week and year boundaries for the upcoming assigned day', () => {
@@ -128,6 +146,8 @@ test('valid early-access login issues a session and records a successful login',
     assert.equal(state.sessions.length, 1);
     assert.equal(state.activities[0].action, 'login');
     assert.equal(state.user.isOnline, true);
+    assert.equal(result.data.shiftSession.shiftEndsAt.toISOString(), '2026-11-09T09:00:00.000Z');
+    assert.equal(result.data.shiftSession.signOutAt.toISOString(), '2026-11-09T09:05:00.000Z');
 });
 
 test('switching restrictions off permits an otherwise off-shift login', async t => {

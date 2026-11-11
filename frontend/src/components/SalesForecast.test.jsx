@@ -5,6 +5,9 @@ import axios from 'axios';
 import SalesForecast from './SalesForecast';
 
 jest.mock('axios');
+jest.mock('./IngredientDemandForecast', () => function IngredientEstimate({ source }) {
+  return <div>Ingredient demand section: {source}</div>;
+});
 const row = (date, sales = 5000) => ({ date, sales, closed: false });
 const sample = {
   status: 'ready', source: 'demo', tomorrow: 5000, total: 35000, historyDays: 56,
@@ -15,23 +18,12 @@ const sample = {
 };
 beforeEach(() => jest.resetAllMocks());
 
-test('shows saved predictions, pending dates and peso error separately from demo validation', async () => {
-  axios.get.mockResolvedValue({ data: { ...sample, tracking: { source: 'demo', comparedDays: 1, mae: 300, rows: [
-    { date: '2026-10-21', predicted: 5000, actual: 4700, error: 300, status: 'compared' },
-    { date: '2026-10-24', predicted: 5200, actual: null, error: null, status: 'waiting' },
-  ] } } });
+test('replaces forecast comparisons with ingredient demand while keeping daily sales estimates', async () => {
+  axios.get.mockResolvedValue({ data: { ...sample, tracking: { source: 'demo', comparedDays: 1, mae: 300, rows: [] } } });
   render(<SalesForecast />);
-  expect(await screen.findByText('Forecast vs. Actual (sample)')).toBeInTheDocument();
-  expect(screen.getByText('Sample sales')).toBeInTheDocument();
-  expect(screen.getByText('Waiting')).toBeInTheDocument();
-  expect(screen.getByText(/Average difference:/)).toHaveTextContent('300 per day');
-  expect(screen.getByText(/Sample data only/)).toBeInTheDocument();
-});
-
-test('reports tracking failure without claiming predictions were saved', async () => {
-  axios.get.mockResolvedValue({ data: { ...sample, tracking: { source: 'demo', unavailable: true } } });
-  render(<SalesForecast />);
-  expect(await screen.findByRole('alert')).toHaveTextContent('Predictions could not be saved or compared');
+  expect(await screen.findByText('Ingredient demand section: demo')).toBeInTheDocument();
+  expect(screen.getByRole('list', { name: 'Daily sales estimates' })).toBeInTheDocument();
+  expect(screen.queryByText(/Forecast vs\. Actual/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Average difference:/)).not.toBeInTheDocument();
 });
 

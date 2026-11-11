@@ -9,10 +9,11 @@ import RecipeOptionRules, { recipeChoices, recipeError } from '../components/Rec
 import AppNotice from '../components/AppNotice';
 import AboutFluxSettings from '../components/AboutFluxSettings';
 import './SettingsOverview.css';
+import './ProductManagement.css';
 import { focusInvalidField, clearInvalidField, firstInvalidField } from '../utils/formValidation';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole, normalizePermissionDependencies, togglePermissionSelection } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
-import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiDownload, FiLock, FiCheck } from 'react-icons/fi';
+import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiDownload, FiLock, FiCheck, FiPlus, FiGrid, FiLayers, FiPercent, FiImage } from 'react-icons/fi';
 
 const normalizeAccountEmail = (value = '') => value.toLowerCase().trim();
 
@@ -29,7 +30,7 @@ const AVAILABLE_ADDONS = [
     { name: 'Nata', price: 20 },
 ];
 
-const productTableGrid = 'minmax(190px, 2fr) minmax(120px, 1.5fr) minmax(74px, 1fr) minmax(82px, 1fr) 76px 92px 92px';
+const productTableGrid = 'minmax(230px, 2.3fr) minmax(120px, 1.2fr) minmax(80px, .8fr) minmax(80px, .8fr) 92px 92px';
 
 // ── Add/Edit Product Modal ──
 const normalizeAddons = (addons = []) =>
@@ -1080,20 +1081,22 @@ const InventorySettings = () => {
     );
 
     return (
-        <div>
+        <div className="products-inventory-layout">
             {/* Toolbar */}
             <div className="products-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                 <button
+                    aria-label="+ Add Product"
                     onClick={() => setShowAddModal(true)}
                     style={{ padding: '10px 20px', backgroundColor: '#8B5E3C', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
                 >
-                    + Add Product
+                    <FiPlus aria-hidden="true" /> Add Product
                 </button>
                 <button
+                    aria-label="+ Add Category"
                     onClick={() => setShowCategoryModal(true)}
                     style={{ padding: '10px 18px', backgroundColor: '#fff', color: '#8B5E3C', border: '1.5px solid #8B5E3C', borderRadius: '8px', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}
                 >
-                    + Add Category
+                    <FiPlus aria-hidden="true" /> Add Category
                 </button>
                 <button
                     onClick={() => setShowArchive(value => !value)}
@@ -1102,7 +1105,7 @@ const InventorySettings = () => {
                     <FiArchive size={15} /> {showArchive ? 'Active Products' : 'Archive'}
                 </button>
                 <input
-                    type="text" placeholder="Search products..."
+                    type="text" aria-label="Search products" placeholder="Search products..."
                     value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     style={{ padding: '10px 16px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '13px', outline: 'none', width: '220px' }}
                 />
@@ -1112,11 +1115,11 @@ const InventorySettings = () => {
             </div>
 
             {/* Table */}
-            <div className="products-table-card" style={{ backgroundColor: '#fff', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E0D5CB', maxWidth: '100%' }}>
-                <div style={{ minWidth: '820px' }}>
+            <div className="products-table-card data-scroll-box" role="region" aria-label={showArchive ? 'Archived products' : 'Products'} tabIndex={0} style={{ backgroundColor: '#fff', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E0D5CB', maxWidth: '100%' }}>
+                <div className="data-scroll-box-grid product-records" style={{ minWidth: '820px' }}>
                     {/* Header */}
                     <div style={{ display: 'grid', gridTemplateColumns: productTableGrid, padding: '12px 20px', backgroundColor: '#1A1208', gap: '12px' }}>
-                        {['Product Name', 'Category', 'Solo', 'Platter', 'Image', ...(showArchive ? ['Archived', 'Restore'] : ['Edit', 'Archive'])].map(h => (
+                        {['Product Name', 'Category', 'Solo', 'Platter', ...(showArchive ? ['Archived', 'Restore'] : ['Edit', 'Archive'])].map(h => (
                             <p key={h} style={{ fontSize: '11px', fontWeight: '700', color: '#C4894A', textTransform: 'uppercase', letterSpacing: '0.8px', margin: 0 }}>{h}</p>
                         ))}
                     </div>
@@ -1128,8 +1131,17 @@ const InventorySettings = () => {
                         <div style={{ padding: '40px', textAlign: 'center', color: '#bbb' }}>No products found.</div>
                     ) : (
                         filtered.map((product, i) => (
-                            <div key={product._id} style={{ display: 'grid', gridTemplateColumns: productTableGrid, padding: '12px 20px', gap: '12px', backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAF8', borderBottom: '1px solid #f0f0f0', alignItems: 'center' }}>
-                            <div>
+                            <div className="product-record" key={product._id} style={{ display: 'grid', gridTemplateColumns: productTableGrid, padding: '12px 20px', gap: '12px', backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAF8', borderBottom: '1px solid #f0f0f0', alignItems: 'center' }}>
+                            <div className="product-identity">
+                            {/* Image */}
+                            <div className="product-thumbnail" style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F0E8E0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {product.image
+                                    ? <img src={product.image} alt={product.name} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    : <FiImage aria-hidden="true" size={20} />
+                                }
+                            </div>
+
+                            <div className="product-details">
                                 <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', margin: 0 }}>{product.name}</p>
                                 {normalizeVariantGroups(product).some(group => normalizeVariants(group.options).length > 0) && (
                                     <p style={{ fontSize: '10px', color: '#aaa', margin: '2px 0 0', fontStyle: 'italic' }}>
@@ -1145,17 +1157,10 @@ const InventorySettings = () => {
                                     </p>
                                 )}
                             </div>
-                            <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>{product.categoryId?.name || product.category || '—'}</p>
+                            </div>
+                            <p className="product-category" style={{ fontSize: '13px', color: '#666', margin: 0 }}>{product.categoryId?.name || product.category || '—'}</p>
                             <p style={{ fontSize: '13px', fontWeight: '700', color: '#8B5E3C', margin: 0 }}>₱{(product.soloPrice ?? product.price)?.toLocaleString()}</p>
                             <p style={{ fontSize: '13px', color: '#888', margin: 0 }}>{product.platterPrice ? `₱${product.platterPrice.toLocaleString()}` : '—'}</p>
-
-                            {/* Image */}
-                            <div style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F0E8E0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {product.image
-                                    ? <img src={product.image} alt={product.name} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    : <span style={{ fontSize: '18px' }}>🖼</span>
-                                }
-                            </div>
 
                             {showArchive ? <>
                                 <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>{product.archivedAt ? new Date(product.archivedAt).toLocaleDateString() : '—'}</p>
@@ -1326,8 +1331,8 @@ const AddonSettings = () => {
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: '20px' }}>
-            <ValidatedForm onSubmit={handleSubmit} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', height: 'fit-content' }}>
+        <div className="catalog-split-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: '20px' }}>
+            <ValidatedForm className="catalog-editor" onSubmit={handleSubmit} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', height: 'fit-content' }}>
                 <h3 style={{ margin: '0 0 14px', fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>
                     {editing ? 'Edit Add-on' : 'Add New Add-on'}
                 </h3>
@@ -1356,7 +1361,8 @@ const AddonSettings = () => {
                 </div>
             </ValidatedForm>
 
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}>
+            <div className="catalog-list-card" style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}>
+                <div className="catalog-list-tools">
                 <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 18px 0' }}>
                     <button
                         type="button"
@@ -1387,6 +1393,8 @@ const AddonSettings = () => {
                         {filteredAddons.length} {showArchive ? 'archived ' : ''}add-on{filteredAddons.length !== 1 ? 's' : ''}
                     </p>
                 </div>
+                </div>
+                <div className="catalog-records data-scroll-box data-scroll-box-grid" role="region" aria-label="Add-ons" tabIndex={0}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 92px 92px', gap: '12px', padding: '12px 18px', backgroundColor: '#1A1208' }}>
                     {['Add-on', 'Price', ...(showArchive ? ['Archived', 'Restore'] : ['Edit', 'Archive'])].map(header => (
                         <p key={header} style={{ margin: 0, fontSize: '11px', color: '#C4894A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
@@ -1400,7 +1408,7 @@ const AddonSettings = () => {
                     <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No add-ons match your search.</div>
                 ) : (
                     filteredAddons.map((addon, index) => (
-                        <div key={addon._id || addon.name} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 92px 92px', gap: '12px', alignItems: 'center', padding: '12px 18px', borderBottom: index === filteredAddons.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
+                        <div className="catalog-record catalog-addon-record" key={addon._id || addon.name} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 92px 92px', gap: '12px', alignItems: 'center', padding: '12px 18px', borderBottom: index === filteredAddons.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
                             <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#1a1a1a' }}>{addon.name}</p>
                             <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#8B5E3C' }}>₱{Number(addon.price || 0).toLocaleString()}</p>
                             {showArchive ? <>
@@ -1413,6 +1421,7 @@ const AddonSettings = () => {
                         </div>
                     ))
                 )}
+            </div>
             </div>
             {archiveAddon && (
                 <AddonArchiveModal
@@ -1427,7 +1436,7 @@ const AddonSettings = () => {
 
 const DiscountSettings = () => {
     const [discounts, setDiscounts] = useState([]);
-    const [form, setForm] = useState({ name: '', percentage: '', scope: 'item' });
+    const [form, setForm] = useState({ name: '', percentage: '', scope: 'item', vatExempt: false });
     const [editing, setEditing] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -1474,7 +1483,7 @@ const DiscountSettings = () => {
     }, [discounts, searchQuery]);
 
     const resetForm = () => {
-        setForm({ name: '', percentage: '', scope: 'item' });
+        setForm({ name: '', percentage: '', scope: 'item', vatExempt: false });
         setEditing(null);
     };
 
@@ -1484,7 +1493,7 @@ const DiscountSettings = () => {
         setMessage(null);
 
         try {
-            const payload = { name: form.name.trim(), percentage: Number(form.percentage), scope: form.scope };
+            const payload = { name: form.name.trim(), percentage: Number(form.percentage), scope: form.scope, vatExempt: form.vatExempt };
             if (isSystemDiscountName(payload.name)) {
                 setMessage({ type: 'error', text: 'Elite Member is a system discount and is not editable here.' });
                 return;
@@ -1510,7 +1519,7 @@ const DiscountSettings = () => {
     const handleEdit = (discount) => {
         if (isSystemDiscountName(discount.name)) return;
         setEditing(discount);
-        setForm({ name: discount.name, percentage: discount.percentage, scope: normalizeDiscountScope(discount) });
+        setForm({ name: discount.name, percentage: discount.percentage, scope: normalizeDiscountScope(discount), vatExempt: discount.vatExempt === true });
         setMessage(null);
     };
 
@@ -1554,8 +1563,8 @@ const DiscountSettings = () => {
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: '20px' }}>
-            <ValidatedForm onSubmit={handleSubmit} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', height: 'fit-content' }}>
+        <div className="catalog-split-layout" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) minmax(0, 1fr)', gap: '20px' }}>
+            <ValidatedForm className="catalog-editor" onSubmit={handleSubmit} style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', padding: '22px', height: 'fit-content' }}>
                 <h3 style={{ margin: '0 0 14px', fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>
                     {editing ? 'Edit Discount' : 'Add New Discount'}
                 </h3>
@@ -1577,6 +1586,10 @@ const DiscountSettings = () => {
                         Selected item/person works like PWD, Senior, or Pag-IBIG. Whole order works like Elite Member.
                     </p>
                 </div>
+                <div className="catalog-vat-option">
+                    <div><strong>VAT remover</strong><p>Remove the included 12% VAT from the eligible amount before applying this discount.</p></div>
+                    <button type="button" role="switch" aria-label="VAT remover" aria-checked={form.vatExempt} className="catalog-switch" onClick={() => setForm(prev => ({ ...prev, vatExempt: !prev.vatExempt }))}><span /></button>
+                </div>
                 {message && (
                     <div style={{ padding: '10px 12px', borderRadius: '8px', marginBottom: '14px', fontSize: '12px', fontWeight: '700', color: message.type === 'success' ? '#276749' : '#C53030', backgroundColor: message.type === 'success' ? '#F0FFF4' : '#FFF5F5', border: `1px solid ${message.type === 'success' ? '#C6F6D5' : '#FED7D7'}` }}>
                         {message.text}
@@ -1594,7 +1607,8 @@ const DiscountSettings = () => {
                 </div>
             </ValidatedForm>
 
-            <div style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}>
+            <div className="catalog-list-card" style={{ backgroundColor: '#fff', border: '1px solid #E0D5CB', borderRadius: '12px', overflow: 'hidden' }}>
+                <div className="catalog-list-tools">
                 <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 18px 0' }}>
                     <button
                         type="button"
@@ -1625,6 +1639,8 @@ const DiscountSettings = () => {
                         {filteredDiscounts.length} {showArchive ? 'archived ' : ''}discount{filteredDiscounts.length !== 1 ? 's' : ''}
                     </p>
                 </div>
+                </div>
+                <div className="catalog-records data-scroll-box data-scroll-box-grid" role="region" aria-label="Discounts" tabIndex={0}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 150px 92px 92px', gap: '12px', padding: '12px 18px', backgroundColor: '#1A1208' }}>
                     {['Discount', 'Discount %', 'Applies To', ...(showArchive ? ['Archived', 'Restore'] : ['Edit', 'Archive'])].map(header => (
                         <p key={header} style={{ margin: 0, fontSize: '11px', color: '#C4894A', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
@@ -1638,8 +1654,8 @@ const DiscountSettings = () => {
                     <div style={{ padding: '38px', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>No discounts match your search.</div>
                 ) : (
                     filteredDiscounts.map((discount, index) => (
-                        <div key={discount._id || discount.name} style={{ display: 'grid', gridTemplateColumns: '1fr 110px 150px 92px 92px', gap: '12px', alignItems: 'center', padding: '12px 18px', borderBottom: index === filteredDiscounts.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
-                            <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#1a1a1a' }}>{discount.name}</p>
+                        <div className="catalog-record catalog-discount-record" key={discount._id || discount.name} style={{ display: 'grid', gridTemplateColumns: '1fr 110px 150px 92px 92px', gap: '12px', alignItems: 'center', padding: '12px 18px', borderBottom: index === filteredDiscounts.length - 1 ? 'none' : '1px solid #F0E8E0', backgroundColor: index % 2 === 0 ? '#fff' : '#FAFAF8' }}>
+                            <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#1a1a1a' }}>{discount.name}{discount.vatExempt && <span className="catalog-vat-badge">VAT removed</span>}</p>
                             <p style={{ margin: 0, fontSize: '13px', fontWeight: '800', color: '#8B5E3C' }}>{Number(discount.percentage || 0).toLocaleString()}%</p>
                             <p style={{ margin: 0, fontSize: '12px', fontWeight: '800', color: normalizeDiscountScope(discount) === 'item' ? '#975A16' : '#276749' }}>
                                 {discountScopeLabel(normalizeDiscountScope(discount))}
@@ -1654,6 +1670,7 @@ const DiscountSettings = () => {
                         </div>
                     ))
                 )}
+            </div>
             </div>
             {archiveDiscount && (
                 <DiscountArchiveModal
@@ -2385,13 +2402,20 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
         <div className="mobile-app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#F5F0EB' }}>
             <Sidebar />
 
-            <div className="mobile-page-content settings-mobile-content" style={{ flex: 1, overflow: 'auto', padding: '32px', display: 'flex', gap: '24px' }}>
+            <div className={`mobile-page-content settings-mobile-content${mode === 'products' ? ' product-management-page' : ''}${mode === 'products' && activeSection === 'inventory' ? ' products-inventory-content' : ''}`} style={{ flex: 1, overflow: 'auto', padding: '32px', display: 'flex', gap: '24px' }}>
+
+                {mode === 'products' && <header className="catalog-page-heading">
+                    <div><span className="catalog-eyebrow">MENU MANAGEMENT</span><h1>{activeSection === 'inventory' ? 'Product catalog' : activeSection === 'addons' ? 'Add-ons' : 'Discounts'}</h1>
+                    <p>{activeSection === 'inventory' ? 'Everything on your menu, in one place.' : activeSection === 'addons' ? 'The little extras that make every order their own.' : 'Manage your offers and how they apply at checkout.'}</p></div>
+                    <span className="catalog-heading-mark" aria-hidden="true">{activeSection === 'inventory' ? <FiGrid /> : activeSection === 'addons' ? <FiLayers /> : <FiPercent />}</span>
+                </header>}
 
                 {/* Left Menu */}
-                <div style={{ width: '220px', flexShrink: 0, backgroundColor: '#F0E8E0', borderRadius: '16px', padding: '24px 16px', height: 'fit-content' }}>
+                <div className={mode === 'products' ? 'catalog-tabs' : undefined} role={mode === 'products' ? 'navigation' : undefined} aria-label={mode === 'products' ? 'Product management' : undefined} style={{ width: '220px', flexShrink: 0, backgroundColor: '#F0E8E0', borderRadius: '16px', padding: '24px 16px', height: 'fit-content' }}>
                     {visibleMenuItems.map(item => (
                         <button
                             key={item.key}
+                            aria-current={activeSection === item.key ? 'page' : undefined}
                             onClick={() => setActiveSection(item.key)}
                             style={{
                                 width: '100%', textAlign: 'left', padding: '12px 14px',
@@ -2403,16 +2427,17 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
                                 letterSpacing: '0.3px',
                             }}
                         >
+                            {mode === 'products' && <span aria-hidden="true">{item.key === 'inventory' ? <FiGrid /> : item.key === 'addons' ? <FiLayers /> : <FiPercent />}</span>}
                             {item.label}
                         </button>
                     ))}
                 </div>
 
                 {/* Right Content */}
-                <div style={{ flex: 1 }}>
-                    <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1a1a1a', margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                <div className="settings-section-content" style={{ flex: 1 }}>
+                    {mode !== 'products' && <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1a1a1a', margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         {visibleMenuItems.find(m => m.key === activeSection)?.label}
-                    </h2>
+                    </h2>}
                     {renderContent()}
                 </div>
 

@@ -1,0 +1,26 @@
+.shift-end-countdown {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 16px 20px;
+  border: 1px solid #b76b19;
+  border-radius: 12px;
+  background: #fff6e6;
+  color: #653a12;
+  box-shadow: 0 6px 24px #0002;
+  text-align: left;
+}
+.shift-end-countdown p { margin: 6px 0 0; font-size: 14px; }
+.shift-end-clock { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 600px) {
+  .shift-end-countdown { gap: 12px; padding: 12px; }
+  .shift-end-clock { font-size: 24px; }
+}

@@ -123,6 +123,37 @@ test('heartbeat does not extend idle time, fresh input does, and an expired toke
     assert.equal((await request('/inventory', { token, activity: Date.now() })).status, 401);
 });
 
+test('shift deadline ends existing sessions on every protected API despite fresh activity', async t => {
+    t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-09T12:29:00+08:00').getTime() });
+    users[1].shiftSchedule = { workdays: ['monday'], startTime: '07:00', endTime: '12:30', restrictLogin: true, earlyLoginMinutes: 15, timeZone: 'Asia/Manila' };
+    users[1].isOnline = true;
+    const token = await issueSession(users[1]);
+    t.mock.timers.setTime(new Date('2026-11-09T12:30:00+08:00').getTime());
+    assert.equal((await request('/inventory', { token, activity: Date.now() })).status, 200);
+    t.mock.timers.setTime(new Date('2026-11-09T12:34:59+08:00').getTime());
+    assert.equal((await request('/inventory', { token, activity: Date.now() })).status, 200);
+    t.mock.timers.setTime(new Date('2026-11-09T12:35:00+08:00').getTime());
+    const ended = await request('/inventory', { token, activity: Date.now() });
+    assert.equal(ended.status, 403);
+    assert.equal(ended.data.code, 'SHIFT_SESSION_ENDED');
+    assert.equal(sessions.size, 0);
+    assert.equal(users[1].isOnline, false);
+    assert.equal(LoginActivity.create.mock.calls[0].arguments[0].action, 'logout');
+    assert.equal((await request('/inventory', { token })).status, 401);
+});
+
+test('restricted schedule edits affect active sessions; exempt and unrestricted accounts stay signed in', async () => {
+    const today = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', weekday: 'long' }).format(new Date()).toLowerCase();
+    const schedule = { workdays: [today === 'monday' ? 'friday' : 'monday'], startTime: '08:00', endTime: '12:30', restrictLogin: true, earlyLoginMinutes: 0, timeZone: 'Asia/Manila' };
+    for (const index of [0, 2, 1]) {
+        users[index].shiftSchedule = { ...schedule, restrictLogin: index !== 1 };
+        assert.equal((await request('/inventory', { token: await issueSession(users[index]) })).status, 200);
+    }
+    const token = await issueSession(users[1]);
+    users[1].shiftSchedule = schedule;
+    assert.equal((await request('/inventory', { token })).data.code, 'SHIFT_SESSION_ENDED');
+});
+
 test('personal delivery requests ignore another account email and server permissions are read fresh on every request', async () => {
     let filter;
     mock.method(PurchaseOrder, 'find', value => { filter = value; return { sort: async () => [] }; });

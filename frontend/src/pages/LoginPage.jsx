@@ -116,6 +116,8 @@ const LoginPage = () => {
             }
             const user = {
                 sessionToken: response.data.sessionToken,
+                shiftSession: response.data.shiftSession,
+                serverNow: response.data.serverNow,
                 name: response.data.name,
                 email: response.data.email,
                 role: response.data.role,

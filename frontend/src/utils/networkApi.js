@@ -43,7 +43,7 @@ const sessionHeaders = credentials => credentials?.token ? {
   'X-Session-Activity': String(credentials.lastActiveAt),
 } : {};
 const endRejectedSession = (status, payload, id) => {
-  if ([401, 403].includes(status) && ['AUTH_REQUIRED', 'SESSION_EXPIRED', 'ACCOUNT_INACTIVE'].includes(payload?.code)) clearSessionIfCurrent(id);
+  if ([401, 403].includes(status) && ['AUTH_REQUIRED', 'SESSION_EXPIRED', 'ACCOUNT_INACTIVE', 'SHIFT_SESSION_ENDED'].includes(payload?.code)) clearSessionIfCurrent(id);
 };
 
 axios.interceptors.request.use(config => {

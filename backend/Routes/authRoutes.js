@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const { issueSession } = require('../services/authSessions');
 const AuthSession = require('../models/AuthSession');
 const { all: accountPermissions, hasPermission, canManageAccounts } = require('../utils/permissions');
-const { defaultShiftSchedule, validateShiftSchedule } = require('../utils/shiftSchedule');
+const { defaultShiftSchedule, validateShiftSchedule, shiftSessionStatus } = require('../utils/shiftSchedule');
 const mongoose = require('mongoose');
 const { blockOffShiftLogin } = require('../services/shiftLogin');
 
@@ -282,6 +282,7 @@ router.post('/login', async (req, res) => {
 
         res.json({
             sessionToken: await issueSession(user),
+            ...shiftSessionStatus(user),
             name: user.name,
             email: user.email,
             role: user.role,
@@ -327,7 +328,7 @@ router.post('/first-login-password', async (req, res) => {
         if (!updated) return res.status(401).json({ message: 'This request is no longer valid. Please sign in again.' });
         await logAuthAudit({ action: 'First Login Password Changed', user: updated, details: 'Temporary password replaced on first sign-in' });
         await LoginActivity.create({ userId: updated._id, name: updated.name || 'Unnamed User', email: updated.email, role: updated.role, action: 'login', staffId: updated.userId || '', ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] || '' });
-        return res.json({ success: true, user: { ...serializeUser(updated), sessionToken: await issueSession(updated) } });
+        return res.json({ success: true, user: { ...serializeUser(updated), sessionToken: await issueSession(updated), ...shiftSessionStatus(updated) } });
     } catch (err) {
         console.error('First login password change failed:', err.message);
         return res.status(500).json({ message: 'Unable to change password. Please try again.' });
@@ -413,7 +414,7 @@ router.post('/heartbeat', async (req, res) => {
             return res.status(403).json({ code: 'ACCOUNT_INACTIVE', message: 'This account is no longer active. Please sign in with an active account.' });
         }
 
-        res.json({ success: true, user: serializeUser(user) });
+        res.json({ success: true, user: serializeUser(user), ...shiftSessionStatus(user) });
     } catch (err) {
         console.error('Error updating online status:', err);
         res.status(500).json({ message: 'Failed to update online status' });

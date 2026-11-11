@@ -46,3 +46,9 @@ test('wrong password confirmation leaves the login intact; an expired current se
   await expect(onRejection({ config, response: { status: 401, data: { code: 'SESSION_EXPIRED' } } })).rejects.toBeDefined();
   expect(getSessionUser()).toBeNull();
 });
+
+test('a shift cutoff rejection from a business API signs out the current browser session', async () => {
+  const config = onRequest({ url: 'http://localhost:5000/api/products', headers: {} });
+  await expect(onRejection({ config, response: { status: 403, data: { code: 'SHIFT_SESSION_ENDED' } } })).rejects.toBeDefined();
+  expect(getSessionUser()).toBeNull();
+});
