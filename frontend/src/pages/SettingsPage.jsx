@@ -495,14 +495,15 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
 
     return (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div ref={productFormRef} onInputCapture={() => clearInvalidField(productFormRef.current)} onChangeCapture={() => clearInvalidField(productFormRef.current)} style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '640px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
-                <div style={{ position: 'sticky', top: 0, zIndex: 5, backgroundColor: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '-28px -28px 24px', padding: '28px', borderBottom: '1px solid #EEE6DE' }}>
+            <div ref={productFormRef} onInputCapture={() => clearInvalidField(productFormRef.current)} onChangeCapture={() => clearInvalidField(productFormRef.current)} style={{ backgroundColor: '#fff', borderRadius: '16px', width: '696px', maxWidth: 'calc(100vw - 32px)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
+                <div style={{ flexShrink: 0, backgroundColor: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px', borderBottom: '1px solid #EEE6DE' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#1a1a1a' }}>
                         {product ? 'Edit Product' : 'Add New Product'}
                     </h3>
                     <button type="button" aria-label="Close product editor" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#aaa' }}>✕</button>
                 </div>
 
+                <div style={{ minHeight: 0, overflowY: 'auto', padding: '24px 28px 28px' }}>
                 <ProductImageInput value={form.image} onChange={image => setForm(current => ({ ...current, image }))} onBusyChange={setImageLoading} disabled={saving} />
 
                 {/* Form Fields */}
@@ -799,6 +800,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                         style={{ flex: 2, padding: '12px', backgroundColor: saving ? '#C4A87A' : '#8B5E3C', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: saving ? 'not-allowed' : 'pointer' }}>
                         {saving ? 'Saving...' : product ? 'Save Changes' : 'Add Product'}
                     </button>
+                </div>
                 </div>
             </div>
             {showIngredientPicker && (
