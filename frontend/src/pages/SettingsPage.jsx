@@ -2407,7 +2407,6 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
                 {mode === 'products' && <header className="catalog-page-heading">
                     <div><span className="catalog-eyebrow">MENU MANAGEMENT</span><h1>{activeSection === 'inventory' ? 'Product catalog' : activeSection === 'addons' ? 'Add-ons' : 'Discounts'}</h1>
                     <p>{activeSection === 'inventory' ? 'Everything on your menu, in one place.' : activeSection === 'addons' ? 'The little extras that make every order their own.' : 'Manage your offers and how they apply at checkout.'}</p></div>
-                    <span className="catalog-heading-mark" aria-hidden="true">{activeSection === 'inventory' ? <FiGrid /> : activeSection === 'addons' ? <FiLayers /> : <FiPercent />}</span>
                 </header>}
 
                 {/* Left Menu */}

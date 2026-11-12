@@ -11,7 +11,6 @@
 .catalog-eyebrow { color: #9b795d; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; }
 .catalog-page-heading h1 { margin: 7px 0 6px; color: var(--catalog-ink); font-size: 30px; font-weight: 750; letter-spacing: -1px; line-height: 1.2; }
 .catalog-page-heading p { color: var(--catalog-muted); margin: 0; font-size: 13px; line-height: 1.5; }
-.catalog-heading-mark { display: grid; place-items: center; width: 54px; height: 54px; color: #8b5e3c; background: #eee5db; border: 1px solid #e5d8c9; border-radius: 16px; font-size: 24px; }
 .product-management-page .catalog-tabs {
   display: flex; align-items: center; gap: 8px; width: 100% !important; flex: 0 0 auto !important;
   padding: 0 0 15px !important; margin: 0 !important; border-radius: 0 !important;
@@ -89,7 +88,6 @@
 @media (max-width: 768px) {
   .product-management-page.product-management-page { display: flex !important; gap: 18px !important; padding: 24px 14px 96px !important; }
   .catalog-page-heading h1 { font-size: 26px; }
-  .catalog-heading-mark { width: 44px; height: 44px; border-radius: 12px; font-size: 20px; }
   .product-management-page .catalog-tabs { gap: 5px; padding-bottom: 13px !important; }
   .product-management-page .catalog-tabs button { flex: 1; gap: 6px; padding: 11px 8px !important; font-size: 10px !important; }
   .catalog-tabs button span { font-size: 14px; }
