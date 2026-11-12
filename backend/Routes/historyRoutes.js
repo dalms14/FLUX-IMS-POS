@@ -46,11 +46,15 @@ async function logRefundAudit(action, refund, details) {
 // ========== TRANSACTION ROUTES ==========
 
 const TRANSACTION_HISTORY_STATUSES = ['completed', 'cancelled'];
+const TRANSACTION_FILTER_STATUSES = [...TRANSACTION_HISTORY_STATUSES, 'refund pending', 'partial refund', 'refunded'];
 
 // Get all transactions (with optional filters)
 router.get('/transactions', async (req, res) => {
     try {
-        const { cashier, paymentMethod, startDate, endDate, includeActive } = req.query;
+        const { cashier, paymentMethod, startDate, endDate, includeActive, status } = req.query;
+        if (status && !TRANSACTION_FILTER_STATUSES.includes(status)) {
+            return res.status(400).json({ success: false, message: 'Select a valid transaction status.' });
+        }
         
         console.log('Transaction query params:', { cashier, paymentMethod, startDate, endDate, includeActive });
         
@@ -81,10 +85,12 @@ router.get('/transactions', async (req, res) => {
         
         console.log(`Found ${transactions.length} transactions with filter:`, filter);
             
+        const annotated = await annotateRefunds(transactions);
+        const matching = status ? annotated.filter(transaction => transaction.refundSummary.status === status) : annotated;
         res.json({
             success: true,
-            count: transactions.length,
-            data: await annotateRefunds(transactions)
+            count: matching.length,
+            data: matching
         });
     } catch (err) {
         console.error('Error fetching transactions:', err);

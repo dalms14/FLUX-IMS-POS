@@ -1,10 +1,21 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import TransactionPage from './TransactionPage';
 import RefundModal from '../components/modals/RefundModal';
 
 jest.mock('../components/Sidebar', () => () => null);
 jest.mock('../components/ReceiptViewModal', () => () => null);
+jest.mock('react-router-dom', () => ({
+  useSearchParams: () => {
+    const [query, setQuery] = require('react').useState(() => globalThis.window.location.search);
+    return [new URLSearchParams(query), (next) => setQuery(current => {
+      const params = typeof next === 'function' ? next(new URLSearchParams(current)) : new URLSearchParams(next);
+      const search = params.toString();
+      globalThis.window.history.replaceState({}, '', `/transactions${search ? `?${search}` : ''}`);
+      return search;
+    })];
+  },
+}), { virtual: true });
 const sale = {
   _id: '123456789012345678901234', receiptNo: 'FLX-REFUND-TEST', orderStatus: 'completed', paymentMethod: 'Cash', total: 240,
   cashier: 'Cashier', createdAt: '2026-11-05T04:00:00Z',
@@ -15,6 +26,7 @@ const sale = {
 const reply = (data, ok = true) => Promise.resolve({ ok, json: async () => data });
 let currentSale;
 beforeEach(() => {
+  window.history.replaceState({}, '', '/transactions');
   Object.defineProperty(window, 'crypto', { configurable: true, value: { getRandomValues: array => require('crypto').randomFillSync(array) } });
   localStorage.clear(); localStorage.setItem('user', JSON.stringify({ role: 'staff' }));
   currentSale = JSON.parse(JSON.stringify(sale));
@@ -27,7 +39,65 @@ beforeEach(() => {
     return reply({ data: url.endsWith(sale._id) ? currentSale : [currentSale] });
   });
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => { jest.restoreAllMocks(); window.history.replaceState({}, '', '/'); });
+
+test('dashboard link selects completed status and the full Philippine business day, including after reload', async () => {
+  window.history.replaceState({}, '', '/transactions?status=completed&startDate=2026-11-07&endDate=2026-11-07');
+  const view = render(<TransactionPage />);
+  await screen.findByText(sale.receiptNo);
+  expect(screen.getByLabelText('Filter by Status')).toHaveValue('completed');
+  expect(screen.getByLabelText('Start Date')).toHaveValue('2026-11-07');
+  expect(screen.getByLabelText('End Date')).toHaveValue('2026-11-07');
+  const params = new URL(fetch.mock.calls[0][0]).searchParams;
+  expect(params.get('status')).toBe('completed');
+  expect(params.get('startDate')).toBe('2026-11-07T00:00:00+08:00');
+  expect(params.get('endDate')).toBe('2026-11-07T23:59:59.999+08:00');
+  view.unmount();
+  render(<TransactionPage />);
+  expect(screen.getByLabelText('Filter by Status')).toHaveValue('completed');
+  await screen.findByText(sale.receiptNo);
+});
+
+test('status changes combine with other filters and Clear removes the dashboard defaults', async () => {
+  window.history.replaceState({}, '', '/transactions?status=completed&startDate=2026-11-07&endDate=2026-11-07&cashier=Cashier&paymentMethod=Cash');
+  render(<TransactionPage />);
+  await screen.findByText(sale.receiptNo);
+  fireEvent.change(screen.getByLabelText('Filter by Status'), { target: { value: 'cancelled' } });
+  await waitFor(() => {
+    const params = new URL(fetch.mock.calls.at(-1)[0]).searchParams;
+    expect(params.get('status')).toBe('cancelled');
+    expect(params.get('cashier')).toBe('Cashier');
+    expect(params.get('paymentMethod')).toBe('Cash');
+    expect(params.get('startDate')).toBe('2026-11-07T00:00:00+08:00');
+  });
+  await screen.findByText(sale.receiptNo);
+  fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+  expect(screen.getByLabelText('Filter by Status')).toHaveValue('');
+  expect(screen.getByLabelText('Start Date')).toHaveValue('');
+  expect(screen.getByLabelText('End Date')).toHaveValue('');
+  await waitFor(() => expect(new URL(fetch.mock.calls.at(-1)[0]).search).toBe(''));
+  await screen.findByText(sale.receiptNo);
+});
+
+test('refund status is shown consistently in the transaction row and details', async () => {
+  currentSale.refundSummary.status = 'partial refund';
+  currentSale.refundSummary.totalRefunded = 80;
+  render(<TransactionPage />);
+  fireEvent.click(await screen.findByText(sale.receiptNo));
+  expect(screen.getAllByText('Partial refund')).toHaveLength(3); // Filter option, table status, details status.
+});
+
+test('a slower previous request cannot overwrite the newly selected status', async () => {
+  let resolveInitial;
+  fetch.mockImplementationOnce(() => new Promise(resolve => { resolveInitial = resolve; }));
+  fetch.mockImplementation(() => reply({ data: [{ ...sale, receiptNo: 'FLX-CANCELLED', orderStatus: 'cancelled', paymentMethod: 'Cancelled' }] }));
+  render(<TransactionPage />);
+  fireEvent.change(screen.getByLabelText('Filter by Status'), { target: { value: 'cancelled' } });
+  await screen.findByText('FLX-CANCELLED');
+  await act(async () => { resolveInitial(await reply({ data: [sale] })); });
+  expect(screen.getByText('FLX-CANCELLED')).toBeInTheDocument();
+  expect(screen.queryByText(sale.receiptNo)).not.toBeInTheDocument();
+});
 
 test('cashier refunds selected quantities from a completed sale and sees the refreshed refund amount', async () => {
   render(<TransactionPage />);

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import ReceiptViewModal from '../components/ReceiptViewModal';
@@ -8,6 +9,14 @@ import { FiCheck, FiChevronDown, FiCreditCard, FiRefreshCw } from 'react-icons/f
 import './TransactionPage.css';
 
 const TRANSACTION_REFRESH_MS = 5000;
+const STATUS_OPTIONS = [
+  ['', 'All statuses'],
+  ['completed', 'Completed'],
+  ['cancelled', 'Cancelled'],
+  ['refund pending', 'Refund pending'],
+  ['partial refund', 'Partial refund'],
+  ['refunded', 'Refunded'],
+];
 
 const buildDateTimeParam = (date, time, isEnd = false) => {
   if (!date) return '';
@@ -16,7 +25,10 @@ const buildDateTimeParam = (date, time, isEnd = false) => {
 };
 
 const money = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
-const isCancelledTransaction = (transaction) => transaction?.orderStatus === 'cancelled' || transaction?.paymentMethod === 'Cancelled';
+const isCancelledTransaction = (transaction) => String(transaction?.orderStatus || '').trim().toLowerCase() === 'cancelled'
+  || String(transaction?.paymentMethod || '').trim().toLowerCase() === 'cancelled';
+const transactionStatus = transaction => transaction.refundSummary?.status || (isCancelledTransaction(transaction) ? 'cancelled' : 'completed');
+const transactionStatusLabel = transaction => STATUS_OPTIONS.find(([value]) => value === transactionStatus(transaction))?.[1] || 'Completed';
 const ITEM_SCOPED_DISCOUNT_CODES = new Set(['pagibig', 'pwd_senior']);
 const isItemScopedDiscount = (discount, type) => (
   discount?.scope ? discount.scope === 'item' : ITEM_SCOPED_DISCOUNT_CODES.has(discount?.code) || ITEM_SCOPED_DISCOUNT_CODES.has(type)
@@ -197,7 +209,7 @@ const TransactionDetailsModal = ({ transaction, onClose, formatDate }) => {
         <div style={{ padding: '18px 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', borderBottom: '1px solid #F0E8E0' }}>
           {[
             ['Payment', transaction.paymentMethod || '-'],
-            ['Status', isCancelled ? 'Cancelled' : 'Completed'],
+            ['Status', transactionStatusLabel(transaction)],
             ['Service', transaction.serviceType || 'Dine In'],
             ['Items', totalItems.toLocaleString()],
             ['Subtotal', money(transaction.subtotal)],
@@ -418,6 +430,7 @@ const TransactionDetailsModal = ({ transaction, onClose, formatDate }) => {
 
 const TransactionPage = () => {
   const [transactions, setTransactions] = useState([]);
+  const latestRequest = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [detailsTransaction, setDetailsTransaction] = useState(null);
@@ -427,18 +440,30 @@ const TransactionPage = () => {
   const closeRefund = useCallback(() => setRefundTransaction(null), []);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const canRefund = hasPermission(user, 'transactions') || hasPermission(user, 'history');
-  const [filterCashier, setFilterCashier] = useState('');
-  const [filterPayment, setFilterPayment] = useState('');
-  const [filterStartDate, setFilterStartDate] = useState('');
-  const [filterStartTime, setFilterStartTime] = useState('');
-  const [filterEndDate, setFilterEndDate] = useState('');
-  const [filterEndTime, setFilterEndTime] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filterCashier = searchParams.get('cashier') || '';
+  const filterPayment = searchParams.get('paymentMethod') || '';
+  const filterStatus = STATUS_OPTIONS.some(([value]) => value === searchParams.get('status')) ? searchParams.get('status') : '';
+  const filterStartDate = searchParams.get('startDate') || '';
+  const filterStartTime = searchParams.get('startTime') || '';
+  const filterEndDate = searchParams.get('endDate') || '';
+  const filterEndTime = searchParams.get('endTime') || '';
+  const updateFilter = (key, value) => setSearchParams(current => {
+    const next = new URLSearchParams(current);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    if (!value && key === 'startDate') next.delete('startTime');
+    if (!value && key === 'endDate') next.delete('endTime');
+    return next;
+  }, { replace: true });
 
   const fetchTransactions = useCallback(async (overrides = null, options = {}) => {
+    const requestId = ++latestRequest.current;
     const { silent = false } = options;
     const filters = overrides || {
       cashier: filterCashier,
       payment: filterPayment,
+      status: filterStatus,
       startDate: filterStartDate,
       startTime: filterStartTime,
       endDate: filterEndDate,
@@ -454,6 +479,7 @@ const TransactionPage = () => {
       const cashierSearch = String(filters.cashier || '').trim();
       if (cashierSearch) params.append('cashier', cashierSearch);
       if (filters.payment) params.append('paymentMethod', filters.payment);
+      if (filters.status) params.append('status', filters.status);
 
       const startDateTime = buildDateTimeParam(filters.startDate, filters.startTime);
       const endDateTime = buildDateTimeParam(filters.endDate, filters.endTime, true);
@@ -463,19 +489,20 @@ const TransactionPage = () => {
       const res = await fetch(`http://localhost:5000/api/transactions?${params}`);
       if (!res.ok) throw new Error('Failed to fetch transactions');
       const data = await res.json();
-      setTransactions(data.data || data);
+      if (requestId === latestRequest.current) setTransactions(data.data || data);
     } catch (err) {
       console.error('Error fetching transactions:', err);
-      setError('Failed to load transactions');
+      if (requestId === latestRequest.current) setError('Failed to load transactions');
     } finally {
-      if (!silent) {
+      if (requestId === latestRequest.current) {
         setLoading(false);
       }
     }
-  }, [filterCashier, filterPayment, filterStartDate, filterStartTime, filterEndDate, filterEndTime]);
+  }, [filterCashier, filterPayment, filterStatus, filterStartDate, filterStartTime, filterEndDate, filterEndTime]);
 
   useEffect(() => {
     fetchTransactions();
+    return () => { latestRequest.current += 1; };
   }, [fetchTransactions]);
 
   useEffect(() => {
@@ -497,20 +524,7 @@ const TransactionPage = () => {
   }, [fetchTransactions]);
 
   const clearFilters = () => {
-    setFilterCashier('');
-    setFilterPayment('');
-    setFilterStartDate('');
-    setFilterStartTime('');
-    setFilterEndDate('');
-    setFilterEndTime('');
-    fetchTransactions({
-      cashier: '',
-      payment: '',
-      startDate: '',
-      startTime: '',
-      endDate: '',
-      endTime: '',
-    });
+    setSearchParams({}, { replace: true });
   };
 
   const formatDate = (dateString) => {
@@ -551,7 +565,7 @@ const TransactionPage = () => {
             <input
               type="text"
               value={filterCashier}
-              onChange={(e) => setFilterCashier(e.target.value)}
+              onChange={(e) => updateFilter('cashier', e.target.value)}
               placeholder="Enter cashier name"
               style={{
                 width: '100%',
@@ -568,7 +582,17 @@ const TransactionPage = () => {
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', fontSize: '12px', color: '#666' }}>
               Filter by Payment Method
             </label>
-            <PaymentMethodFilter value={filterPayment} onChange={setFilterPayment} />
+            <PaymentMethodFilter value={filterPayment} onChange={value => updateFilter('paymentMethod', value)} />
+          </div>
+
+          <div>
+            <label htmlFor="transaction-status" style={{ display: 'block', fontWeight: '600', marginBottom: '8px', fontSize: '12px', color: '#666' }}>
+              Filter by Status
+            </label>
+            <select id="transaction-status" value={filterStatus} onChange={event => updateFilter('status', event.target.value)}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #D4B89A', fontSize: '13px', backgroundColor: '#fff', boxSizing: 'border-box' }}>
+              {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
           </div>
 
           <div>
@@ -578,7 +602,8 @@ const TransactionPage = () => {
             <input
               type="date"
               value={filterStartDate}
-              onChange={(e) => setFilterStartDate(e.target.value)}
+              aria-label="Start Date"
+              onChange={(e) => updateFilter('startDate', e.target.value)}
               style={{
                 width: '100%',
                 padding: '10px 12px',
@@ -597,7 +622,8 @@ const TransactionPage = () => {
             <input
               type="time"
               value={filterStartTime}
-              onChange={(e) => setFilterStartTime(e.target.value)}
+              aria-label="Start Time"
+              onChange={(e) => updateFilter('startTime', e.target.value)}
               disabled={!filterStartDate}
               style={{
                 width: '100%',
@@ -618,7 +644,8 @@ const TransactionPage = () => {
             <input
               type="date"
               value={filterEndDate}
-              onChange={(e) => setFilterEndDate(e.target.value)}
+              aria-label="End Date"
+              onChange={(e) => updateFilter('endDate', e.target.value)}
               style={{
                 width: '100%',
                 padding: '10px 12px',
@@ -637,7 +664,8 @@ const TransactionPage = () => {
             <input
               type="time"
               value={filterEndTime}
-              onChange={(e) => setFilterEndTime(e.target.value)}
+              aria-label="End Time"
+              onChange={(e) => updateFilter('endTime', e.target.value)}
               disabled={!filterEndDate}
               style={{
                 width: '100%',
@@ -801,8 +829,8 @@ const TransactionPage = () => {
                     <td style={{ padding: '12px 16px', fontSize: '13px' }}>
                       <span
                         style={{
-                          backgroundColor: isCancelledTransaction(transaction) ? '#FFF5F5' : '#F0FFF4',
-                          color: isCancelledTransaction(transaction) ? '#C53030' : '#276749',
+                          backgroundColor: transactionStatus(transaction) === 'completed' ? '#F0FFF4' : '#FFF5F5',
+                          color: transactionStatus(transaction) === 'completed' ? '#276749' : '#C53030',
                           padding: '4px 8px',
                           borderRadius: '4px',
                           fontSize: '11px',
@@ -810,7 +838,7 @@ const TransactionPage = () => {
                           textTransform: 'uppercase',
                         }}
                       >
-                        {isCancelledTransaction(transaction) ? 'Cancelled' : 'Completed'}
+                        {transactionStatusLabel(transaction)}
                       </span>
                       {transaction.refundSummary?.totalRefunded > 0 && <small style={{ display: 'block', marginTop: '6px', color: '#8B5E3C' }}>
                         Refunded: {money(transaction.refundSummary.totalRefunded)}

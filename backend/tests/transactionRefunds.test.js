@@ -46,6 +46,18 @@ beforeEach(() => {
 });
 afterEach(() => mock.restoreAll());
 
+test('transaction status separates refund activity from completed and cancelled sales', () => {
+    const status = (rows = [], transaction = sale) => refundView(transaction, rows).refundSummary.status;
+    assert.equal(status(), 'completed');
+    assert.equal(status([{ status: 'rejected', totalRefunded: 100 }]), 'completed');
+    assert.equal(status([{ status: 'pending', totalRefunded: 100 }]), 'refund pending');
+    assert.equal(status([{ status: 'completed', totalRefunded: 100 }]), 'partial refund');
+    assert.equal(status([{ status: 'approved', totalRefunded: 100 }, { status: 'completed', totalRefunded: 240 }]), 'refunded');
+    assert.equal(status([{ status: 'completed', totalRefunded: 340 }, { status: 'pending', totalRefunded: 1 }]), 'refund pending');
+    assert.equal(status([], { ...sale, orderStatus: 'cancelled' }), 'cancelled');
+    assert.equal(status([], { ...sale, paymentMethod: 'Cancelled' }), 'cancelled');
+});
+
 test('completed partial refund uses receipt prices and eligible discounts, preserves the sale, and records its actor', async () => {
     const original = structuredClone(sale);
     const result = await processRefund({ ...request(), totalRefunded: 10000, receiptNo: 'forged', refundedBy: 'Owner', items: [{ originalIndex: 0, quantity: 1, price: 10000 }] }, actor);

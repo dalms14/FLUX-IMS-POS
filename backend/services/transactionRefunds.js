@@ -89,7 +89,13 @@ function refundView(transaction, refunds = []) {
         refundLineAmounts: amounts?.[index],
     }));
     const canRefund = eligible && !unavailableReason && items.some(item => item.refundableQuantity > 0) && reservedTotal < cents(source.total);
-    return { ...source, items, refundSummary: { canRefund, totalRefunded: money(refundedTotal), remainingAmount: money(Math.max(0, cents(source.total) - reservedTotal)), unavailableReason } };
+    const orderStatus = String(source.paymentMethod || '').trim().toLowerCase() === 'cancelled'
+        ? 'cancelled' : String(source.orderStatus || 'completed').trim().toLowerCase();
+    const status = orderStatus !== 'completed' ? orderStatus
+        : active.length === 0 ? 'completed'
+        : active.some(row => row.status === 'pending') ? 'refund pending'
+        : refundedTotal >= cents(source.total) ? 'refunded' : 'partial refund';
+    return { ...source, items, refundSummary: { status, canRefund, totalRefunded: money(refundedTotal), remainingAmount: money(Math.max(0, cents(source.total) - reservedTotal)), unavailableReason } };
 }
 
 async function annotateRefunds(transactions) {

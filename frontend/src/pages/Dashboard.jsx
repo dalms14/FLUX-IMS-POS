@@ -11,17 +11,20 @@ import { hasPermission } from '../utils/roles';
 const DASHBOARD_REFRESH_MS = 5000;
 
 // KPI Card Component
-const KPICard = ({ icon, label, value, subtext, trend, color }) => (
-  <div className="dashboard-metric" style={{ '--metric-color': color || '#8B5E3C' }}>
-    <div className="dashboard-metric-top">
-      <span className="dashboard-metric-icon">{icon}</span>
-      {trend && <span className="dashboard-metric-trend">{trend > 0 ? '\u2191' : '\u2193'} {Math.abs(trend)}%</span>}
-    </div>
-    <p className="dashboard-metric-label">{label}</p>
-    <p className="dashboard-metric-value">{value}</p>
-    {subtext && <p className="dashboard-metric-detail">{subtext}</p>}
-  </div>
-);
+const KPICard = ({ icon, label, value, subtext, trend, color, href }) => {
+  const Card = href ? 'a' : 'div';
+  return (
+    <Card href={href} className={`dashboard-metric${href ? ' dashboard-metric-link' : ''}`} style={{ '--metric-color': color || '#8B5E3C' }}>
+      <div className="dashboard-metric-top">
+        <span className="dashboard-metric-icon">{icon}</span>
+        {trend && <span className="dashboard-metric-trend">{trend > 0 ? '\u2191' : '\u2193'} {Math.abs(trend)}%</span>}
+      </div>
+      <p className="dashboard-metric-label">{label}</p>
+      <p className="dashboard-metric-value">{value}</p>
+      {subtext && <p className="dashboard-metric-detail">{subtext}</p>}
+    </Card>
+  );
+};
 
 const statusStyles = {
   pending: { backgroundColor: '#FFFAF0', color: '#975A16' },
@@ -47,6 +50,7 @@ const businessDate = value => {
 };
 
 const getTransactionStatus = (transaction, refundMap) => {
+  if (transaction.refundSummary?.status) return transaction.refundSummary.status;
   const orderStatus = getOrderStatus(transaction);
   if (orderStatus !== 'completed') return orderStatus;
 
@@ -261,6 +265,7 @@ const Dashboard = () => {
             <KPICard
               icon={<FiCheck size={32} color="#276749" />}
               label="Completed"
+              href={canViewTransactions ? `/transactions?status=completed&startDate=${today}&endDate=${today}` : undefined}
               value={completedTodayOrders}
               subtext={refundedTodayOrders > 0 ? `${refundedTodayOrders} with refund activity` : 'No refunds today'}
               color="#276749"

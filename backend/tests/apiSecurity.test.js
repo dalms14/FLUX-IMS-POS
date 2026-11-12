@@ -46,6 +46,41 @@ const request = async (path, { token, body, method = 'GET', activity } = {}) => 
     return { status: response.status, data: await response.json() };
 };
 
+test('transaction status filtering returns matching counts and preserves cashier, payment and Philippine date filters', async () => {
+    const Transaction = require('../models/Transaction');
+    const Refund = require('../models/Refund');
+    const sale = { _id: '123456789012345678901234', receiptNo: 'FLX-COMPLETE', orderStatus: 'completed', paymentMethod: 'Cash',
+        total: 100, subtotal: 100, items: [{ name: 'Coffee', quantity: 1, price: 100, subtotal: 100 }] };
+    const rows = [sale,
+        { ...sale, _id: '123456789012345678901235', receiptNo: 'FLX-CANCEL', orderStatus: 'cancelled' },
+        { ...sale, _id: '123456789012345678901236', receiptNo: 'FLX-REFUND' },
+        { ...sale, _id: '123456789012345678901237', receiptNo: 'FLX-LEGACY-CANCEL', paymentMethod: 'Cancelled' },
+    ];
+    let queryFilter;
+    mock.method(Transaction, 'find', filter => {
+        queryFilter = filter;
+        return { populate() { return this; }, sort() { return this; }, lean: async () => rows };
+    });
+    mock.method(Refund, 'find', () => ({ lean: async () => [{ transactionId: rows[2]._id, status: 'completed', totalRefunded: 50 }] }));
+    const token = await issueSession(users[0]);
+    const complete = await request('/transactions?status=completed&cashier=Owner&paymentMethod=Cash&startDate=2026-11-07T00:00:00%2B08:00&endDate=2026-11-07T23:59:59.999%2B08:00', { token });
+    assert.equal(complete.status, 200);
+    assert.equal(complete.data.count, 1);
+    assert.deepEqual(complete.data.data.map(row => row.receiptNo), ['FLX-COMPLETE']);
+    assert.deepEqual(queryFilter.cashier, { $regex: 'Owner', $options: 'i' });
+    assert.equal(queryFilter.paymentMethod, 'Cash');
+    assert.equal(queryFilter.createdAt.$gte.toISOString(), '2026-11-06T16:00:00.000Z');
+    assert.equal(queryFilter.createdAt.$lte.toISOString(), '2026-11-07T15:59:59.999Z');
+    const cancelled = await request('/transactions?status=cancelled', { token });
+    assert.equal(cancelled.data.count, 2);
+    assert.deepEqual(cancelled.data.data.map(row => row.receiptNo), ['FLX-CANCEL', 'FLX-LEGACY-CANCEL']);
+    const partial = await request('/transactions?status=partial%20refund', { token });
+    assert.equal(partial.data.count, 1);
+    assert.equal(partial.data.data[0].receiptNo, 'FLX-REFUND');
+    assert.equal((await request('/transactions', { token })).data.count, 4);
+    assert.equal((await request('/transactions?status=unknown', { token })).status, 400);
+});
+
 test('profile activity and last sign-in are scoped to the signed-in account and expose no credentials', async () => {
     const Transaction = require('../models/Transaction');
     const Refund = require('../models/Refund');

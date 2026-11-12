@@ -25,6 +25,38 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
+test('Completed card links to completed transactions for today in Philippine time', async () => {
+  jest.setSystemTime(new Date('2026-11-06T18:00:00Z'));
+  transactions = [sale()];
+  render(<Dashboard />);
+  await screen.findByText('FLX-PAID');
+  const link = screen.getByRole('link', { name: /Completed 1 No refunds today/i });
+  expect(link).toHaveAttribute('href', '/transactions?status=completed&startDate=2026-11-07&endDate=2026-11-07');
+});
+
+test('Completed card stays informational without Transactions permission', async () => {
+  localStorage.setItem('user', JSON.stringify({ role: 'custom', permissions: ['dashboard'] }));
+  transactions = [sale()];
+  render(<Dashboard />);
+  await screen.findByText('FLX-PAID');
+  expect(screen.getByText('Completed').closest('.dashboard-metric').tagName).toBe('DIV');
+});
+
+test('Completed count excludes pending, partial and full refunds but includes rejected refunds', async () => {
+  transactions = [sale(), ...['pending', 'partial', 'full', 'rejected'].map(id => sale({ _id: id, receiptNo: `FLX-${id}` }))];
+  const refunds = [
+    { transactionId: 'pending', status: 'pending', totalRefunded: 100 },
+    { transactionId: 'partial', status: 'completed', totalRefunded: 100 },
+    { transactionId: 'full', status: 'approved', totalRefunded: 2154 },
+    { transactionId: 'rejected', status: 'rejected', totalRefunded: 100 },
+  ];
+  axios.get.mockImplementation(url => Promise.resolve({ data: { data: url.endsWith('/transactions') ? transactions : url.endsWith('/refunds') ? refunds : [] } }));
+  render(<Dashboard />);
+  await screen.findByText('FLX-PAID');
+  expect(metric('Completed').getByText('2')).toBeInTheDocument();
+  expect(metric('Completed').getByText('3 with refund activity')).toBeInTheDocument();
+});
+
 test('cancelled transactions stay in recent history but do not inflate revenue, orders, items or refund counts', async () => {
   transactions = [
     sale(),
