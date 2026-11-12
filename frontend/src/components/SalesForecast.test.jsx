@@ -35,9 +35,6 @@ test('clearly labels sample forecasts and provides an accessible daily breakdown
   expect(screen.getByText(/not Eli Coffee sales/)).toBeInTheDocument();
   expect(screen.getByText('Tomorrow (sample)')).toBeInTheDocument();
   expect(screen.getAllByRole('listitem')).toHaveLength(7);
-  expect(screen.getByText(/A linear regression model learns weekday patterns/)).toBeInTheDocument();
-  expect(screen.getByText('How the forecast works').closest('details')).not.toHaveAttribute('open');
-  expect(screen.getByText(/do not establish accuracy for Eli Coffee/)).toBeInTheDocument();
   expect(screen.queryByText(/Historical prediction error/)).not.toBeInTheDocument();
   expect(axios.get.mock.calls[0][0]).toBe('http://localhost:5000/api/sales-forecast?source=demo');
 });
@@ -74,16 +71,4 @@ test('a slow sample request cannot overwrite a later real-mode response', async 
   await act(async () => { resolveSample({ data: sample }); });
   await waitFor(() => expect(screen.getByText(/12 of 42 completed days/)).toBeInTheDocument());
   expect(screen.queryByRole('list', { name: 'Daily sales estimates' })).not.toBeInTheDocument();
-});
-
-test('discloses when the simpler comparison has lower test error', async () => {
-  axios.get.mockResolvedValue({ data: { ...sample, validation: {
-    days: 14, modelMae: 400, baselineMae: 200, baselineIsBetter: true,
-  } } });
-  render(<SalesForecast />);
-  await screen.findByText('How the forecast works');
-  expect(screen.getByText(/four-week average had lower error/)).toBeInTheDocument();
-  expect(screen.getByText(/not guaranteed to perform better/)).toBeInTheDocument();
-  expect(screen.getByText(/400 per day/)).toBeInTheDocument();
-  expect(screen.getByText(/200 per day/)).toBeInTheDocument();
 });

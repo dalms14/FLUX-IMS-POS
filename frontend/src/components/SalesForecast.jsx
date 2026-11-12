@@ -70,17 +70,6 @@ export default function SalesForecast() {
         </div>)}
       </div>
       <IngredientDemandForecast source={source} refresh={refresh} />
-      <details className="forecast-model-check"><summary>How the forecast works</summary>
-        <p>A linear regression model learns weekday patterns and the sales trend from past daily sales, then estimates the coming week.</p>
-        <p>History through {dateLabel(current.trainedThrough)} (Philippine time). Date filters above do not change the forecast.</p>
-      {current.validation && <>
-        <p>Trained on {current.historyDays} completed days. Tested on {current.validation.days} later days in two weekly checks, using only earlier sales for each prediction.</p>
-        <p>Average test error{demo ? ' on sample data' : ''}: <strong>{money(current.validation.modelMae)} per day</strong>. Four-week average comparison: <strong>{money(current.validation.baselineMae)} per day</strong>. Lower error is better.</p>
-        {current.validation.baselineIsBetter && <p>The four-week average had lower error in this check. The machine-learning model is not guaranteed to perform better.</p>}
-        {demo && <p>These results demonstrate the training and testing process; they do not establish accuracy for Eli Coffee.</p>}
-      </>}
-      </details>
-      <p className="forecast-footnote">Estimates are a guide and may differ from actual sales.</p>
     </>}
   </section>;
 }

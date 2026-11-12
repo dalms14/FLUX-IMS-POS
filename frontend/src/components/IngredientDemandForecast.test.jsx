@@ -25,8 +25,7 @@ test('shows ingredient units, usable stock and shortages, with explicit demo lab
   expect(milk).toHaveTextContent('Restock');
   expect(milk).toHaveTextContent('Some stock expires before use');
   expect(screen.getByText('Covered')).toBeInTheDocument();
-  expect(screen.getByText(/Sample products, recipes and stock only/)).toBeInTheDocument();
-  expect(screen.getByText(/Sample Latte: about 14 servings/)).toBeInTheDocument();
+  expect(screen.getByRole('heading')).toHaveTextContent('Ingredient Demand (sample)');
   expect(axios.get.mock.calls[0][0]).toBe('http://localhost:5000/api/sales-forecast/ingredient-demand?source=demo');
 });
 

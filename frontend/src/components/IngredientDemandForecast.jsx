@@ -26,8 +26,6 @@ export default function IngredientDemandForecast({ source, refresh }) {
   const demo = source === 'demo';
   return <section className="forecast-ingredients" aria-labelledby="ingredient-demand-heading" aria-busy={loading}>
     <h3 id="ingredient-demand-heading">Ingredient Demand{demo ? ' (sample)' : ''}</h3>
-    <p>Estimated ingredients needed for the coming seven days, based on product sales and recipes.</p>
-    {demo && <p className="ingredient-sample-notice">Sample products, recipes and stock only. Switch to Real sales for estimates using your inventory.</p>}
     <div aria-live="polite">
       {loading && <p>Estimating ingredient needs...</p>}
       {error && <div role="alert"><p>{error}</p><button type="button" onClick={() => setRetry(value => value + 1)}>Retry ingredient estimates</button></div>}
@@ -51,12 +49,6 @@ export default function IngredientDemandForecast({ source, refresh }) {
           </tr>)}</tbody>
         </table>
       </div>
-      <details><summary>Products behind this estimate</summary>
-        <ul>{current.products.map(product => <li key={product.productId}>{product.name}: about {quantity(product.quantity)} servings</li>)}</ul>
-        <p>Product quantities are forecast from completed sales, then mapped to current recipes using the sizes, variants and add-ons sold over the last four weeks. Products need at least 42 completed days since their first sale. Archived and unavailable products are excluded.</p>
-        <p>Usable stock excludes already expired batches. Additional needed also accounts for batches expiring before their expected use. Pending deliveries, other stock movements and unexpected waste are not included.</p>
-        <p>Refunds do not restore consumed ingredients. These estimates are planning guides; they do not change stock or create purchase orders. Date filters above do not change this seven-day forecast.</p>
-      </details>
     </>}
   </section>;
 }
