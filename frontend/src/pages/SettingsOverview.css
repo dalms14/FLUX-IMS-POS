@@ -14,7 +14,7 @@
 .settings-eyebrow { color: #8B5E3C; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
 .settings-overview-icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 11px; color: #8B5E3C; background: #F5F0EB; font-size: 21px; margin-bottom: 18px; }
 .settings-backup-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 300px); gap: 20px; align-items: start; }
-.settings-backup-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+.settings-backup-heading { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-bottom: 8px; }
 .settings-backup-tag { border: 1px solid #E0D5CB; border-radius: 30px; padding: 6px 10px; font-size: 10px; color: #6F4A2F; font-weight: 800; white-space: nowrap; background: #FAF7F3; }
 .settings-backup-sources { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 22px 0 16px; }
 .settings-backup-source { display: flex; gap: 9px; align-items: center; padding: 11px 12px; border: 1px solid #EAE1D8; border-radius: 8px; font-size: 12px; font-weight: 700; color: #5F4632; background: #FCFAF8; }

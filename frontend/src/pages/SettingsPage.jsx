@@ -13,7 +13,7 @@ import './ProductManagement.css';
 import { focusInvalidField, clearInvalidField, firstInvalidField } from '../utils/formValidation';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole, normalizePermissionDependencies, togglePermissionSelection } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
-import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiDownload, FiLock, FiCheck, FiPlus, FiGrid, FiLayers, FiPercent, FiImage } from 'react-icons/fi';
+import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiDownload, FiCheck, FiPlus, FiGrid, FiLayers, FiPercent, FiImage } from 'react-icons/fi';
 
 const normalizeAccountEmail = (value = '') => value.toLowerCase().trim();
 
@@ -496,11 +496,11 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
     return (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div ref={productFormRef} onInputCapture={() => clearInvalidField(productFormRef.current)} onChangeCapture={() => clearInvalidField(productFormRef.current)} style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '640px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div style={{ position: 'sticky', top: 0, zIndex: 5, backgroundColor: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '-28px -28px 24px', padding: '28px', borderBottom: '1px solid #EEE6DE' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#1a1a1a' }}>
                         {product ? 'Edit Product' : 'Add New Product'}
                     </h3>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#aaa' }}>✕</button>
+                    <button type="button" aria-label="Close product editor" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#aaa' }}>✕</button>
                 </div>
 
                 <ProductImageInput value={form.image} onChange={image => setForm(current => ({ ...current, image }))} onBusyChange={setImageLoading} disabled={saving} />
@@ -2319,8 +2319,7 @@ export const SystemBackupSettings = () => {
         <div className="settings-overview settings-backup-layout">
             <section className="settings-feature-card">
                 <div className="settings-backup-heading">
-                    <span className="settings-overview-icon"><FiDownload aria-hidden="true" /></span>
-                    <span className="settings-backup-tag"><FiLock aria-hidden="true" /> Owner access</span>
+                    <span className="settings-backup-tag">Owner access</span>
                 </div>
                 <h3>Keep a copy of your business records.</h3>
                 <p>Download the records listed below in a single backup file. Confirm your owner password before exporting.</p>
