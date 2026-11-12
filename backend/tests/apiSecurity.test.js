@@ -77,6 +77,9 @@ test('transaction status filtering returns matching counts and preserves cashier
     const partial = await request('/transactions?status=partial%20refund', { token });
     assert.equal(partial.data.count, 1);
     assert.equal(partial.data.data[0].receiptNo, 'FLX-REFUND');
+    const paid = await request('/transactions?status=paid', { token });
+    assert.equal(paid.data.count, 2);
+    assert.deepEqual(paid.data.data.map(row => row.receiptNo), ['FLX-COMPLETE', 'FLX-REFUND']);
     assert.equal((await request('/transactions', { token })).data.count, 4);
     assert.equal((await request('/transactions?status=unknown', { token })).status, 400);
 });

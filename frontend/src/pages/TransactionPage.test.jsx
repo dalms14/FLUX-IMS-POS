@@ -113,6 +113,7 @@ test('custom status menu supports keyboard selection, Escape, outside click and 
   expect(trigger).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('option', { name: /^All statuses/ })).toHaveAttribute('aria-selected', 'true');
   fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' });
   expect(trigger).toHaveAttribute('aria-activedescendant', screen.getByRole('option', { name: /^Completed/ }).id);
   fireEvent.keyDown(trigger, { key: 'Enter' });
   expect(trigger).toHaveTextContent('Completed');

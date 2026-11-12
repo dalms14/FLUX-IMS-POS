@@ -11,6 +11,7 @@ import './TransactionPage.css';
 const TRANSACTION_REFRESH_MS = 5000;
 const STATUS_OPTIONS = [
   { value: '', label: 'All statuses', description: 'Show every transaction status' },
+  { value: 'paid', label: 'All completed orders', description: 'Includes orders with refund activity' },
   { value: 'completed', label: 'Completed', description: 'Completed without refund activity' },
   { value: 'cancelled', label: 'Cancelled', description: 'Cancelled transactions only' },
   { value: 'refund pending', label: 'Refund pending', description: 'Awaiting a refund decision' },

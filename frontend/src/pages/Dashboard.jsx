@@ -128,6 +128,7 @@ const Dashboard = () => {
   const canViewProducts = hasPermission(user, 'products');
   const canViewInventory = hasPermission(user, 'inventory');
   const canViewTransactions = hasPermission(user, 'transactions');
+  const canViewSales = hasPermission(user, 'sales');
   const notificationAudience = String(user.role || '').toLowerCase() === 'admin' || String(user.role || '').toLowerCase() === 'owner' || ['finance', 'hr'].includes(String(user.jobRole || '').toLowerCase()) || String(user.email || '').toLowerCase() === 'admin@elicoffee.com' || String(user.userId || '').toUpperCase() === 'ELI001';
   const [transactions, setTransactions] = useState([]);
   const [refunds, setRefunds] = useState([]);
@@ -244,6 +245,7 @@ const Dashboard = () => {
             <KPICard
               icon={<LuPhilippinePeso size={32} color="#8B5E3C" />}
               label="Today's Revenue"
+              href={canViewSales ? `/sales?startDate=${today}&endDate=${today}` : undefined}
               value={`₱${todaySales.toLocaleString()}`}
               subtext={`${todayOrders} completed order${todayOrders === 1 ? '' : 's'}`}
               color="#8B5E3C"
@@ -251,6 +253,7 @@ const Dashboard = () => {
             <KPICard
               icon={<FiPackage size={32} color="#38A169" />}
               label="Total Orders"
+              href={canViewTransactions ? `/transactions?status=paid&startDate=${today}&endDate=${today}` : undefined}
               value={todayOrders}
               subtext="Completed today"
               color="#38A169"
@@ -258,6 +261,7 @@ const Dashboard = () => {
             <KPICard
               icon={<FiShoppingCart size={32} color="#D69E2E" />}
               label="Items Sold"
+              href={canViewSales ? `/sales?startDate=${today}&endDate=${today}#product-sales` : undefined}
               value={todayItemsSold}
               subtext={`Avg ${todayOrders > 0 ? Math.round(todayItemsSold / todayOrders) : 0} per order`}
               color="#D69E2E"

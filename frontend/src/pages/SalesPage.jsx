@@ -1,5 +1,5 @@
 import { rowsToCsv } from '../utils/csv';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
@@ -62,14 +62,14 @@ if (typeof document !== 'undefined') {
   `;
 }
 
-const today = new Date();
-const toDateInput = (date) => date.toISOString().slice(0, 10);
-const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-const presets = {
-  today: { label: 'Today', start: toDateInput(today), end: toDateInput(today) },
-  month: { label: 'This Month', start: toDateInput(startOfMonth), end: toDateInput(today) },
-  all: { label: 'All Time', start: '', end: '' },
+const businessDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+const toDateInput = date => businessDateFormatter.format(date);
+const dateFromQuery = value => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return '';
+  const date = new Date(`${value}T00:00:00+08:00`);
+  return !Number.isNaN(date.getTime()) && toDateInput(date) === value ? value : '';
 };
 
 const money = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { maximumFractionDigits: 2 })}`;
@@ -337,9 +337,21 @@ const SalesTrendChart = ({ data }) => {
 };
 
 const SalesPage = () => {
-  const [preset, setPreset] = useState('today');
-  const [startDate, setStartDate] = useState(presets.today.start);
-  const [endDate, setEndDate] = useState(presets.today.end);
+  const today = toDateInput(new Date());
+  const presets = {
+    today: { label: 'Today', start: today, end: today },
+    month: { label: 'This Month', start: `${today.slice(0, 7)}-01`, end: today },
+    all: { label: 'All Time', start: '', end: '' },
+  };
+  const [initialRange] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return { start: dateFromQuery(params.get('startDate')) || today, end: dateFromQuery(params.get('endDate')) || today };
+  });
+  const [preset, setPreset] = useState(initialRange.start === today && initialRange.end === today ? 'today' : 'custom');
+  const [startDate, setStartDate] = useState(initialRange.start);
+  const [endDate, setEndDate] = useState(initialRange.end);
+  const productSalesRef = useRef(null);
+  const focusedProductSales = useRef(false);
   const [transactions, setTransactions] = useState([]);
   const [refunds, setRefunds] = useState([]);
 
@@ -348,8 +360,8 @@ const SalesPage = () => {
 
   const buildParams = useCallback(() => {
     const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    if (startDate) params.append('startDate', `${startDate}T00:00:00+08:00`);
+    if (endDate) params.append('endDate', `${endDate}T23:59:59.999+08:00`);
     return params.toString();
   }, [startDate, endDate]);
 
@@ -369,6 +381,14 @@ const SalesPage = () => {
     setRefunds(data.refunds);
   }, { enabled: !invalidDateRange });
   const { loading, refresh: fetchSales } = liveStatus;
+
+  useEffect(() => {
+    if (!loading && window.location.hash === '#product-sales' && !focusedProductSales.current) {
+      productSalesRef.current?.scrollIntoView?.({ block: 'start' });
+      productSalesRef.current?.focus({ preventScroll: true });
+      focusedProductSales.current = true;
+    }
+  }, [loading]);
 
   const applyPreset = (key) => {
     setPreset(key);
@@ -605,7 +625,7 @@ const SalesPage = () => {
         </section>
 
         <section className="sales-analysis-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(260px, 1fr)', gap: '18px' }}>
-          <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
+          <div id="product-sales" ref={productSalesRef} tabIndex={-1} aria-label="Product Sales breakdown" style={{ ...cardStyle, overflow: 'hidden', padding: 0, scrollMarginTop: '20px' }}>
             <div style={{ padding: '16px 18px', borderBottom: '1px solid #E0D5CB' }}>
               <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '900', color: '#1a1a1a' }}>Product Sales</h2>
             </div>

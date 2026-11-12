@@ -25,13 +25,16 @@ beforeEach(() => {
 });
 afterEach(() => jest.useRealTimers());
 
-test('Completed card links to completed transactions for today in Philippine time', async () => {
+test('all four cards link to their matching views for today in Philippine time', async () => {
   jest.setSystemTime(new Date('2026-11-06T18:00:00Z'));
   transactions = [sale()];
   render(<Dashboard />);
   await screen.findByText('FLX-PAID');
   const link = screen.getByRole('link', { name: /Completed 1 No refunds today/i });
   expect(link).toHaveAttribute('href', '/transactions?status=completed&startDate=2026-11-07&endDate=2026-11-07');
+  expect(screen.getByRole('link', { name: /Today's Revenue/ })).toHaveAttribute('href', '/sales?startDate=2026-11-07&endDate=2026-11-07');
+  expect(screen.getByRole('link', { name: /Total Orders/ })).toHaveAttribute('href', '/transactions?status=paid&startDate=2026-11-07&endDate=2026-11-07');
+  expect(screen.getByRole('link', { name: /Items Sold/ })).toHaveAttribute('href', '/sales?startDate=2026-11-07&endDate=2026-11-07#product-sales');
 });
 
 test('Completed card stays informational without Transactions permission', async () => {
@@ -40,6 +43,22 @@ test('Completed card stays informational without Transactions permission', async
   render(<Dashboard />);
   await screen.findByText('FLX-PAID');
   expect(screen.getByText('Completed').closest('.dashboard-metric').tagName).toBe('DIV');
+  for (const label of ["Today's Revenue", 'Total Orders', 'Items Sold']) {
+    expect(screen.getByText(label).closest('.dashboard-metric').tagName).toBe('DIV');
+  }
+});
+
+test.each([
+  [['dashboard', 'sales'], ["Today's Revenue", 'Items Sold']],
+  [['dashboard', 'transactions'], ['Total Orders', 'Completed']],
+])('card links respect destination permissions: %j', async (permissions, linkedLabels) => {
+  localStorage.setItem('user', JSON.stringify({ role: 'custom', permissions }));
+  transactions = [sale()];
+  render(<Dashboard />);
+  await screen.findByText('FLX-PAID');
+  for (const label of ["Today's Revenue", 'Total Orders', 'Items Sold', 'Completed']) {
+    expect(screen.getByText(label).closest('.dashboard-metric').tagName).toBe(linkedLabels.includes(label) ? 'A' : 'DIV');
+  }
 });
 
 test('Completed count excludes pending, partial and full refunds but includes rejected refunds', async () => {
