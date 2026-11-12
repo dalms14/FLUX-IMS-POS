@@ -2,7 +2,7 @@ import ValidatedForm from '../components/ValidatedForm';
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { FiClock, FiShield, FiTrash2, FiRotateCcw } from 'react-icons/fi';
+import { FiClock, FiShield, FiArchive, FiRotateCcw } from 'react-icons/fi';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import UserShiftModal from '../components/UserShiftModal';
@@ -132,16 +132,10 @@ const DeleteUserModal = ({ user, password, error, deleting, onPasswordChange, on
         style={{ width: 'min(390px, 100%)', backgroundColor: '#fff', borderRadius: '14px', padding: '26px', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}
       >
         <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" width="26" height="26">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M10 11v6" />
-            <path d="M14 11v6" />
-            <path d="M9 6V4h6v2" />
-          </svg>
+          <FiArchive aria-hidden="true" size={26} />
         </div>
         <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: '900', color: '#1a1a1a', textAlign: 'center' }}>
-          Do you really want to delete this account?
+          Do you really want to archive this account?
         </h3>
         <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#777', lineHeight: 1.5, textAlign: 'center' }}>
           {label} will no longer be able to log in. Enter your password to confirm.
@@ -176,7 +170,7 @@ const DeleteUserModal = ({ user, password, error, deleting, onPasswordChange, on
             disabled={deleting || !password.trim()}
             style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', backgroundColor: deleting || !password.trim() ? '#FEB2B2' : '#E53E3E', color: '#fff', fontSize: '13px', fontWeight: '800', cursor: deleting || !password.trim() ? 'not-allowed' : 'pointer' }}
           >
-            {deleting ? 'Deleting...' : 'Delete'}
+            {deleting ? 'Archiving...' : 'Archive'}
           </button>
         </div>
       </ValidatedForm>
@@ -403,8 +397,8 @@ const StaffPage = () => {
       setUsers(prev => prev.filter(existingUser => existingUser._id !== userToDelete._id));
       closeDeleteUserModal();
     } catch (err) {
-      console.error('Error deleting user:', err);
-      setDeleteError(err.response?.data?.message || 'Failed to delete user account.');
+      console.error('Error archiving user:', err);
+      setDeleteError(err.response?.data?.message || 'Failed to archive user account.');
     } finally {
       setDeletingId('');
     }
@@ -588,15 +582,15 @@ const StaffPage = () => {
                   ) : !isCurrentUser(user) && !isOwnerAccount(user) && (
                   <button
                     className="staff-action staff-action-delete"
-                    aria-label={deletingId === user._id ? 'Deleting...' : 'Delete'}
-                    title={`Delete ${user.name || user.email}`}
+                    aria-label={deletingId === user._id ? 'Archiving...' : 'Archive'}
+                    title={`Archive ${user.name || user.email}`}
                     onClick={event => {
                       event.stopPropagation();
                       openDeleteUserModal(user);
                     }}
                     disabled={deletingId === user._id}
                   >
-                    <FiTrash2 aria-hidden="true" />
+                    <FiArchive aria-hidden="true" />
                   </button>
                   )}
                 </div>
