@@ -90,6 +90,8 @@
   left: 0;
   display: grid;
   gap: 4px;
+  max-height: min(390px, 60vh);
+  overflow-y: auto;
   padding: 6px;
   border: 1px solid #dfcdbc;
   border-radius: 12px;
@@ -116,6 +118,7 @@
 }
 
 .transaction-payment-option:hover,
+.transaction-payment-option.is-active,
 .transaction-payment-option:focus-visible {
   outline: none;
   background: #f8f1ea;
@@ -147,6 +150,12 @@
   background: #c53030;
   box-shadow: 0 0 0 3px rgba(197, 48, 48, 0.12);
 }
+
+.transaction-payment-option-dot.status-completed { background: #278453; box-shadow: 0 0 0 3px #2784531f; }
+.transaction-payment-option-dot.status-cancelled { background: #c53030; box-shadow: 0 0 0 3px #c530301f; }
+.transaction-payment-option-dot.status-refund-pending { background: #c48a23; box-shadow: 0 0 0 3px #c48a231f; }
+.transaction-payment-option-dot.status-partial-refund { background: #bc6b38; box-shadow: 0 0 0 3px #bc6b381f; }
+.transaction-payment-option-dot.status-refunded { background: #8563a1; box-shadow: 0 0 0 3px #8563a11f; }
 
 .transaction-payment-check {
   justify-self: end;

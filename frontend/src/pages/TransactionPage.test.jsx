@@ -41,11 +41,16 @@ beforeEach(() => {
 });
 afterEach(() => { jest.restoreAllMocks(); window.history.replaceState({}, '', '/'); });
 
+const chooseStatus = label => {
+  fireEvent.click(screen.getByRole('combobox', { name: 'Filter by Status' }));
+  fireEvent.click(screen.getByRole('option', { name: new RegExp(`^${label}`) }));
+};
+
 test('dashboard link selects completed status and the full Philippine business day, including after reload', async () => {
   window.history.replaceState({}, '', '/transactions?status=completed&startDate=2026-11-07&endDate=2026-11-07');
   const view = render(<TransactionPage />);
   await screen.findByText(sale.receiptNo);
-  expect(screen.getByLabelText('Filter by Status')).toHaveValue('completed');
+  expect(screen.getByLabelText('Filter by Status')).toHaveTextContent('Completed');
   expect(screen.getByLabelText('Start Date')).toHaveValue('2026-11-07');
   expect(screen.getByLabelText('End Date')).toHaveValue('2026-11-07');
   const params = new URL(fetch.mock.calls[0][0]).searchParams;
@@ -54,7 +59,7 @@ test('dashboard link selects completed status and the full Philippine business d
   expect(params.get('endDate')).toBe('2026-11-07T23:59:59.999+08:00');
   view.unmount();
   render(<TransactionPage />);
-  expect(screen.getByLabelText('Filter by Status')).toHaveValue('completed');
+  expect(screen.getByLabelText('Filter by Status')).toHaveTextContent('Completed');
   await screen.findByText(sale.receiptNo);
 });
 
@@ -62,7 +67,7 @@ test('status changes combine with other filters and Clear removes the dashboard 
   window.history.replaceState({}, '', '/transactions?status=completed&startDate=2026-11-07&endDate=2026-11-07&cashier=Cashier&paymentMethod=Cash');
   render(<TransactionPage />);
   await screen.findByText(sale.receiptNo);
-  fireEvent.change(screen.getByLabelText('Filter by Status'), { target: { value: 'cancelled' } });
+  chooseStatus('Cancelled');
   await waitFor(() => {
     const params = new URL(fetch.mock.calls.at(-1)[0]).searchParams;
     expect(params.get('status')).toBe('cancelled');
@@ -72,7 +77,7 @@ test('status changes combine with other filters and Clear removes the dashboard 
   });
   await screen.findByText(sale.receiptNo);
   fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-  expect(screen.getByLabelText('Filter by Status')).toHaveValue('');
+  expect(screen.getByLabelText('Filter by Status')).toHaveTextContent('All statuses');
   expect(screen.getByLabelText('Start Date')).toHaveValue('');
   expect(screen.getByLabelText('End Date')).toHaveValue('');
   await waitFor(() => expect(new URL(fetch.mock.calls.at(-1)[0]).search).toBe(''));
@@ -84,7 +89,7 @@ test('refund status is shown consistently in the transaction row and details', a
   currentSale.refundSummary.totalRefunded = 80;
   render(<TransactionPage />);
   fireEvent.click(await screen.findByText(sale.receiptNo));
-  expect(screen.getAllByText('Partial refund')).toHaveLength(3); // Filter option, table status, details status.
+  expect(screen.getAllByText('Partial refund')).toHaveLength(2); // Table status and details status.
 });
 
 test('a slower previous request cannot overwrite the newly selected status', async () => {
@@ -92,11 +97,50 @@ test('a slower previous request cannot overwrite the newly selected status', asy
   fetch.mockImplementationOnce(() => new Promise(resolve => { resolveInitial = resolve; }));
   fetch.mockImplementation(() => reply({ data: [{ ...sale, receiptNo: 'FLX-CANCELLED', orderStatus: 'cancelled', paymentMethod: 'Cancelled' }] }));
   render(<TransactionPage />);
-  fireEvent.change(screen.getByLabelText('Filter by Status'), { target: { value: 'cancelled' } });
+  chooseStatus('Cancelled');
   await screen.findByText('FLX-CANCELLED');
   await act(async () => { resolveInitial(await reply({ data: [sale] })); });
   expect(screen.getByText('FLX-CANCELLED')).toBeInTheDocument();
   expect(screen.queryByText(sale.receiptNo)).not.toBeInTheDocument();
+});
+
+test('custom status menu supports keyboard selection, Escape, outside click and selected indicators', async () => {
+  render(<TransactionPage />);
+  await screen.findByText(sale.receiptNo);
+  const trigger = screen.getByRole('combobox', { name: 'Filter by Status' });
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+  expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByRole('option', { name: /^All statuses/ })).toHaveAttribute('aria-selected', 'true');
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+  expect(trigger).toHaveAttribute('aria-activedescendant', screen.getByRole('option', { name: /^Completed/ }).id);
+  fireEvent.keyDown(trigger, { key: 'Enter' });
+  expect(trigger).toHaveTextContent('Completed');
+  expect(trigger).toHaveFocus();
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  await screen.findByText(sale.receiptNo);
+  fireEvent.click(trigger);
+  expect(screen.getByRole('option', { name: /^Completed/ })).toHaveAttribute('aria-selected', 'true');
+  fireEvent.keyDown(trigger, { key: 'Escape' });
+  expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(trigger);
+  fireEvent.pointerDown(document.body);
+  expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+});
+
+test('payment method and status menus share the design and preserve each other’s filters', async () => {
+  render(<TransactionPage />);
+  await screen.findByText(sale.receiptNo);
+  fireEvent.click(screen.getByRole('combobox', { name: 'Filter by Payment Method' }));
+  fireEvent.click(screen.getByRole('option', { name: /^GCash/ }));
+  await screen.findByText(sale.receiptNo);
+  chooseStatus('Refund pending');
+  await waitFor(() => {
+    const params = new URL(fetch.mock.calls.at(-1)[0]).searchParams;
+    expect(params.get('paymentMethod')).toBe('GCash');
+    expect(params.get('status')).toBe('refund pending');
+  });
+  await screen.findByText(sale.receiptNo);
 });
 
 test('cashier refunds selected quantities from a completed sale and sees the refreshed refund amount', async () => {

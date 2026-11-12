@@ -5,17 +5,17 @@ import PageHeader from '../components/PageHeader';
 import ReceiptViewModal from '../components/ReceiptViewModal';
 import RefundModal from '../components/modals/RefundModal';
 import { hasPermission } from '../utils/roles';
-import { FiCheck, FiChevronDown, FiCreditCard, FiRefreshCw } from 'react-icons/fi';
+import { FiCheck, FiChevronDown, FiCreditCard, FiFilter, FiRefreshCw } from 'react-icons/fi';
 import './TransactionPage.css';
 
 const TRANSACTION_REFRESH_MS = 5000;
 const STATUS_OPTIONS = [
-  ['', 'All statuses'],
-  ['completed', 'Completed'],
-  ['cancelled', 'Cancelled'],
-  ['refund pending', 'Refund pending'],
-  ['partial refund', 'Partial refund'],
-  ['refunded', 'Refunded'],
+  { value: '', label: 'All statuses', description: 'Show every transaction status' },
+  { value: 'completed', label: 'Completed', description: 'Completed without refund activity' },
+  { value: 'cancelled', label: 'Cancelled', description: 'Cancelled transactions only' },
+  { value: 'refund pending', label: 'Refund pending', description: 'Awaiting a refund decision' },
+  { value: 'partial refund', label: 'Partial refund', description: 'Part of the payment refunded' },
+  { value: 'refunded', label: 'Refunded', description: 'Full payment refunded' },
 ];
 
 const buildDateTimeParam = (date, time, isEnd = false) => {
@@ -28,7 +28,7 @@ const money = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { ma
 const isCancelledTransaction = (transaction) => String(transaction?.orderStatus || '').trim().toLowerCase() === 'cancelled'
   || String(transaction?.paymentMethod || '').trim().toLowerCase() === 'cancelled';
 const transactionStatus = transaction => transaction.refundSummary?.status || (isCancelledTransaction(transaction) ? 'cancelled' : 'completed');
-const transactionStatusLabel = transaction => STATUS_OPTIONS.find(([value]) => value === transactionStatus(transaction))?.[1] || 'Completed';
+const transactionStatusLabel = transaction => STATUS_OPTIONS.find(option => option.value === transactionStatus(transaction))?.label || 'Completed';
 const ITEM_SCOPED_DISCOUNT_CODES = new Set(['pagibig', 'pwd_senior']);
 const isItemScopedDiscount = (discount, type) => (
   discount?.scope ? discount.scope === 'item' : ITEM_SCOPED_DISCOUNT_CODES.has(discount?.code) || ITEM_SCOPED_DISCOUNT_CODES.has(type)
@@ -70,10 +70,24 @@ const PAYMENT_OPTIONS = [
   { value: 'Cancelled', label: 'Cancelled', description: 'Cancelled checkouts only' },
 ];
 
-const PaymentMethodFilter = ({ value, onChange }) => {
+const TransactionFilter = ({ id, label, options, icon, value, onChange, dotPrefix }) => {
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef(null);
-  const selected = PAYMENT_OPTIONS.find(option => option.value === value) || PAYMENT_OPTIONS[0];
+  const selectedIndex = Math.max(0, options.findIndex(option => option.value === value));
+  const selected = options[selectedIndex];
+  const chooseOption = option => {
+    onChange(option.value);
+    setOpen(false);
+  };
+  const toggleMenu = () => {
+    setActiveIndex(selectedIndex);
+    setOpen(current => !current);
+  };
+
+  useEffect(() => {
+    if (open) document.getElementById(`${id}-option-${activeIndex}`)?.scrollIntoView?.({ block: 'nearest' });
+  }, [id, open, activeIndex]);
 
   useEffect(() => {
     const closeOnOutsidePress = event => {
@@ -87,16 +101,32 @@ const PaymentMethodFilter = ({ value, onChange }) => {
   return (
     <div className={`transaction-payment-select ${open ? 'is-open' : ''}`} ref={rootRef}>
       <button
+        id={id}
         type="button"
+        role="combobox"
         className="transaction-payment-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen(current => !current)}
+        aria-controls={open ? `${id}-options` : undefined}
+        aria-activedescendant={open ? `${id}-option-${activeIndex}` : undefined}
+        onClick={toggleMenu}
         onKeyDown={event => {
-          if (event.key === 'Escape') setOpen(false);
+          if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+            event.preventDefault();
+            setOpen(true);
+            setActiveIndex(current => event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1
+              : !open ? selectedIndex : (current + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length);
+          } else if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            if (open) chooseOption(options[activeIndex]);
+            else toggleMenu();
+          } else if (event.key === 'Escape') {
+            event.preventDefault();
+            setOpen(false);
+          } else if (event.key === 'Tab') setOpen(false);
         }}
       >
-        <span className="transaction-payment-trigger-icon" aria-hidden="true"><FiCreditCard /></span>
+        <span className="transaction-payment-trigger-icon" aria-hidden="true">{icon}</span>
         <span className="transaction-payment-trigger-copy">
           <strong>{selected.label}</strong>
           <small>{selected.description}</small>
@@ -105,20 +135,21 @@ const PaymentMethodFilter = ({ value, onChange }) => {
       </button>
 
       {open && (
-        <div className="transaction-payment-menu" role="listbox" aria-label="Payment method">
-          {PAYMENT_OPTIONS.map(option => (
+        <div id={`${id}-options`} className="transaction-payment-menu" role="listbox" aria-label={label}>
+          {options.map((option, index) => (
             <button
+              id={`${id}-option-${index}`}
               key={option.value || 'all'}
               type="button"
               role="option"
+              tabIndex={-1}
               aria-selected={value === option.value}
-              className={`transaction-payment-option ${value === option.value ? 'is-selected' : ''}`}
-              onClick={() => {
-                onChange(option.value);
-                setOpen(false);
-              }}
+              className={`transaction-payment-option ${value === option.value ? 'is-selected' : ''} ${index === activeIndex ? 'is-active' : ''}`}
+              onMouseEnter={() => setActiveIndex(index)}
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => chooseOption(option)}
             >
-              <span className={`transaction-payment-option-dot method-${option.value.toLowerCase() || 'all'}`} aria-hidden="true" />
+              <span className={`transaction-payment-option-dot ${dotPrefix}-${option.value.toLowerCase().replaceAll(' ', '-') || 'all'}`} aria-hidden="true" />
               <span>
                 <strong>{option.label}</strong>
                 <small>{option.description}</small>
@@ -443,7 +474,7 @@ const TransactionPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const filterCashier = searchParams.get('cashier') || '';
   const filterPayment = searchParams.get('paymentMethod') || '';
-  const filterStatus = STATUS_OPTIONS.some(([value]) => value === searchParams.get('status')) ? searchParams.get('status') : '';
+  const filterStatus = STATUS_OPTIONS.some(option => option.value === searchParams.get('status')) ? searchParams.get('status') : '';
   const filterStartDate = searchParams.get('startDate') || '';
   const filterStartTime = searchParams.get('startTime') || '';
   const filterEndDate = searchParams.get('endDate') || '';
@@ -579,20 +610,19 @@ const TransactionPage = () => {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', fontSize: '12px', color: '#666' }}>
+            <label htmlFor="transaction-payment" style={{ display: 'block', fontWeight: '600', marginBottom: '8px', fontSize: '12px', color: '#666' }}>
               Filter by Payment Method
             </label>
-            <PaymentMethodFilter value={filterPayment} onChange={value => updateFilter('paymentMethod', value)} />
+            <TransactionFilter id="transaction-payment" label="Payment method" options={PAYMENT_OPTIONS} icon={<FiCreditCard />} dotPrefix="method"
+              value={filterPayment} onChange={value => updateFilter('paymentMethod', value)} />
           </div>
 
           <div>
             <label htmlFor="transaction-status" style={{ display: 'block', fontWeight: '600', marginBottom: '8px', fontSize: '12px', color: '#666' }}>
               Filter by Status
             </label>
-            <select id="transaction-status" value={filterStatus} onChange={event => updateFilter('status', event.target.value)}
-              style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid #D4B89A', fontSize: '13px', backgroundColor: '#fff', boxSizing: 'border-box' }}>
-              {STATUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <TransactionFilter id="transaction-status" label="Status" options={STATUS_OPTIONS} icon={<FiFilter />} dotPrefix="status"
+              value={filterStatus} onChange={value => updateFilter('status', value)} />
           </div>
 
           <div>
