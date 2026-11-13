@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
+import './ReportsPage.css';
 import {
   FiArchive,
   FiBarChart2,
@@ -88,9 +89,10 @@ const MetricCard = ({ title, value, detail, icon, color }) => (
   </div>
 );
 
-const DataTable = ({ headers, rows, emptyText, renderRow }) => (
+const DataTable = ({ headers, rows, emptyText, renderRow, columnWidths, minWidth }) => (
   <div className="data-scroll-box" role="region" aria-label={headers.join(', ')} tabIndex={0}>
-    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <table className={columnWidths ? 'reports-activity-table' : undefined} style={{ width: '100%', borderCollapse: 'collapse', ...(columnWidths ? { tableLayout: 'fixed', minWidth } : {}) }}>
+      {columnWidths && <colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup>}
       <thead>
         <tr>{headers.map(header => <th key={header} style={thStyle}>{header}</th>)}</tr>
       </thead>
@@ -435,7 +437,7 @@ const ReportsPage = () => {
     <div className="mobile-app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#F5F0EB' }}>
       <Sidebar />
 
-      <main className="mobile-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
+      <main className="mobile-page-content" style={{ flex: 1, minWidth: 0, overflow: 'auto', padding: '32px' }}>
         <PageHeader
           title="Reports"
           description="Sales, inventory, finance, and activity records."
@@ -726,6 +728,8 @@ const ReportsPage = () => {
           </div>
           <DataTable
             headers={['Activity Time', 'Name', 'Email', 'Role', 'Staff ID', 'Status', 'Device', 'Shift details']}
+            columnWidths={[14, 11, 16, 7, 8, 11, 17, 16]}
+            minWidth={1440}
             rows={filteredLoginActivity}
             emptyText={loginQuery || loginRole !== 'all' ? 'No login activity matches those filters.' : 'No login activity for this period.'}
             renderRow={(row, index) => (
@@ -748,6 +752,8 @@ const ReportsPage = () => {
         <Section title="System Changes Audit">
           <DataTable
             headers={['Date', 'Module', 'Action', 'Record', 'Actor', 'Details']}
+            columnWidths={[16, 10, 12, 18, 12, 32]}
+            minWidth={1100}
             rows={systemAudit}
             emptyText="No system changes for this period."
             renderRow={(row, index) => (
@@ -782,6 +788,8 @@ const ReportsPage = () => {
         <Section title="System Activity Detail">
           <DataTable
             headers={['Date', 'Type', 'Reference', 'Actor', 'Detail', 'Amount']}
+            columnWidths={[16, 10, 14, 12, 38, 10]}
+            minWidth={1100}
             rows={report.activityRows}
             emptyText="No system activity for this period."
             renderRow={(row, index) => (

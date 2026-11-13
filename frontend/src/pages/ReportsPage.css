@@ -1,0 +1,9 @@
+.reports-activity-table th,
+.reports-activity-table td {
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+.reports-activity-table td:first-child {
+  white-space: nowrap;
+}
