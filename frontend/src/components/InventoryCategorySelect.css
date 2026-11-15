@@ -1,10 +1,18 @@
-.inventory-category-select { min-width: 0; }
+.inventory-category-select { position: relative; min-width: 0; }
+.inventory-category-select.is-creating { z-index: 40; }
 .inventory-category-editor {
-  margin-top: 8px;
-  padding: 10px;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+  box-sizing: border-box;
+  padding: 14px;
   border: 1px solid #d8cabb;
   border-radius: 8px;
-  background: #faf7f4;
+  background: #fff;
+  box-shadow: 0 12px 32px #3d1f0d26;
   color: #6b5a4c;
   font: 12px "Segoe UI", sans-serif;
 }
@@ -37,34 +45,11 @@
 .inventory-category-load-error { margin-top: 6px; color: #9b2c2c; font-size: 11px; }
 .inventory-category-load-error > button { border: 0; background: transparent; color: #6f4a2f; font: inherit; text-decoration: underline; cursor: pointer; }
 
-/* Let the purchase-order editor use the full row below the three compact fields. */
+/* The floating editor must never increase the height of the order fields. */
 .purchase-order-new-item-row { align-items: start; }
-.purchase-order-new-item-row > input:first-child { grid-column: 1; grid-row: 1; }
-.purchase-order-new-item-row > input:last-child { grid-column: 3; grid-row: 1; }
-.purchase-order-new-item-row > .inventory-category-select { display: contents; }
-.purchase-order-new-item-row .purchase-order-select { grid-column: 2; grid-row: 1; }
-.purchase-order-new-item-row .inventory-category-editor {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: 12px;
-  align-items: start;
-  margin-top: 0;
-}
-.purchase-order-new-item-row .inventory-category-editor > label { grid-column: 1; grid-row: 1; }
-.purchase-order-new-item-row .inventory-category-editor > input { grid-column: 1; grid-row: 2; }
-.purchase-order-new-item-row .inventory-category-actions { grid-column: 2; grid-row: 2; margin-top: 0; }
-.purchase-order-new-item-row .inventory-category-editor > p { grid-column: 1 / -1; grid-row: 3; }
-.purchase-order-new-item-row .inventory-category-load-error { grid-column: 1 / -1; grid-row: 3; }
 
 @media (max-width: 600px) {
   .purchase-order-new-item-row { grid-template-columns: minmax(0, 1fr) !important; }
-  .purchase-order-new-item-row .purchase-order-select { grid-column: 1; grid-row: 2; }
-  .purchase-order-new-item-row > input:last-child { grid-column: 1; grid-row: 3; }
-  .purchase-order-new-item-row .inventory-category-editor { grid-row: 4; grid-template-columns: minmax(0, 1fr); }
-  .purchase-order-new-item-row .inventory-category-actions { grid-column: 1; grid-row: 4; margin-top: 8px; }
-  .purchase-order-new-item-row .inventory-category-load-error { grid-row: 5; }
 }
 
 @media (hover: none) and (pointer: coarse) {

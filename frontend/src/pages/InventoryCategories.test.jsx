@@ -26,7 +26,7 @@ async function createFrom(triggerName) {
   fireEvent.click(screen.getByRole('combobox', { name: triggerName }));
   await screen.findByRole('option', { name: 'Coffee' });
   fireEvent.click(screen.getByRole('option', { name: '+ New category' }));
-  return screen.getByRole('group', { name: 'Create inventory category' });
+  return screen.getByRole('dialog', { name: 'Create inventory category' });
 }
 
 test('a category created in Inventory survives reopening and can be submitted on a purchase order', async () => {
@@ -37,7 +37,7 @@ test('a category created in Inventory survives reopening and can be submitted on
   expect(input).toHaveFocus();
   fireEvent.change(input, { target: { value: '  Cleaning   Supplies  ' } });
   fireEvent.click(within(editor).getByRole('button', { name: 'Save category' }));
-  await waitFor(() => expect(screen.queryByRole('group')).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(screen.getByRole('combobox', { name: 'Category' })).toHaveTextContent('Cleaning Supplies');
   expect(axios.post).toHaveBeenCalledWith('http://localhost:5000/api/inventory/categories', { name: 'Cleaning Supplies' });
   inventory.unmount();
@@ -63,7 +63,7 @@ test('new PO categories are available on every line, and Enter saves only the ca
   const input = within(editor).getByLabelText('New category name');
   fireEvent.change(input, { target: { value: 'Cups' } });
   fireEvent.keyDown(input, { key: 'Enter' });
-  await waitFor(() => expect(screen.queryByRole('group')).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   expect(axios.post).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('combobox', { name: 'Category for line 1' })).toHaveTextContent('Cups');
   fireEvent.click(screen.getByRole('button', { name: 'Add line item' }));
@@ -94,10 +94,10 @@ test('empty and duplicate names are rejected; save failures retain the name for 
   expect(save).toBeDisabled();
   expect(axios.post).toHaveBeenCalledTimes(2);
   await act(async () => finish({ data: { category: { name: 'Cleaning Supplies' } } }));
-  expect(screen.queryByRole('group')).not.toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
-test('cancelling a category preserves the selection and restores focus; failed loading can be retried', async () => {
+test('the category popover dismisses with Escape or an outside press and failed loading can be retried', async () => {
   axios.get.mockRejectedValueOnce(new Error('Offline'));
   render(<InventoryPage />);
   fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
@@ -106,7 +106,11 @@ test('cancelling a category preserves the selection and restores focus; failed l
   const trigger = screen.getByRole('combobox', { name: 'Category' });
   expect(trigger).toHaveTextContent('All Categories');
   expect(trigger).toHaveFocus();
-  expect(screen.queryByRole('group')).not.toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await createFrom('Category');
+  fireEvent.pointerDown(document.body);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(trigger).toHaveTextContent('All Categories');
   expect(axios.post).not.toHaveBeenCalled();
 });
 

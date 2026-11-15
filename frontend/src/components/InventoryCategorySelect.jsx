@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PurchaseOrderSelect from './PurchaseOrderSelect';
 import { mergeCategoryNames } from '../utils/useInventoryCategories';
 import './InventoryCategorySelect.css';
@@ -9,11 +9,23 @@ export default function InventoryCategorySelect({ id, label, value, onChange, ma
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const busy = useRef(false);
+  const rootRef = useRef(null);
   const categories = mergeCategoryNames(manager.categories, existingCategories, [value]);
   let newCategoryValue = '__new_category__';
   while (categories.includes(newCategoryValue)) newCategoryValue += '_';
   const focusTrigger = () => document.getElementById(id)?.focus();
-  const cancel = () => { setCreating(false); setError(''); setName(''); focusTrigger(); };
+  const dismiss = () => { setCreating(false); setError(''); setName(''); };
+  const cancel = () => { dismiss(); focusTrigger(); };
+  useEffect(() => {
+    if (!creating) return undefined;
+    const closeOutside = event => {
+      if (!busy.current && !rootRef.current?.contains(event.target)) {
+        setCreating(false); setError(''); setName('');
+      }
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [creating]);
   const save = async () => {
     if (busy.current) return;
     const clean = name.trim().replace(/\s+/g, ' ');
@@ -37,13 +49,18 @@ export default function InventoryCategorySelect({ id, label, value, onChange, ma
     { value: newCategoryValue, label: '+ New category' },
   ];
 
-  return <div className="inventory-category-select">
+  return <div ref={rootRef} className={`inventory-category-select${creating ? ' is-creating' : ''}`}
+    onBlur={event => {
+      if (creating && !busy.current && !event.currentTarget.contains(event.relatedTarget)) dismiss();
+    }} onClickCapture={event => {
+      if (creating && !busy.current && document.getElementById(id)?.contains(event.target)) dismiss();
+    }}>
     <PurchaseOrderSelect id={id} label={label} value={value} options={options} onChange={next => {
       if (next === newCategoryValue) { setCreating(true); setError(''); }
-      else onChange(next);
+      else { dismiss(); onChange(next); }
     }} />
     {manager.error && <div className="inventory-category-load-error" role="status">{manager.error} <button type="button" onClick={manager.reload} disabled={manager.loading}>Retry</button></div>}
-    {creating && <div className="inventory-category-editor" role="group" aria-label="Create inventory category" onKeyDown={event => {
+    {creating && <div className="inventory-category-editor" role="dialog" aria-label="Create inventory category" onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (!saving) cancel(); }
     }}>
       <label htmlFor={`${id}-new`}>New category name</label>
