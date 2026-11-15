@@ -24,6 +24,7 @@ function authorizeApi(req, res, next) {
     else if (/^\/elite-members(\/|$)/.test(path)) allowed = read || path === '/elite-members/verify' && method === 'POST'
         ? any(['items']) || canManageEliteMembers(user) : canManageEliteMembers(user);
     else if (/^\/(products|categories|addons|discounts)(\/|$)/.test(path)) allowed = any(read ? ['products', 'items'] : ['products']);
+    else if (path === '/inventory/categories') allowed = any(read ? ['inventory', 'products', 'purchase_orders', 'reports', 'items'] : ['inventory', 'purchase_orders']);
     else if (/^\/inventory(\/|$|-stats$)/.test(path)) allowed = any(read ? ['inventory', 'products', 'purchase_orders', 'reports', 'items'] : ['inventory']);
     else if (/^\/(transactions|orders)(\/|$)/.test(path)) allowed = any(read ? ['dashboard', 'transactions', 'sales', 'history', 'reports', 'items'] : ['items']);
     else if (path.startsWith('/refunds')) allowed = any(read ? ['dashboard', 'transactions', 'sales', 'history', 'reports'] : ['transactions', 'history']);

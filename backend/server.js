@@ -73,6 +73,7 @@ app.use('/api', apiSecurity);
 app.use('/api/auth', authRoutes);
 app.use('/api', historyRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
+app.use('/api/inventory/categories', require('./Routes/inventoryCategoryRoutes'));
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/sales-forecast', salesForecastRoutes);
 app.use('/api/elite-members', eliteMemberRoutes);

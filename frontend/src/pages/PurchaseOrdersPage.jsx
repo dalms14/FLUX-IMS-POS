@@ -7,11 +7,12 @@ import PageHeader from '../components/PageHeader';
 import PurchaseOrderDetailsModal from '../components/PurchaseOrderDetailsModal';
 import InventoryItemSelect from '../components/InventoryItemSelect';
 import PurchaseOrderSelect from '../components/PurchaseOrderSelect';
+import InventoryCategorySelect from '../components/InventoryCategorySelect';
+import useInventoryCategories from '../utils/useInventoryCategories';
 import { canReceivePurchaseOrder, isAssignableReceiver } from '../utils/purchaseOrderReceiver';
 
 const api = 'http://localhost:5000/api';
 const units = ['g', 'ml', 'pcs', 'kg', 'L'];
-const categories = ['General', 'Batter', 'Bread', 'Coffee', 'Dairy', 'Fruit', 'Grain', 'Meat', 'Oil', 'Packaging', 'Pastry', 'Powder', 'Sauce', 'Seafood', 'Snack', 'Spice', 'Syrup', 'Tea', 'Topping', 'Utility', 'Vegetable', 'Other'];
 const input = { width: '100%', boxSizing: 'border-box', border: '1px solid #D8CABB', borderRadius: '8px', padding: '10px 11px', fontSize: '13px', fontFamily: 'Segoe UI, sans-serif', background: '#fff' };
 const label = { display: 'block', marginBottom: '6px', fontSize: '10px', fontWeight: 900, color: '#6B5A4C', textTransform: 'uppercase', letterSpacing: '.65px' };
 const primary = { border: 'none', borderRadius: '8px', background: '#8B5E3C', color: '#fff', padding: '10px 13px', fontWeight: 900, fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px' };
@@ -58,6 +59,7 @@ const Modal = ({ children, onClose, width = '760px' }) => (
 );
 
 function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
+  const categoryManager = useInventoryCategories();
   const [form, setForm] = useState({ supplierName: '', supplierContact: '', supplierEmail: '', assignedReceiverEmail: '', orderDate: today(), expectedDeliveryDate: '', notes: '', items: [blankLine()] });
   const sortedInventory = useMemo(() => [...inventory].sort((a, b) => a.name.localeCompare(b.name)), [inventory]);
   const assignableReceivers = receivers.filter(isAssignableReceiver).sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email)));
@@ -137,7 +139,7 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
               <div><label style={label}>Unit</label><select value={line.unit} onChange={e => updateLine(index, 'unit', e.target.value)} style={input}>{units.map(unit => <option key={unit}>{unit}</option>)}</select></div>
               <button type="button" title="Remove line" disabled={form.items.length === 1} onClick={() => setForm(current => ({ ...current, items: current.items.filter((_, i) => i !== index) }))} style={{ ...secondary, height: '40px', padding: 0, color: '#C53030', borderColor: '#FED7D7', opacity: form.items.length === 1 ? .45 : 1 }}><FiX /></button>
             </div>
-            {!line.inventoryId && <div style={{ display: 'grid', gridTemplateColumns: '1.2fr .65fr .8fr', gap: '8px', marginTop: '8px' }}><input value={line.name} onChange={e => updateLine(index, 'name', e.target.value)} style={input} placeholder="New ingredient name" /><PurchaseOrderSelect id={`purchase-category-${index}`} label={`Category for line ${index + 1}`} value={line.category} onChange={value => updateLine(index, 'category', value)} options={categories.map(category => ({ value: category, label: category }))} /><input type="number" min="0" value={line.lowStockAt} onChange={e => updateLine(index, 'lowStockAt', e.target.value)} style={input} placeholder="Low-stock alert" /></div>}
+            {!line.inventoryId && <div style={{ display: 'grid', gridTemplateColumns: '1.2fr .65fr .8fr', gap: '8px', marginTop: '8px' }}><input value={line.name} onChange={e => updateLine(index, 'name', e.target.value)} style={input} placeholder="New ingredient name" /><InventoryCategorySelect id={`purchase-category-${index}`} label={`Category for line ${index + 1}`} value={line.category} onChange={value => updateLine(index, 'category', value)} manager={categoryManager} existingCategories={inventory.map(item => item.category)} /><input type="number" min="0" value={line.lowStockAt} onChange={e => updateLine(index, 'lowStockAt', e.target.value)} style={input} placeholder="Low-stock alert" /></div>}
           </div>)}
         </div>
         <button type="button" onClick={() => setForm(current => ({ ...current, items: [...current.items, blankLine()] }))} style={{ ...secondary, marginTop: '10px' }}><FiPlus /> Add line item</button>

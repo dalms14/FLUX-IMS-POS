@@ -4,6 +4,7 @@ const backupModels = {
     addons: require('../models/Addon'),
     discounts: require('../models/Discount'),
     inventory: require('../models/Inventory'),
+    inventoryCategories: require('../models/InventoryCategory'),
     transactions: require('../models/Transaction'),
     refunds: require('../models/Refund'),
     recipes: require('../models/Recipe'),

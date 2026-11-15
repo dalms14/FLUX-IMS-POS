@@ -3,11 +3,12 @@ import axios from 'axios';
 import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import LiveRefreshStatus from '../components/LiveRefreshStatus';
+import InventoryCategorySelect from '../components/InventoryCategorySelect';
+import useInventoryCategories from '../utils/useInventoryCategories';
 import useLiveRefresh from '../utils/useLiveRefresh';
 import {
   FiAlertTriangle,
   FiArchive,
-  FiChevronDown,
   FiMinus,
   FiPackage,
   FiSearch,
@@ -53,31 +54,6 @@ const inventoryUnitOptions = [
   { value: 'pcs', label: 'Pieces (pcs)' },
   { value: 'kg', label: 'Kilograms (kg)' },
   { value: 'L', label: 'Liters (L)' },
-];
-
-const inventoryCategoryOptions = [
-  'General',
-  'Batter',
-  'Bread',
-  'Coffee',
-  'Dairy',
-  'Fruit',
-  'Grain',
-  'Meat',
-  'Oil',
-  'Packaging',
-  'Pastry',
-  'Powder',
-  'Sauce',
-  'Seafood',
-  'Snack',
-  'Spice',
-  'Syrup',
-  'Tea',
-  'Topping',
-  'Utility',
-  'Vegetable',
-  'Other',
 ];
 
 const tableHeaderStyle = {
@@ -201,93 +177,6 @@ const secondaryButtonStyle = {
   cursor: 'pointer',
 };
 
-const CompactChoiceSelect = ({ name, value, options, onChange }) => {
-  const [open, setOpen] = useState(false);
-
-  const handleSelect = (nextValue) => {
-    onChange({ target: { name, value: nextValue } });
-    setOpen(false);
-  };
-
-  return (
-    <div
-      style={{ position: 'relative' }}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setOpen(false);
-        }
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen(prev => !prev)}
-        style={{
-          ...inputStyle,
-          height: '43px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '10px',
-          color: '#1a1a1a',
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value}</span>
-        <FiChevronDown size={15} style={{ color: '#6B5A4C', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', flexShrink: 0 }} />
-      </button>
-
-      {open && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 'calc(100% + 6px)',
-            maxHeight: '168px',
-            overflowY: 'auto',
-            backgroundColor: '#fff',
-            border: '1px solid #D8CABB',
-            borderRadius: '8px',
-            boxShadow: '0 14px 32px rgba(26,18,8,0.16)',
-            zIndex: 1002,
-            padding: '4px',
-          }}
-        >
-          {options.map(option => {
-            const selected = option === value;
-            return (
-              <button
-                key={option}
-                type="button"
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  handleSelect(option);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '9px 10px',
-                  border: 'none',
-                  borderRadius: '6px',
-                  backgroundColor: selected ? '#8B5E3C' : '#fff',
-                  color: selected ? '#fff' : '#1a1a1a',
-                  fontSize: '13px',
-                  fontFamily: 'Segoe UI, sans-serif',
-                  fontWeight: selected ? '800' : '500',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}
-              >
-                {option}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
-
 const KPICard = ({ title, value, detail, icon, color }) => (
   <div style={{ ...cardStyle, padding: '16px' }}>
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
@@ -348,7 +237,7 @@ const ItemModal = ({ item, onConfirm, onClose }) => {
   });
   const [batchRows, setBatchRows] = useState(() => normalizeBatchRows(item || formData));
   const [error, setError] = useState('');
-  const categoryOptions = Array.from(new Set([...inventoryCategoryOptions, formData.category].filter(Boolean)));
+  const categoryManager = useInventoryCategories();
   const batchTotal = getBatchTotal(batchRows);
 
   const handleChange = (e) => {
@@ -515,7 +404,7 @@ const ItemModal = ({ item, onConfirm, onClose }) => {
 
         <div>
           <label style={labelStyle}>Category</label>
-          <CompactChoiceSelect name="category" value={formData.category} options={categoryOptions} onChange={handleChange} />
+          <InventoryCategorySelect id="inventory-item-category" label="Item category" value={formData.category} onChange={value => handleChange({ target: { name: 'category', value } })} manager={categoryManager} />
         </div>
       </div>
 
@@ -823,7 +712,7 @@ const InventoryPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [categories, setCategories] = useState([]);
+  const categoryManager = useInventoryCategories();
   const [showStockOutModal, setShowStockOutModal] = useState(false);
   const [adjustItem, setAdjustItem] = useState(null);
   const [restoring, setRestoring] = useState(false);
@@ -865,9 +754,6 @@ const InventoryPage = () => {
   const updateInventoryState = useCallback((inventoryItems, inventoryStats) => {
     setItems(inventoryItems);
     setStats(inventoryStats || buildStats(inventoryItems));
-
-    const uniqueCategories = [...new Set(inventoryItems.map(item => item.category).filter(Boolean))];
-    setCategories(uniqueCategories);
   }, []);
 
   const loadInventory = useCallback(async signal => {
@@ -916,7 +802,7 @@ const InventoryPage = () => {
     }
 
     if (categoryFilter) {
-      filtered = filtered.filter(item => item.category === categoryFilter);
+      filtered = filtered.filter(item => String(item.category || '').trim().replace(/\s+/g, ' ').toLowerCase() === categoryFilter.toLowerCase());
     }
 
     if (statusFilter === 'low') {
@@ -1023,10 +909,7 @@ const InventoryPage = () => {
 
             <div>
               <label style={labelStyle}>Category</label>
-              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} style={inputStyle}>
-                <option value="">All Categories</option>
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
+              <InventoryCategorySelect id="inventory-category-filter" label="Category" value={categoryFilter} onChange={setCategoryFilter} manager={categoryManager} existingCategories={items.map(item => item.category)} allowAll />
             </div>
 
             <div>

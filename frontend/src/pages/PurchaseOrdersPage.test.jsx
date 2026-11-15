@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import axios from 'axios';
 import PurchaseOrdersPage from './PurchaseOrdersPage';
@@ -19,6 +19,7 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('user', JSON.stringify({ role: 'owner', email: 'owner@example.com' }));
   axios.get.mockImplementation(url => Promise.resolve({ data:
+    url.endsWith('/inventory/categories') ? { data: ['General', 'Coffee', 'Other'] } :
     url.endsWith('/inventory') ? [{ _id: 'z', name: 'Zucchini', unit: 'kg' }, { _id: 'a', name: 'Apple', unit: 'kg' }] :
     url.endsWith('/auth/users') ? { data: [
       { _id: 'owner', role: 'owner', name: 'Owner', email: 'owner@example.com' },
@@ -33,7 +34,7 @@ beforeEach(() => {
 test('new orders sort ingredients, list staff and admins, and shared assignments do not require a specific person', async () => {
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   fireEvent.focus(screen.getByRole('combobox', { name: 'Ingredient / material' }));
   const ingredient = screen.getByRole('listbox', { name: 'Inventory items' });
   expect(within(ingredient).getAllByRole('option').map(option => option.textContent)).toEqual(['New inventory item...', 'Apple (kg)', 'Zucchini (kg)']);
@@ -55,7 +56,7 @@ test('supplier templates save and restore name, phone and email when assigning a
   } } }));
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Metro Food Supply' } });
   fireEvent.change(screen.getByLabelText('Supplier Phone Number'), { target: { value: '09171234567' } });
   fireEvent.change(screen.getByLabelText('Supplier Email Address'), { target: { value: 'orders@metro.com' } });
@@ -72,7 +73,7 @@ test('supplier templates save and restore name, phone and email when assigning a
   expect(JSON.parse(localStorage.getItem('flux.purchaseOrderSupplierHistory'))).toEqual([
     { name: 'Metro Food Supply', contact: '09171234567', email: 'orders@metro.com' },
   ]);
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   fireEvent.focus(screen.getByLabelText('Supplier *'));
   expect(screen.getByText('orders@metro.com')).toBeInTheDocument();
   fireEvent.mouseDown(screen.getByRole('button', { name: 'Remove Metro Food Supply from supplier history' }).parentElement);
@@ -85,7 +86,7 @@ test('old supplier templates without email still fill the phone and clear a prev
   localStorage.setItem('flux.purchaseOrderSupplierHistory', JSON.stringify([{ name: 'Old Supplier', contact: '09170000000' }]));
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   fireEvent.change(screen.getByLabelText('Supplier Email Address'), { target: { value: 'different@supplier.com' } });
   fireEvent.focus(screen.getByLabelText('Supplier *'));
   fireEvent.mouseDown(screen.getByRole('button', { name: 'Remove Old Supplier from supplier history' }).parentElement);
@@ -96,7 +97,7 @@ test('old supplier templates without email still fill the phone and clear a prev
 test('supplier phone removes non-digits, caps pasted input, and blocks a short number', async () => {
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Supplier' } });
   const phone = screen.getByLabelText('Supplier Phone Number');
   fireEvent.change(phone, { target: { value: 'letters' } });
@@ -114,7 +115,7 @@ test('supplier phone removes non-digits, caps pasted input, and blocks a short n
 test('invalid supplier email prevents creating an order', async () => {
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Supplier' } });
   fireEvent.change(screen.getByLabelText('Supplier Email Address'), { target: { value: 'invalid-address' } });
   fireEvent.click(screen.getByRole('button', { name: /Any Staff/ }));
@@ -140,7 +141,7 @@ test('owners can view a staff-only purchase order without receiving it or editin
 test('inventory search filters each order line and selects an existing item with the keyboard', async () => {
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   const search = screen.getByRole('combobox', { name: 'Ingredient / material' });
   fireEvent.focus(search);
   fireEvent.change(search, { target: { value: 'ZUC' } });
@@ -207,7 +208,7 @@ test('reporting a delivery from the dashboard submits it for review without call
 test('receiver selection is required and keyboard selection preserves the assigned account', async () => {
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Supplier' } });
   fireEvent.click(screen.getByRole('button', { name: 'Create Draft PO' }));
   const receiver = screen.getByRole('combobox', { name: 'Assigned Receiver (Staff / Admin) *' });
@@ -225,10 +226,11 @@ test('receiver selection is required and keyboard selection preserves the assign
 test('category menus support keyboard selection, dismissal, and independent order lines', async () => {
   render(<PurchaseOrdersPage />);
   await screen.findByText('PO-TEST');
-  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' })); });
   const category = screen.getByRole('combobox', { name: 'Category for line 1' });
   fireEvent.click(category);
   fireEvent.keyDown(category, { key: 'End' });
+  fireEvent.keyDown(category, { key: 'ArrowUp' });
   fireEvent.keyDown(category, { key: 'Enter' });
   expect(category).toHaveTextContent('Other');
   fireEvent.click(screen.getByRole('button', { name: 'Add line item' }));

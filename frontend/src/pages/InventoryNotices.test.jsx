@@ -8,7 +8,7 @@ jest.mock('../components/Sidebar', () => () => null);
 const ingredient = { _id: 'beans', name: 'Coffee Beans', category: 'Coffee', unit: 'g', stock: 0, lowStockAt: 1, expirationBatches: [] };
 beforeEach(() => {
   jest.resetAllMocks(); localStorage.clear();
-  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/inventory-stats') ? null : [{ ...ingredient, archived: url.includes('archived=true') }] }));
+  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/inventory/categories') ? { data: ['General', 'Coffee'] } : url.endsWith('/inventory-stats') ? null : [{ ...ingredient, archived: url.includes('archived=true') }] }));
   jest.spyOn(window, 'alert').mockImplementation(() => {});
   jest.spyOn(window, 'confirm').mockImplementation(() => true);
 });
@@ -72,7 +72,7 @@ test('restore failures appear on screen and leave the archived ingredient availa
 });
 
 test('stock-out server errors show a notice without closing the form or discarding its quantity', async () => {
-  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/inventory-stats') ? null : [{ ...ingredient, stock: 10 }] }));
+  axios.get.mockImplementation(url => Promise.resolve({ data: url.endsWith('/inventory/categories') ? { data: ['General', 'Coffee'] } : url.endsWith('/inventory-stats') ? null : [{ ...ingredient, stock: 10 }] }));
   axios.put.mockRejectedValue({ response: { data: { message: 'Stock changed. Refresh before trying again.' } } });
   jest.spyOn(console, 'error').mockImplementation(() => {});
   render(<InventoryPage />);

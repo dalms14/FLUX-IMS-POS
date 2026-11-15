@@ -1,0 +1,42 @@
+.inventory-category-select { min-width: 0; }
+.inventory-category-editor {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid #d8cabb;
+  border-radius: 8px;
+  background: #faf7f4;
+  color: #6b5a4c;
+  font: 12px "Segoe UI", sans-serif;
+}
+.inventory-category-editor > label { display: block; margin-bottom: 6px; font-weight: 700; }
+.inventory-category-editor > input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #d8cabb;
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+}
+.inventory-category-editor > input:focus { outline: 2px solid #8b5e3c; outline-offset: 1px; }
+.inventory-category-editor > p { margin: 8px 0 0; color: #c53030; }
+.inventory-category-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.inventory-category-actions > button {
+  padding: 8px 10px;
+  border: 1px solid #d4b89a;
+  border-radius: 6px;
+  background: #fff;
+  color: #6f4a2f;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.inventory-category-actions > button:last-child { border-color: #8b5e3c; background: #8b5e3c; color: #fff; }
+.inventory-category-actions > button:disabled { opacity: .6; cursor: wait; }
+.inventory-category-load-error { margin-top: 6px; color: #9b2c2c; font-size: 11px; }
+.inventory-category-load-error > button { border: 0; background: transparent; color: #6f4a2f; font: inherit; text-decoration: underline; cursor: pointer; }
+@media (hover: none) and (pointer: coarse) {
+  .inventory-category-editor > input { font-size: 16px; }
+  .inventory-category-actions > button { min-height: 44px; }
+}
