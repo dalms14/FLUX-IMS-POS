@@ -37,14 +37,16 @@ test('new orders sort ingredients, list staff and admins, and shared assignments
   fireEvent.focus(screen.getByRole('combobox', { name: 'Ingredient / material' }));
   const ingredient = screen.getByRole('listbox', { name: 'Inventory items' });
   expect(within(ingredient).getAllByRole('option').map(option => option.textContent)).toEqual(['New inventory item...', 'Apple (kg)', 'Zucchini (kg)']);
-  expect(screen.getByRole('option', { name: 'Admin — admin' })).toHaveValue('admin@example.com');
-  expect(screen.queryByRole('option', { name: /Archived Admin/ })).not.toBeInTheDocument();
-  expect(screen.queryByRole('option', { name: /Owner — owner/ })).not.toBeInTheDocument();
-  const receiver = screen.getByRole('option', { name: /Staff — staff/ }).parentElement;
+  const receiver = screen.getByRole('combobox', { name: 'Assigned Receiver (Staff / Admin) *' });
   expect(receiver).toBeRequired();
-  expect(screen.getByRole('option', { name: 'Athan Scott Saroca — Operations (ELI020)' })).toHaveValue('operations@example.com');
+  fireEvent.click(receiver);
+  const receiverList = screen.getByRole('listbox', { name: 'Assigned Receiver (Staff / Admin) *' });
+  expect(within(receiverList).getAllByRole('option').map(option => option.textContent)).toEqual([
+    'Admin \u2014 admin', 'Athan Scott Saroca \u2014 Operations (ELI020)', 'Staff \u2014 staff',
+  ]);
   fireEvent.click(screen.getByRole('button', { name: /Any Staff/ }));
   expect(receiver).not.toBeRequired();
+  expect(receiver).not.toHaveAttribute('data-required-missing');
 });
 
 test('supplier templates save and restore name, phone and email when assigning an admin', async () => {
@@ -57,7 +59,8 @@ test('supplier templates save and restore name, phone and email when assigning a
   fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Metro Food Supply' } });
   fireEvent.change(screen.getByLabelText('Supplier Phone Number'), { target: { value: '09171234567' } });
   fireEvent.change(screen.getByLabelText('Supplier Email Address'), { target: { value: 'orders@metro.com' } });
-  fireEvent.change(screen.getByLabelText('Assigned Receiver (Staff / Admin) *'), { target: { value: 'admin@example.com' } });
+  fireEvent.click(screen.getByRole('combobox', { name: 'Assigned Receiver (Staff / Admin) *' }));
+  fireEvent.click(screen.getByRole('option', { name: 'Admin \u2014 admin' }));
   fireEvent.focus(screen.getByRole('combobox', { name: 'Ingredient / material' }));
   fireEvent.click(screen.getByRole('option', { name: 'Apple (kg)' }));
   fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '2' } });
@@ -198,4 +201,52 @@ test('reporting a delivery from the dashboard submits it for review without call
   await screen.findByRole('heading', { name: 'My Assigned Deliveries' });
   expect(axios.post).toHaveBeenCalledTimes(1);
   expect(axios.post.mock.calls[0][0]).toMatch(/\/record-arrival$/);
+});
+
+
+test('receiver selection is required and keyboard selection preserves the assigned account', async () => {
+  render(<PurchaseOrdersPage />);
+  await screen.findByText('PO-TEST');
+  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  fireEvent.change(screen.getByLabelText('Supplier *'), { target: { value: 'Supplier' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create Draft PO' }));
+  const receiver = screen.getByRole('combobox', { name: 'Assigned Receiver (Staff / Admin) *' });
+  expect(await screen.findByRole('alert')).toHaveTextContent('Select a receiving staff member or admin');
+  expect(receiver).toHaveFocus();
+  fireEvent.keyDown(receiver, { key: 'ArrowDown' });
+  fireEvent.keyDown(receiver, { key: 'ArrowDown' });
+  fireEvent.keyDown(receiver, { key: 'Enter' });
+  expect(receiver).toHaveTextContent('Athan Scott Saroca \u2014 Operations (ELI020)');
+  expect(receiver).not.toHaveAttribute('data-required-missing');
+  expect(receiver).toHaveAttribute('aria-expanded', 'false');
+  expect(axios.post).not.toHaveBeenCalled();
+});
+
+test('category menus support keyboard selection, dismissal, and independent order lines', async () => {
+  render(<PurchaseOrdersPage />);
+  await screen.findByText('PO-TEST');
+  fireEvent.click(screen.getByRole('button', { name: 'New Purchase Order' }));
+  const category = screen.getByRole('combobox', { name: 'Category for line 1' });
+  fireEvent.click(category);
+  fireEvent.keyDown(category, { key: 'End' });
+  fireEvent.keyDown(category, { key: 'Enter' });
+  expect(category).toHaveTextContent('Other');
+  fireEvent.click(screen.getByRole('button', { name: 'Add line item' }));
+  const second = screen.getByRole('combobox', { name: 'Category for line 2' });
+  expect(second).toHaveTextContent('General');
+  fireEvent.click(second);
+  fireEvent.click(screen.getByRole('option', { name: 'Coffee' }));
+  expect(second).toHaveTextContent('Coffee');
+  expect(category).toHaveTextContent('Other');
+  fireEvent.click(second);
+  expect(screen.getByRole('option', { name: 'Coffee' })).toHaveAttribute('aria-selected', 'true');
+  fireEvent.keyDown(second, { key: 'Escape' });
+  expect(second).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(second);
+  fireEvent.blur(second, { relatedTarget: category });
+  expect(second).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(second);
+  fireEvent.pointerDown(document.body);
+  expect(second).toHaveAttribute('aria-expanded', 'false');
+  expect(axios.post).not.toHaveBeenCalled();
 });

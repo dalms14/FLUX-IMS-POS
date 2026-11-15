@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import PurchaseOrderDetailsModal from '../components/PurchaseOrderDetailsModal';
 import InventoryItemSelect from '../components/InventoryItemSelect';
+import PurchaseOrderSelect from '../components/PurchaseOrderSelect';
 import { canReceivePurchaseOrder, isAssignableReceiver } from '../utils/purchaseOrderReceiver';
 
 const api = 'http://localhost:5000/api';
@@ -115,7 +116,12 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
               <button type="button" onClick={() => change('assignedReceiverEmail', '__any_staff__')} style={{ padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${form.assignedReceiverEmail === '__any_staff__' ? '#8B5E3C' : '#D8CABB'}`, background: form.assignedReceiverEmail === '__any_staff__' ? '#8B5E3C' : '#FAF7F4', color: form.assignedReceiverEmail === '__any_staff__' ? '#fff' : '#6F4A2F', textAlign: 'left', cursor: 'pointer' }}><b style={{ display: 'block', fontSize: '12px' }}>👥 Any Staff</b><span style={{ display: 'block', marginTop: '3px', fontSize: '10px' }}>Any staff account can receive</span></button>
               <button type="button" onClick={() => change('assignedReceiverEmail', '__anyone__')} style={{ padding: '10px 12px', borderRadius: '8px', border: `1.5px solid ${form.assignedReceiverEmail === '__anyone__' ? '#8B5E3C' : '#D8CABB'}`, background: form.assignedReceiverEmail === '__anyone__' ? '#8B5E3C' : '#FAF7F4', color: form.assignedReceiverEmail === '__anyone__' ? '#fff' : '#6F4A2F', textAlign: 'left', cursor: 'pointer' }}><b style={{ display: 'block', fontSize: '12px' }}>◎ Everyone</b><span style={{ display: 'block', marginTop: '3px', fontSize: '10px' }}>Any signed-in account can receive</span></button>
             </div>
-            <select id="purchase-assigned-receiver" required={!form.assignedReceiverEmail.startsWith('__')} value={form.assignedReceiverEmail.startsWith('__') ? '' : form.assignedReceiverEmail} onChange={e => change('assignedReceiverEmail', e.target.value)} style={input}><option value="">Or select one specific staff member or admin…</option>{assignableReceivers.map(receiver => <option key={receiver._id} value={receiver.email}>{receiver.name || receiver.email} — {receiver.jobRole || receiver.role}{receiver.userId ? ` (${receiver.userId})` : ''}</option>)}</select>
+            <PurchaseOrderSelect id="purchase-assigned-receiver" label="Assigned Receiver (Staff / Admin) *"
+              required={!form.assignedReceiverEmail.startsWith('__')}
+              value={form.assignedReceiverEmail.startsWith('__') ? '' : form.assignedReceiverEmail}
+              onChange={value => change('assignedReceiverEmail', value)}
+              placeholder="Or select one specific staff member or admin…"
+              options={assignableReceivers.map(receiver => ({ value: receiver.email, label: `${receiver.name || receiver.email} — ${receiver.jobRole || receiver.role}${receiver.userId ? ` (${receiver.userId})` : ''}` }))} />
             <p style={{ margin: '6px 0 0', color: '#777', fontSize: '11px' }}>Choose an active staff member (including custom roles such as Operations) or admin. Check the name, role, and User ID when assigning one person.</p>
           </div>
           <div><label style={label}>Order Date</label><input type="date" min={today()} value={form.orderDate} onChange={e => change('orderDate', e.target.value)} style={input} /></div>
@@ -131,7 +137,7 @@ function CreateOrderModal({ inventory, receivers, onClose, onSaved }) {
               <div><label style={label}>Unit</label><select value={line.unit} onChange={e => updateLine(index, 'unit', e.target.value)} style={input}>{units.map(unit => <option key={unit}>{unit}</option>)}</select></div>
               <button type="button" title="Remove line" disabled={form.items.length === 1} onClick={() => setForm(current => ({ ...current, items: current.items.filter((_, i) => i !== index) }))} style={{ ...secondary, height: '40px', padding: 0, color: '#C53030', borderColor: '#FED7D7', opacity: form.items.length === 1 ? .45 : 1 }}><FiX /></button>
             </div>
-            {!line.inventoryId && <div style={{ display: 'grid', gridTemplateColumns: '1.2fr .65fr .8fr', gap: '8px', marginTop: '8px' }}><input value={line.name} onChange={e => updateLine(index, 'name', e.target.value)} style={input} placeholder="New ingredient name" /><select value={line.category} onChange={e => updateLine(index, 'category', e.target.value)} style={input}>{categories.map(category => <option key={category}>{category}</option>)}</select><input type="number" min="0" value={line.lowStockAt} onChange={e => updateLine(index, 'lowStockAt', e.target.value)} style={input} placeholder="Low-stock alert" /></div>}
+            {!line.inventoryId && <div style={{ display: 'grid', gridTemplateColumns: '1.2fr .65fr .8fr', gap: '8px', marginTop: '8px' }}><input value={line.name} onChange={e => updateLine(index, 'name', e.target.value)} style={input} placeholder="New ingredient name" /><PurchaseOrderSelect id={`purchase-category-${index}`} label={`Category for line ${index + 1}`} value={line.category} onChange={value => updateLine(index, 'category', value)} options={categories.map(category => ({ value: category, label: category }))} /><input type="number" min="0" value={line.lowStockAt} onChange={e => updateLine(index, 'lowStockAt', e.target.value)} style={input} placeholder="Low-stock alert" /></div>}
           </div>)}
         </div>
         <button type="button" onClick={() => setForm(current => ({ ...current, items: [...current.items, blankLine()] }))} style={{ ...secondary, marginTop: '10px' }}><FiPlus /> Add line item</button>
