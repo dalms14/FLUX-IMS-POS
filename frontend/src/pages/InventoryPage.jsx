@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import PageHeader from '../components/PageHeader';
 import LiveRefreshStatus from '../components/LiveRefreshStatus';
 import InventoryCategorySelect from '../components/InventoryCategorySelect';
+import PurchaseOrderSelect from '../components/PurchaseOrderSelect';
 import useInventoryCategories from '../utils/useInventoryCategories';
 import useLiveRefresh from '../utils/useLiveRefresh';
 import {
@@ -913,15 +914,15 @@ const InventoryPage = () => {
             </div>
 
             <div>
-              <label style={labelStyle}>Status</label>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={inputStyle}>
-                <option value="">All Status</option>
-                <option value="ok">In Stock</option>
-                <option value="low">Low Stock</option>
-                <option value="out">Out of Stock</option>
-                <option value="near-expiry">Near Expiry</option>
-                <option value="expired">Expired</option>
-              </select>
+              <label htmlFor="inventory-status-filter" style={labelStyle}>Status</label>
+              <PurchaseOrderSelect id="inventory-status-filter" label="Status" value={statusFilter} onChange={setStatusFilter} options={[
+                { value: '', label: 'All Status' },
+                { value: 'ok', label: 'In Stock' },
+                { value: 'low', label: 'Low Stock' },
+                { value: 'out', label: 'Out of Stock' },
+                { value: 'near-expiry', label: 'Near Expiry' },
+                { value: 'expired', label: 'Expired' },
+              ]} />
             </div>
           </div>
 
