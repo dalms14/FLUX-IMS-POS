@@ -36,6 +36,37 @@
 .inventory-category-actions > button:disabled { opacity: .6; cursor: wait; }
 .inventory-category-load-error { margin-top: 6px; color: #9b2c2c; font-size: 11px; }
 .inventory-category-load-error > button { border: 0; background: transparent; color: #6f4a2f; font: inherit; text-decoration: underline; cursor: pointer; }
+
+/* Let the purchase-order editor use the full row below the three compact fields. */
+.purchase-order-new-item-row { align-items: start; }
+.purchase-order-new-item-row > input:first-child { grid-column: 1; grid-row: 1; }
+.purchase-order-new-item-row > input:last-child { grid-column: 3; grid-row: 1; }
+.purchase-order-new-item-row > .inventory-category-select { display: contents; }
+.purchase-order-new-item-row .purchase-order-select { grid-column: 2; grid-row: 1; }
+.purchase-order-new-item-row .inventory-category-editor {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  align-items: start;
+  margin-top: 0;
+}
+.purchase-order-new-item-row .inventory-category-editor > label { grid-column: 1; grid-row: 1; }
+.purchase-order-new-item-row .inventory-category-editor > input { grid-column: 1; grid-row: 2; }
+.purchase-order-new-item-row .inventory-category-actions { grid-column: 2; grid-row: 2; margin-top: 0; }
+.purchase-order-new-item-row .inventory-category-editor > p { grid-column: 1 / -1; grid-row: 3; }
+.purchase-order-new-item-row .inventory-category-load-error { grid-column: 1 / -1; grid-row: 3; }
+
+@media (max-width: 600px) {
+  .purchase-order-new-item-row { grid-template-columns: minmax(0, 1fr) !important; }
+  .purchase-order-new-item-row .purchase-order-select { grid-column: 1; grid-row: 2; }
+  .purchase-order-new-item-row > input:last-child { grid-column: 1; grid-row: 3; }
+  .purchase-order-new-item-row .inventory-category-editor { grid-row: 4; grid-template-columns: minmax(0, 1fr); }
+  .purchase-order-new-item-row .inventory-category-actions { grid-column: 1; grid-row: 4; margin-top: 8px; }
+  .purchase-order-new-item-row .inventory-category-load-error { grid-row: 5; }
+}
+
 @media (hover: none) and (pointer: coarse) {
   .inventory-category-editor > input { font-size: 16px; }
   .inventory-category-actions > button { min-height: 44px; }
