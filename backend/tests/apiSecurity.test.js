@@ -413,6 +413,55 @@ test('refund HTTP workflow binds the actor, keeps the sale, updates refund histo
     assert.equal((await request('/refunds', { method: 'POST', token, body })).status, 403);
 });
 
+test('the 24-hour refund policy blocks direct requests and legacy refund paths before any writes', async () => {
+    const mongoose = require('mongoose');
+    const Transaction = require('../models/Transaction');
+    const Refund = require('../models/Refund');
+    const saleId = '123456789012345678901234';
+    const sale = { _id: saleId, receiptNo: 'FLX-EXPIRED', orderStatus: 'completed', paymentMethod: 'Cash', refundVersion: 0,
+        subtotal: 100, tax: 0, discount: 0, total: 100, createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+        items: [{ name: 'Coffee', quantity: 1, price: 100, subtotal: 100 }] };
+    let writes = 0;
+    const legacy = { transactionId: saleId, status: 'pending', async save() { writes++; } };
+    const chain = () => ({ session() { return this; }, populate() { return this; }, lean: async () => sale, then(resolve, reject) { return Promise.resolve(sale).then(resolve, reject); } });
+    mock.method(mongoose, 'startSession', async () => ({ withTransaction: async fn => fn(), endSession: async () => {} }));
+    mock.method(Transaction, 'findById', chain);
+    mock.method(Transaction, 'updateOne', async () => { writes++; return { matchedCount: 1 }; });
+    mock.method(Refund, 'find', () => ({ session() { return this; }, lean: async () => [] }));
+    mock.method(Refund, 'findById', async () => legacy);
+    mock.method(Refund, 'create', async () => { writes++; return [{}]; });
+    mock.method(Inventory, 'findOneAndUpdate', async () => { writes++; });
+    const token = await issueSession(users[0]);
+    const detail = await request(`/transactions/${saleId}`, { token });
+    assert.equal(detail.status, 200);
+    assert.equal(detail.data.data.refundSummary.canRefund, false);
+    assert.equal(detail.data.data.refundSummary.periodExpired, true);
+    const body = { transactionId: saleId, requestId: 'request_expired_0123456789', reason: 'Wrong order',
+        items: [{ originalIndex: 0, quantity: 1 }], createdAt: new Date(), periodExpired: false };
+    const expired = await request('/refunds', { method: 'POST', token, body });
+    assert.equal(expired.status, 409);
+    assert.match(expired.data.message, /24 hours/);
+    assert.equal((await request('/refunds/legacy/approve', { method: 'PATCH', token })).status, 409);
+    assert.equal(legacy.status, 'pending');
+    legacy.status = 'approved';
+    assert.equal((await request('/refunds/legacy/complete', { method: 'PATCH', token })).status, 409);
+    assert.equal(legacy.status, 'approved');
+    sale.orderStatus = 'pending';
+    for (const path of [`/orders/${saleId}/cancel`, `/orders/${saleId}/cancel-items`]) {
+        const result = await request(path, { method: 'POST', token, body });
+        assert.equal(result.status, 409);
+        assert.match(result.data.message, /24 hours/);
+    }
+    assert.equal(writes, 0);
+    assert.equal(SystemAudit.create.mock.callCount(), 0);
+    // The legacy approval/completion paths still work inside the original sale window.
+    sale.createdAt = new Date();
+    legacy.status = 'pending';
+    assert.equal((await request('/refunds/legacy/approve', { method: 'PATCH', token })).status, 200);
+    assert.equal((await request('/refunds/legacy/complete', { method: 'PATCH', token })).status, 200);
+    assert.equal(writes, 2);
+});
+
 test('product create and update both reject invalid variant price add-ons before database writes', async () => {
     const token = await issueSession(users[0]);
     for (const [method, path] of [['POST', '/products'], ['PUT', '/products/123456789012345678901234']]) {

@@ -166,6 +166,24 @@ test('cashier refunds selected quantities from a completed sale and sees the ref
   });
 });
 
+test('expired sales show the refund deadline reason and have no Refund action', async () => {
+  const unavailableReason = 'Refund period expired. Refunds are allowed only within 24 hours of the original sale.';
+  currentSale.refundSummary = { ...sale.refundSummary, canRefund: false, periodExpired: true, unavailableReason };
+  render(<TransactionPage />);
+  expect(await screen.findByText('Refund period expired')).toHaveAttribute('title', unavailableReason);
+  expect(screen.queryByRole('button', { name: 'Refund' })).not.toBeInTheDocument();
+});
+
+test('opening an old Refund button refreshes eligibility and blocks an expired receipt', async () => {
+  fetch.mockImplementation(() => reply({ data: { ...sale, refundSummary: { ...sale.refundSummary, canRefund: false, periodExpired: true,
+    unavailableReason: 'Refund period expired. Refunds are allowed only within 24 hours of the original sale.' } } }));
+  render(<RefundModal isOpen transaction={sale} onClose={jest.fn()} />);
+  expect(await screen.findByText('Refund period expired. Refunds are allowed only within 24 hours of the original sale.')).toHaveAttribute('role', 'status');
+  expect(screen.getByRole('checkbox')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Confirm refund' })).toBeDisabled();
+  expect(fetch.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false);
+});
+
 test('fully refunded, cancelled or unauthorized transactions have no Refund action', async () => {
   currentSale.refundSummary = { canRefund: false, totalRefunded: 240, remainingAmount: 0 };
   const view = render(<TransactionPage />);

@@ -4,6 +4,7 @@ const Transaction = require('../models/Transaction');
 const Refund = require('../models/Refund');
 const { getInventoryHistory } = require('../services/inventoryHistory');
 const { processRefund, annotateRefunds } = require('../services/transactionRefunds');
+const { assertRefundWindow } = require('../services/refundPolicy');
 const SystemAudit = require('../models/SystemAudit');
 
 function parseEndDate(value) {
@@ -295,6 +296,9 @@ router.patch('/refunds/:id/approve', async (req, res) => {
             });
         }
         
+        const transaction = await Transaction.findById(refund.transactionId);
+        if (!transaction) return res.status(404).json({ success: false, message: 'Transaction not found.' });
+        assertRefundWindow(transaction);
         refund.status = 'approved';
         await refund.save();
         await logRefundAudit('Approved', refund, 'Refund request approved');
@@ -306,7 +310,7 @@ router.patch('/refunds/:id/approve', async (req, res) => {
         });
     } catch (err) {
         console.error('Error approving refund:', err);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
     }
 });
 
@@ -325,6 +329,9 @@ router.patch('/refunds/:id/complete', async (req, res) => {
             });
         }
 
+        const transaction = await Transaction.findById(refund.transactionId);
+        if (!transaction) return res.status(404).json({ success: false, message: 'Transaction not found.' });
+        assertRefundWindow(transaction);
         refund.status = 'completed';
         await refund.save();
         await logRefundAudit('Completed', refund, 'Refund marked as completed');
@@ -336,7 +343,7 @@ router.patch('/refunds/:id/complete', async (req, res) => {
         });
     } catch (err) {
         console.error('Error completing refund:', err);
-        res.status(500).json({ success: false, message: 'Server error' });
+        res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
     }
 });
 

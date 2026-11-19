@@ -913,8 +913,9 @@ const TransactionPage = () => {
                             style={{ width: '88px', height: '38px', border: '1px solid #D4B89A', borderRadius: '4px', background: '#F5F0EB', color: '#8B5E3C', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', cursor: 'pointer' }}>
                             Refund
                           </button>
-                        ) : <span style={{ width: '88px', textAlign: 'center', color: '#999', fontSize: '12px', fontWeight: '700', lineHeight: 1.2 }}>
-                          {transaction.refundSummary?.totalRefunded > 0 && transaction.refundSummary?.remainingAmount === 0 ? 'Refunded' : 'Final'}
+                        ) : <span title={transaction.refundSummary?.unavailableReason || undefined} style={{ width: '88px', textAlign: 'center', color: '#999', fontSize: '12px', fontWeight: '700', lineHeight: 1.2 }}>
+                          {transaction.refundSummary?.totalRefunded > 0 && transaction.refundSummary?.remainingAmount === 0 ? 'Refunded'
+                            : transaction.refundSummary?.periodExpired ? 'Refund period expired' : 'Final'}
                         </span>}
                       </div>
                     </td>

@@ -4,6 +4,7 @@ const Transaction = require('../models/Transaction');
 const Refund = require('../models/Refund');
 const SystemAudit = require('../models/SystemAudit');
 const { hasPermission } = require('../utils/permissions');
+const { refundWindow } = require('./refundPolicy');
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const cents = value => Math.round(Number(value || 0) * 100);
@@ -74,8 +75,9 @@ function refundView(transaction, refunds = []) {
         }
     }
     let amounts;
-    let unavailableReason = '';
-    try { amounts = lineAmounts(source); } catch (error) { unavailableReason = error.message; }
+    const window = refundWindow(source);
+    let unavailableReason = window.unavailableReason;
+    try { amounts = lineAmounts(source); } catch (error) { unavailableReason ||= error.message; }
     const refundedTotal = active.filter(row => row.status !== 'pending').reduce((sum, row) => sum + cents(row.totalRefunded), 0);
     const reservedTotal = active.reduce((sum, row) => sum + cents(row.totalRefunded), 0);
     const eligible = source.orderStatus === 'completed' && ['Cash', 'GCash'].includes(source.paymentMethod);
@@ -95,7 +97,8 @@ function refundView(transaction, refunds = []) {
         : active.length === 0 ? 'completed'
         : active.some(row => row.status === 'pending') ? 'refund pending'
         : refundedTotal >= cents(source.total) ? 'refunded' : 'partial refund';
-    return { ...source, items, refundSummary: { status, canRefund, totalRefunded: money(refundedTotal), remainingAmount: money(Math.max(0, cents(source.total) - reservedTotal)), unavailableReason } };
+    return { ...source, items, refundSummary: { status, canRefund, totalRefunded: money(refundedTotal), remainingAmount: money(Math.max(0, cents(source.total) - reservedTotal)), unavailableReason,
+        expiresAt: window.expiresAt, periodExpired: window.expired } };
 }
 
 async function annotateRefunds(transactions) {

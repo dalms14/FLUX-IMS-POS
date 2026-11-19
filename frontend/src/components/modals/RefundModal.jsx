@@ -96,7 +96,7 @@ export default function RefundModal({ isOpen, transaction, onClose, onSuccess })
             {loading && <p role="status">Loading receipt...</p>}
             {error && <p role="alert" className="refund-error">{error}</p>}
             {sale && <>
-              <p>Select the items and quantities to refund.</p>
+              <p>Select the items and quantities to refund. Refunds are allowed within 24 hours of the original sale.</p>
               {!sale.refundSummary?.canRefund && <p role="status">{sale.refundSummary?.unavailableReason || 'No items are available for refund.'}</p>}
               <div className="refund-items">
                 {sale.items.map(item => {

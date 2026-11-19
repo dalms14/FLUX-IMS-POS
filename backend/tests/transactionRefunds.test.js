@@ -9,12 +9,15 @@ const { processRefund, refundView, annotateRefunds } = require('../services/tran
 
 const saleId = '123456789012345678901234';
 const actor = { name: 'Cashier', email: 'cashier@example.com', role: 'staff' };
-let sale, refunds, audits, tail;
+let sale, refunds, audits, tail, now;
 const query = read => ({ session() { return this; }, lean: async () => structuredClone(read()) });
 const request = (items = [{ originalIndex: 0, quantity: 1 }], key = 'request_0123456789') => ({ transactionId: saleId, requestId: key, reason: 'Wrong order served', items });
 
 beforeEach(() => {
+    now = Date.parse('2026-11-20T04:00:00Z');
+    mock.method(Date, 'now', () => now);
     sale = { _id: saleId, receiptNo: 'FLX-REFUND-TEST', orderStatus: 'completed', cashier: 'Original cashier', paymentMethod: 'Cash', refundVersion: 0,
+        createdAt: new Date(now),
         subtotal: 400, tax: 0, discount: 60, total: 340, discountInfo: { scope: 'item' },
         items: [{ productId: '123456789012345678901230', name: 'Coffee', quantity: 3, price: 100, subtotal: 300, discountEligibleQuantity: 3 },
             { productId: '123456789012345678901230', name: 'Coffee Large', quantity: 1, price: 100, subtotal: 100, discountEligibleQuantity: 0 }] };
@@ -45,6 +48,43 @@ beforeEach(() => {
     mock.method(Inventory, 'findOne', () => { throw new Error('Refunds must not restock prepared goods'); });
 });
 afterEach(() => mock.restoreAll());
+
+test('refunds work until just before 24 hours and expire at the exact cutoff, across calendar days', async () => {
+    sale.createdAt = '2026-11-19T12:00:00.001+08:00';
+    assert.equal(refundView(sale).refundSummary.expiresAt, '2026-11-20T04:00:00.001Z');
+    assert.equal(refundView(sale).refundSummary.canRefund, true);
+    await processRefund(request(), actor);
+    now += 1;
+    const view = refundView(sale, refunds);
+    assert.equal(view.refundSummary.canRefund, false);
+    assert.equal(view.refundSummary.periodExpired, true);
+    assert.equal(view.refundSummary.status, 'partial refund');
+    await assert.rejects(processRefund(request(undefined, 'request_after_cutoff'), actor), error => error.status === 409 && /24 hours/.test(error.message));
+    assert.equal(refunds.length, 1);
+    assert.equal(audits.length, 1);
+    assert.equal(sale.refundVersion, 1);
+});
+
+test('old sales and missing, invalid or future sale dates cannot be refunded or overridden by client dates', async () => {
+    for (const createdAt of [new Date(now - 24 * 60 * 60 * 1000), new Date(now - 365 * 24 * 60 * 60 * 1000), undefined, null, '', 'invalid', new Date(now + 1)]) {
+        sale.createdAt = createdAt;
+        assert.equal(refundView(sale).refundSummary.canRefund, false);
+        await assert.rejects(processRefund({ ...request(), createdAt: new Date(now), expiresAt: new Date(now + 86400000), periodExpired: false }, actor), error => error.status === 409);
+    }
+    assert.equal(refunds.length, 0);
+    assert.equal(audits.length, 0);
+    assert.equal(sale.refundVersion, 0);
+});
+
+test('a saved refund can be retried after expiry without creating another refund or reopening the window', async () => {
+    const body = request();
+    await processRefund(body, actor);
+    now += 24 * 60 * 60 * 1000;
+    assert.equal((await processRefund(body, actor)).replayed, true);
+    await assert.rejects(processRefund(request(undefined, 'request_new_after_expiry'), actor), /Refund period expired/);
+    assert.equal(refunds.length, 1);
+    assert.equal(audits.length, 1);
+});
 
 test('transaction status separates refund activity from completed and cancelled sales', () => {
     const status = (rows = [], transaction = sale) => refundView(transaction, rows).refundSummary.status;

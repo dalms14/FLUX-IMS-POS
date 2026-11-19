@@ -27,6 +27,7 @@ const { recordSaleUsage } = require('./services/inventoryHistory');
 const { normalizeRecipe, buildInventoryRequirements } = require('./services/recipeUsage');
 const { validateVariantPrices } = require('./middleware/variantPrices');
 const { authoritativeCheckout } = require('./services/checkoutPricing');
+const { assertRefundWindow } = require('./services/refundPolicy');
 
 dotenv.config({ quiet: true });
 
@@ -1551,6 +1552,7 @@ app.post('/api/orders/:id/cancel', async (req, res) => {
             return res.status(400).json({ message: 'This order has no active items to cancel' });
         }
 
+        assertRefundWindow(order);
         const requirements = await buildInventoryRequirements(activeItems, { useSnapshots: true });
         for (const requirement of requirements) {
             await addInventoryStock(requirement.inventoryId, requirement.required, { note: 'Restored from cancelled order' });
@@ -1610,7 +1612,7 @@ app.post('/api/orders/:id/cancel', async (req, res) => {
         res.json({ success: true, order, refund });
     } catch (err) {
         console.error('Error cancelling order:', err);
-        res.status(500).json({ message: 'Failed to cancel order' });
+        res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to cancel order' });
     }
 });
 
@@ -1660,6 +1662,7 @@ app.post('/api/orders/:id/cancel-items', async (req, res) => {
             });
         }
 
+        assertRefundWindow(order);
         const requirements = await buildInventoryRequirements(selectedItems, { useSnapshots: true });
         for (const requirement of requirements) {
             await addInventoryStock(requirement.inventoryId, requirement.required, { note: 'Restored from cancelled order item' });
@@ -1728,7 +1731,7 @@ app.post('/api/orders/:id/cancel-items', async (req, res) => {
         res.json({ success: true, order: buildOrderResponse(order), refund });
     } catch (err) {
         console.error('Error removing order item:', err);
-        res.status(500).json({ message: 'Failed to remove order item' });
+        res.status(err.status || 500).json({ message: err.status ? err.message : 'Failed to remove order item' });
     }
 });
 
