@@ -581,18 +581,17 @@ const TransactionPage = () => {
     <div className="mobile-app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'Segoe UI, sans-serif', backgroundColor: '#F5F0EB' }}>
       <Sidebar />
 
-      <div className="mobile-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
+      <div className="mobile-page-content transaction-page-content" style={{ flex: 1, overflow: 'auto', padding: '32px' }}>
         <PageHeader
           title="Transaction History"
           description="View finalized completed and cancelled transaction records."
         />
 
         {/* Filters */}
-        <div className="transaction-filter-grid" style={{
+        <div className="transaction-filter-grid transaction-filter-panel" style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '16px',
-          marginBottom: '24px',
         }}>
           <div>
             <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', fontSize: '12px', color: '#666' }}>
@@ -793,7 +792,7 @@ const TransactionPage = () => {
           <div className="transaction-table-region">
             <div className="transaction-table-swipe-hint" aria-hidden="true">
             </div>
-          <div className="transaction-table-card" style={{
+          <div className="transaction-table-card" role="region" aria-label="Transaction history" tabIndex={0} style={{
             backgroundColor: '#fff',
             border: '1.5px solid #D4B89A',
             borderRadius: '8px',
@@ -850,8 +849,8 @@ const TransactionPage = () => {
                     <td style={{ padding: '12px 16px', fontSize: '13px' }}>
                       <span
                         style={{
-                          backgroundColor: transaction.paymentMethod === 'Cash' ? '#E3F2FD' : transaction.paymentMethod === 'GCash' ? '#FCE4EC' : '#FFF5F5',
-                          color: transaction.paymentMethod === 'Cash' ? '#1565C0' : transaction.paymentMethod === 'GCash' ? '#C2185B' : '#C53030',
+                          backgroundColor: transaction.paymentMethod === 'Cash' ? '#F0FFF4' : transaction.paymentMethod === 'GCash' ? '#E3F2FD' : '#FFF5F5',
+                          color: transaction.paymentMethod === 'Cash' ? '#276749' : transaction.paymentMethod === 'GCash' ? '#1565C0' : '#C53030',
                           padding: '4px 8px',
                           borderRadius: '4px',
                           fontSize: '11px',

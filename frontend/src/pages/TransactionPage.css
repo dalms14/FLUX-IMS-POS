@@ -1,3 +1,67 @@
+.transaction-filter-panel {
+  position: relative;
+  z-index: 90;
+  margin-bottom: 24px;
+  background: #f5f0eb;
+}
+
+/* The header and filters keep their own space; only the table scrolls. */
+@media (min-width: 769px) {
+  .transaction-page-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden !important;
+  }
+
+  .transaction-page-content > * {
+    flex-shrink: 0;
+  }
+
+  .transaction-page-content .transaction-table-region {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .transaction-table-region > .transaction-table-card {
+    flex: 1;
+    min-height: 0;
+    overflow: auto !important;
+    overscroll-behavior: contain;
+  }
+}
+
+.transaction-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f5f0eb;
+  box-shadow: 0 2px 0 #1a1a1a;
+}
+
+/* Leave room for rows when filters wrap on a tablet or short display. */
+@media (max-width: 1400px), (max-height: 650px) {
+  .transaction-filter-panel {
+    max-height: 40vh;
+    max-height: 40dvh;
+    overflow: auto;
+    scrollbar-width: thin;
+  }
+
+  /* Dropdowns must escape the scrollable filter panel. */
+  .transaction-filter-panel .transaction-payment-menu {
+    position: fixed;
+    top: auto;
+    right: 16px;
+    bottom: 16px;
+    left: auto;
+    width: min(360px, calc(100vw - 32px));
+    box-sizing: border-box;
+  }
+}
+
 .transaction-payment-select {
   position: relative;
   width: 100%;
@@ -137,13 +201,13 @@
 }
 
 .transaction-payment-option-dot.method-cash {
-  background: #3182ce;
-  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.12);
+  background: #278453;
+  box-shadow: 0 0 0 3px rgba(39, 132, 83, 0.12);
 }
 
 .transaction-payment-option-dot.method-gcash {
-  background: #d53f8c;
-  box-shadow: 0 0 0 3px rgba(213, 63, 140, 0.12);
+  background: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.12);
 }
 
 .transaction-payment-option-dot.method-cancelled {
@@ -232,17 +296,25 @@
 }
 
 @media (max-width: 768px) {
+  .transaction-filter-panel {
+    position: sticky;
+    top: -18px;
+    padding: 16px 0;
+    box-shadow: 0 8px 10px -10px rgba(55, 31, 18, 0.35);
+  }
+
   .transaction-payment-trigger {
     min-height: 54px;
   }
 
-  .transaction-payment-menu {
+  .transaction-filter-panel .transaction-payment-menu {
     position: fixed;
     z-index: 1600;
     top: auto;
     right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom));
     left: 12px;
+    width: auto;
     padding: 8px;
     border-radius: 16px;
     box-shadow: 0 24px 70px rgba(40, 22, 12, 0.28);
