@@ -84,12 +84,15 @@ test('status changes combine with other filters and Clear removes the dashboard 
   await screen.findByText(sale.receiptNo);
 });
 
-test('refund status is shown consistently in the transaction row and details', async () => {
-  currentSale.refundSummary.status = 'partial refund';
+test.each([
+  ['partial refund', 'Partial refund'],
+  ['refund pending', 'Refund pending'],
+])('refund status %s is shown consistently in the transaction row and details', async (status, label) => {
+  currentSale.refundSummary.status = status;
   currentSale.refundSummary.totalRefunded = 80;
   render(<TransactionPage />);
   fireEvent.click(await screen.findByText(sale.receiptNo));
-  expect(screen.getAllByText('Partial refund')).toHaveLength(2); // Table status and details status.
+  expect(screen.getAllByText(label)).toHaveLength(2); // Table status and details status.
 });
 
 test('a slower previous request cannot overwrite the newly selected status', async () => {
@@ -135,11 +138,11 @@ test('payment method and status menus share the design and preserve each otherâ€
   fireEvent.click(screen.getByRole('combobox', { name: 'Filter by Payment Method' }));
   fireEvent.click(screen.getByRole('option', { name: /^GCash/ }));
   await screen.findByText(sale.receiptNo);
-  chooseStatus('Refund pending');
+  chooseStatus('Partial refund');
   await waitFor(() => {
     const params = new URL(fetch.mock.calls.at(-1)[0]).searchParams;
     expect(params.get('paymentMethod')).toBe('GCash');
-    expect(params.get('status')).toBe('refund pending');
+    expect(params.get('status')).toBe('partial refund');
   });
   await screen.findByText(sale.receiptNo);
 });

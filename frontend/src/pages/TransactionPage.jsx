@@ -14,7 +14,6 @@ const STATUS_OPTIONS = [
   { value: 'paid', label: 'All completed orders', description: 'Includes orders with refund activity' },
   { value: 'completed', label: 'Completed', description: 'Completed without refund activity' },
   { value: 'cancelled', label: 'Cancelled', description: 'Cancelled transactions only' },
-  { value: 'refund pending', label: 'Refund pending', description: 'Awaiting a refund decision' },
   { value: 'partial refund', label: 'Partial refund', description: 'Part of the payment refunded' },
   { value: 'refunded', label: 'Refunded', description: 'Full payment refunded' },
 ];
@@ -29,7 +28,12 @@ const money = (value) => `₱${(Number(value) || 0).toLocaleString('en-PH', { ma
 const isCancelledTransaction = (transaction) => String(transaction?.orderStatus || '').trim().toLowerCase() === 'cancelled'
   || String(transaction?.paymentMethod || '').trim().toLowerCase() === 'cancelled';
 const transactionStatus = transaction => transaction.refundSummary?.status || (isCancelledTransaction(transaction) ? 'cancelled' : 'completed');
-const transactionStatusLabel = transaction => STATUS_OPTIONS.find(option => option.value === transactionStatus(transaction))?.label || 'Completed';
+const transactionStatusLabel = transaction => {
+  const status = transactionStatus(transaction);
+  // Preserve the actual status of older records without offering an unused filter.
+  if (status === 'refund pending') return 'Refund pending';
+  return STATUS_OPTIONS.find(option => option.value === status)?.label || 'Completed';
+};
 const ITEM_SCOPED_DISCOUNT_CODES = new Set(['pagibig', 'pwd_senior']);
 const isItemScopedDiscount = (discount, type) => (
   discount?.scope ? discount.scope === 'item' : ITEM_SCOPED_DISCOUNT_CODES.has(discount?.code) || ITEM_SCOPED_DISCOUNT_CODES.has(type)
