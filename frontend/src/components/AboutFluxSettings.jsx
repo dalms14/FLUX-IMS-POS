@@ -22,6 +22,6 @@ export default function AboutFluxSettings() {
         <h3>{title}</h3><p>{description}</p>
       </article>)}
     </section>
-    <footer className="settings-about-footer"><strong>FLUX · Point of Sale & Inventory Management</strong><span>Developed as an academic capstone project · {new Date().getFullYear()}</span></footer>
+    <footer className="settings-about-footer"><strong>FLUX · Point of Sale & Inventory Management</strong></footer>
   </div>;
 }

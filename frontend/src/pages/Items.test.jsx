@@ -54,6 +54,7 @@ test('budget filtering combines with category and search, excludes the boundary,
   expect(screen.getByRole('button', { name: 'Price filter' })).toBeInTheDocument();
   expect(screen.getByText('Premium Brew')).toBeInTheDocument();
   expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1);
+  await waitFor(() => expect(screen.queryByText('LOADING IMAGE')).not.toBeInTheDocument());
 });
 
 test('rapid Add clicks update the cart immediately while a shared background refresh is still pending', async () => {
@@ -146,12 +147,9 @@ test.each([
   render(<Items />);
   await screen.findByText(badge);
   fireEvent.click(screen.getByRole('button', { name: issue ? 'Unavailable' : 'Add', exact: true }));
-  if (issue) {
-    expect(await screen.findByText(issue)).toBeInTheDocument();
-    expect(screen.getByText('No items added yet.')).toBeInTheDocument();
-  } else {
-    await waitFor(() => expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(1));
-  }
+  if (issue) await screen.findByText(issue);
+  await waitFor(() => expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart).toHaveLength(issue ? 0 : 1));
+  expect(Boolean(screen.queryByText('No items added yet.'))).toBe(Boolean(issue));
 });
 
 test('server failure is caught in checkout, preserves the cart, and allows a successful retry', async () => {
@@ -178,8 +176,9 @@ test('a registered Elite Member is verified, applies to the order and reaches ch
   render(<Items />);
   await screen.findByText('No products found.');
   fireEvent.click(screen.getByRole('button', { name: 'Elite Member' }));
-  await screen.findByRole('option', { name: `${member.name} — ${member.idNumber}` });
-  fireEvent.change(screen.getByLabelText('Registered member'), { target: { value: member.idNumber } });
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Registered member' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('combobox', { name: 'Registered member' }));
+  fireEvent.click(screen.getByRole('option', { name: `${member.name} Card ID: ${member.idNumber}` }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Elite Membership Verification' })).not.toBeInTheDocument());
   expect(JSON.parse(localStorage.getItem('fluxCashierSession')).eliteMember).toEqual(member);
@@ -213,8 +212,9 @@ test('a card rejected at final checkout returns to member selection and preserve
   render(<Items />);
   await screen.findByText('No products found.');
   fireEvent.click(screen.getByRole('button', { name: 'Elite Member' }));
-  await screen.findByRole('option', { name: `${member.name} — ${member.idNumber}` });
-  fireEvent.change(screen.getByLabelText('Registered member'), { target: { value: member.idNumber } });
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'Registered member' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('combobox', { name: 'Registered member' }));
+  fireEvent.click(screen.getByRole('option', { name: `${member.name} Card ID: ${member.idNumber}` }));
   fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Elite Membership Verification' })).not.toBeInTheDocument());
   fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));

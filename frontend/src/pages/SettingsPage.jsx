@@ -13,6 +13,7 @@ import './ProductManagement.css';
 import { focusInvalidField, clearInvalidField, firstInvalidField } from '../utils/formValidation';
 import { PERMISSIONS, hasPermission, isOwnerAccount, isOwnerRole, normalizePermissionDependencies, togglePermissionSelection } from '../utils/roles';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
+import { fetchProductCatalog, readProductCatalog, invalidateProductCatalog } from '../utils/productCatalog';
 import { FiArchive, FiEdit2, FiRotateCcw, FiSearch, FiDownload, FiCheck, FiPlus, FiGrid, FiLayers, FiPercent, FiImage } from 'react-icons/fi';
 
 const normalizeAccountEmail = (value = '') => value.toLowerCase().trim();
@@ -997,7 +998,7 @@ const CategoryFormModal = ({ onSave, onClose }) => {
 };
 
 const InventorySettings = () => {
-    const [products, setProducts] = useState([]);
+    const [products, setProducts] = useState(() => readProductCatalog() || []);
     const [notice, setNotice] = useState(null);
     const dismissNotice = useCallback(() => setNotice(null), []);
     const [categories, setCategories] = useState([]);
@@ -1008,24 +1009,28 @@ const InventorySettings = () => {
     const [editProduct, setEditProduct] = useState(null);
     const [deleteProduct, setDeleteProduct] = useState(null);
     const [showArchive, setShowArchive] = useState(false);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(() => readProductCatalog() === null);
+    const [loadError, setLoadError] = useState('');
     const productsRequestId = useRef(0);
+    const reloadCurrentProducts = useRef(null);
 
-    const fetchProducts = useCallback(async () => {
+    const fetchProducts = useCallback(async (refresh = false) => {
         const requestId = ++productsRequestId.current;
-        setLoading(true);
+        const cached = readProductCatalog(showArchive);
+        if (cached !== null) setProducts(cached);
+        else if (!refresh) setProducts([]);
+        setLoading(cached === null && !refresh);
+        setLoadError('');
         try {
-            const res = await axios.get(`http://localhost:5000/api/products?includeImages=true${showArchive ? '&archived=true' : ''}`);
-            const fetchedProducts = Array.isArray(res.data) ? res.data : [];
-            // Protect the archive screen while an older backend is still running
-            // and does not yet honor the archived=true query parameter.
+            const fetchedProducts = await fetchProductCatalog(showArchive);
             if (requestId !== productsRequestId.current) return;
-            setProducts(showArchive
-                ? fetchedProducts.filter(product => product.archived === true)
-                : fetchedProducts.filter(product => product.archived !== true));
+            setProducts(fetchedProducts);
         } catch (err) {
             if (requestId === productsRequestId.current) {
                 console.error('Error fetching products:', err);
+                setLoadError(cached !== null || refresh
+                    ? 'Could not refresh products. Displayed products may be outdated.'
+                    : 'Could not load products. Please try again.');
             }
         } finally {
             if (requestId === productsRequestId.current) {
@@ -1033,6 +1038,12 @@ const InventorySettings = () => {
             }
         }
     }, [showArchive]);
+    reloadCurrentProducts.current = fetchProducts;
+
+    const refreshProducts = () => {
+        invalidateProductCatalog();
+        reloadCurrentProducts.current(true);
+    };
 
     const fetchCategories = async () => {
         try {
@@ -1053,14 +1064,17 @@ const InventorySettings = () => {
         }
     };
 
-    useEffect(() => { fetchProducts(); }, [fetchProducts]);
+    useEffect(() => {
+        fetchProducts();
+        return () => { productsRequestId.current++; };
+    }, [fetchProducts]);
     useEffect(() => { fetchCategories(); fetchAddons(); }, []);
 
     const handleDelete = async () => {
         try {
             await axios.delete(`http://localhost:5000/api/products/${deleteProduct._id}`);
             setDeleteProduct(null);
-            fetchProducts();
+            refreshProducts();
             setNotice({ title: 'Product archived', message: 'The product was moved to the archive.', tone: 'success' });
         } catch (err) {
             setNotice({ title: 'Could not archive product', message: err.response?.data?.message || 'Please try again.', tone: 'error' });
@@ -1070,7 +1084,7 @@ const InventorySettings = () => {
     const handleRestore = async (product) => {
         try {
             await axios.post(`http://localhost:5000/api/products/${product._id}/restore`);
-            fetchProducts();
+            refreshProducts();
             setNotice({ title: 'Product restored', message: 'The product is available in the active list again.', tone: 'success' });
         } catch (err) {
             setNotice({ title: 'Could not restore product', message: err.response?.data?.message || 'Please try again.', tone: 'error' });
@@ -1117,6 +1131,7 @@ const InventorySettings = () => {
             </div>
 
             {/* Table */}
+            {loadError && <p role="alert">{loadError} <button type="button" onClick={refreshProducts}>Retry</button></p>}
             <div className="products-table-card data-scroll-box" role="region" aria-label={showArchive ? 'Archived products' : 'Products'} tabIndex={0} style={{ backgroundColor: '#fff', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E0D5CB', maxWidth: '100%' }}>
                 <div className="data-scroll-box-grid product-records" style={{ minWidth: '820px' }}>
                     {/* Header */}
@@ -1183,7 +1198,7 @@ const InventorySettings = () => {
                 <ProductFormModal
                     categories={categories}
                     availableAddons={addons}
-                    onSave={() => { setShowAddModal(false); fetchProducts(); setNotice({ title: 'Product added', message: 'The new product has been saved.', tone: 'success' }); }}
+                    onSave={() => { setShowAddModal(false); refreshProducts(); setNotice({ title: 'Product added', message: 'The new product has been saved.', tone: 'success' }); }}
                     onNotice={setNotice}
                     onClose={() => setShowAddModal(false)}
                 />
@@ -1199,7 +1214,7 @@ const InventorySettings = () => {
                     product={editProduct}
                     categories={categories}
                     availableAddons={addons}
-                    onSave={() => { setEditProduct(null); fetchProducts(); setNotice({ title: 'Product updated', message: 'Your changes have been saved.', tone: 'success' }); }}
+                    onSave={() => { setEditProduct(null); refreshProducts(); setNotice({ title: 'Product updated', message: 'Your changes have been saved.', tone: 'success' }); }}
                     onNotice={setNotice}
                     onClose={() => setEditProduct(null)}
                 />

@@ -12,6 +12,7 @@ import { isValidEliteMember } from '../utils/eliteMemberHistory';
 import { allocateDiscountUnits } from '../utils/discountAllocation';
 import { calculateDiscount } from '../utils/discountPricing';
 import { getProductCategoryPreset } from '../utils/productCategoryPresets';
+import { fetchPosProductCatalog, readPosProductCatalog, invalidatePosProductCatalog, updatePosProductCatalog, readProductImage, fetchProductImage } from '../utils/productCatalog';
 
 const ALL_CATEGORY = 'ALL';
 const CASHIER_SESSION_KEY = 'fluxCashierSession';
@@ -338,8 +339,8 @@ const ProductGridLoading = () => (
 
 const ProductCard = ({ product, onAdd }) => {
   const [hovered, setHovered] = useState(false);
-  const [imageUrl, setImageUrl] = useState(product.image || '');
-  const [imageLoaded, setImageLoaded] = useState(!!product.image);
+  const [imageUrl, setImageUrl] = useState(() => product.image || readProductImage(product._id) || '');
+  const [imageLoaded, setImageLoaded] = useState(() => Boolean(product.image) || readProductImage(product._id) !== null);
   const variantGroups = normalizeProductVariantGroups(product);
   const hasOptions = Boolean(product.platterPrice || product.addons?.length > 0 || variantGroups.length > 0);
   const stockLevel = product.stockStatus?.level || 'ok';
@@ -353,18 +354,22 @@ const ProductCard = ({ product, onAdd }) => {
   const soloPrice = product.soloPrice ?? product.price ?? 0;
 
   useEffect(() => {
-    if (!imageLoaded && product._id) {
-      axios
-        .get(`http://localhost:5000/api/products/${product._id}`)
-        .then(res => {
-          setImageUrl(res.data.image || '');
-          setImageLoaded(true);
-        })
-        .catch(() => {
-          setImageLoaded(true);
-        });
+    let alive = true;
+    if (product.image !== undefined) {
+      setImageUrl(product.image || '');
+      setImageLoaded(true);
+      return undefined;
     }
-  }, [imageLoaded, product._id]);
+    const cached = readProductImage(product._id);
+    setImageUrl(cached || '');
+    setImageLoaded(cached !== null);
+    if (product._id) {
+      fetchProductImage(product._id)
+        .then(source => { if (alive) { setImageUrl(source); setImageLoaded(true); } })
+        .catch(() => { if (alive) setImageLoaded(true); });
+    }
+    return () => { alive = false; };
+  }, [product._id, product.image]);
 
   return (
     <div
@@ -417,7 +422,7 @@ const ProductCard = ({ product, onAdd }) => {
         ) : (
           <div style={{ textAlign: 'center', color: '#B8A090', display: 'grid', justifyItems: 'center', gap: '6px' }}>
             <FiImage size={30} />
-            <div style={{ fontSize: '10px', fontWeight: '800', opacity: 0.75 }}>LOADING IMAGE</div>
+            <div style={{ fontSize: '10px', fontWeight: '800', opacity: 0.75 }}>{imageLoaded ? 'NO IMAGE' : 'LOADING IMAGE'}</div>
           </div>
         )}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 56%, rgba(26,18,8,0.42) 100%)', opacity: imageUrl ? 1 : 0 }} />
@@ -1077,12 +1082,17 @@ const ReceiptModal = ({ cart, subtotal, discount, vatRemoved = 0, total, custome
 
 const Items = () => {
   const [savedCashierSession] = useState(loadCashierSession);
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(() => readPosProductCatalog() || []);
   const productRefreshes = useRef(new Map());
-  const [categories, setCategories] = useState([]);
+  const categories = useMemo(() => [
+    { name: ALL_CATEGORY, _id: 'all-products' },
+    ...[...new Set(products.map(p => p.category || p.categoryId?.name).filter(Boolean))]
+      .filter(name => String(name).toUpperCase() !== ALL_CATEGORY)
+      .map(name => ({ name, _id: name })),
+  ], [products]);
   const [discounts, setDiscounts] = useState(DEFAULT_DISCOUNTS);
   const [cart, setCart] = useState(savedCashierSession.cart);
-  const [activeCategory, setActiveCategory] = useState('');
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [priceBudget, setPriceBudget] = useState('');
@@ -1100,7 +1110,13 @@ const Items = () => {
   }, [cart]);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => readPosProductCatalog() === null);
+  const [catalogRefresh, setCatalogRefresh] = useState(0);
+  const [catalogError, setCatalogError] = useState('');
+  const refreshCatalog = () => {
+    invalidatePosProductCatalog();
+    setCatalogRefresh(value => value + 1);
+  };
   const [notifications, setNotifications] = useState([]);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [categoryCollapsed, setCategoryCollapsed] = useState(false);
@@ -1140,10 +1156,7 @@ const Items = () => {
       };
     } catch (err) {
       console.error('Error fetching product recipe:', err);
-      return {
-        ...product,
-        stockStatus: product.stockStatus || { level: 'ok', label: '', details: [] },
-      };
+      throw err;
     }
   }, []);
 
@@ -1170,54 +1183,57 @@ const Items = () => {
 
   // Fetch products only (derive categories from products)
   useEffect(() => {
+    let alive = true;
     const fetchProducts = async () => {
+      setCatalogError('');
       try {
-        const productsRes = await axios.get('http://localhost:5000/api/products');
-        const enrichedProducts = await Promise.all((productsRes.data || []).map(enrichProductStockStatus));
+        const enrichedProducts = await fetchPosProductCatalog(async () => {
+          const productsRes = await axios.get('http://localhost:5000/api/products');
+          if (!Array.isArray(productsRes.data)) throw new Error('Invalid product catalog response');
+          return Promise.all(productsRes.data.filter(product => product.archived !== true).map(enrichProductStockStatus));
+        });
+        if (!alive) return;
         setProducts(enrichedProducts);
-        setCart(prev => prev.map(cartItem => {
-          const latestProduct = enrichedProducts.find(product => (
-            product._id === cartItem._id || product._id === cartItem.productId
-          ));
-          if (!latestProduct) return sanitizeCartItem(cartItem);
+        setCart(prev => {
+          // Reconcile a restored cart, but preserve an order already being entered.
+          if (prev !== savedCashierSession.cart) return prev;
+          return prev.map(cartItem => {
+            const latestProduct = enrichedProducts.find(product => (
+              product._id === cartItem._id || product._id === cartItem.productId
+            ));
+            if (!latestProduct) return sanitizeCartItem(cartItem);
 
-          const latestVariantPrice = getVariantPriceAdjustment(
-            latestProduct,
-            cartItem.selectedVariantGroups,
-            cartItem.variantPrice
-          );
+            const latestVariantPrice = getVariantPriceAdjustment(
+              latestProduct,
+              cartItem.selectedVariantGroups,
+              cartItem.variantPrice
+            );
 
-          return {
-            ...sanitizeCartItem(cartItem),
-            name: latestProduct.name || cartItem.name,
-            category: latestProduct.category || latestProduct.categoryId?.name || cartItem.category,
-            categoryId: latestProduct.categoryId || cartItem.categoryId,
-            price: getConfiguredProductPrice(latestProduct, cartItem),
-            variantPrice: latestVariantPrice,
-            soloPrice: latestProduct.soloPrice,
-            platterPrice: latestProduct.platterPrice,
-          };
-        }));
+            return {
+              ...sanitizeCartItem(cartItem),
+              name: latestProduct.name || cartItem.name,
+              category: latestProduct.category || latestProduct.categoryId?.name || cartItem.category,
+              categoryId: latestProduct.categoryId || cartItem.categoryId,
+              price: getConfiguredProductPrice(latestProduct, cartItem),
+              variantPrice: latestVariantPrice,
+              soloPrice: latestProduct.soloPrice,
+              platterPrice: latestProduct.platterPrice,
+            };
+          });
+        });
 
-        // Derive categories from products and keep ALL as the first tab.
-        const uniqueCategories = [...new Set(enrichedProducts.map(p => p.category || p.categoryId?.name).filter(Boolean))];
-        const derivedCategories = [
-          { name: ALL_CATEGORY, _id: 'all-products' },
-          ...uniqueCategories
-            .filter(name => String(name).toUpperCase() !== ALL_CATEGORY)
-            .map(name => ({ name, _id: name }))
-        ];
-        setCategories(derivedCategories);
-        setActiveCategory(ALL_CATEGORY);
+        setActiveCategory(current => enrichedProducts.some(p => (p.category || p.categoryId?.name) === current) ? current : ALL_CATEGORY);
       } catch (err) {
         console.error('Error fetching products:', err);
+        if (alive) setCatalogError('Could not refresh the menu. Prices and availability may be outdated.');
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     };
 
     fetchProducts();
-  }, [enrichProductStockStatus]);
+    return () => { alive = false; };
+  }, [enrichProductStockStatus, catalogRefresh, savedCashierSession.cart]);
 
   useEffect(() => {
     if (!discountApplied || selectedDiscount || customerType === 'customer') return;
@@ -1293,6 +1309,7 @@ const Items = () => {
         if (controller.signal.aborted) return;
         const recipe = recipeRes.data?.recipe;
         const latestProduct = { ...product, ...details.data, recipe, stockStatus: buildProductStockStatus(recipe) };
+        updatePosProductCatalog(product, latestProduct);
         // Refresh future selections without changing an order already being entered.
         setProducts(prev => prev.map(p => p._id === product._id ? latestProduct : p));
         entry.updatedAt = Date.now();
@@ -1510,6 +1527,7 @@ const Items = () => {
             throw new Error(response.data?.message || 'Order was not saved.');
         }
 
+        refreshCatalog();
         setShowReceipt(false);
         clearCart();
         const verified = response.data.checkout;
@@ -1523,6 +1541,7 @@ const Items = () => {
         });
         return response.data;
     } catch (err) {
+        if (err.response?.data?.code === 'CHECKOUT_CHANGED') invalidatePosProductCatalog();
         if (err.response?.data?.code === 'INVALID_ELITE_MEMBER') {
             setShowReceipt(false);
             setCustomerType('customer');
@@ -1534,6 +1553,7 @@ const Items = () => {
             return;
         }
         if (err.response?.data?.code === 'INSUFFICIENT_STOCK') {
+            refreshCatalog();
             const shortages = err.response.data.shortages || [];
 
             setShowReceipt(false);
@@ -1702,6 +1722,7 @@ const Items = () => {
         </div>}
 
         {/* Product Grid */}
+        {catalogError && <p role="alert">{catalogError} <button type="button" onClick={refreshCatalog}>Retry</button></p>}
         <div className="items-product-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', overflowY: 'auto', flex: 1, paddingBottom: '16px', alignContent: 'start' }}>
           {loading ? (
             <ProductGridLoading />
