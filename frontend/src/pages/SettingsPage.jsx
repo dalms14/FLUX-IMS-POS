@@ -1013,6 +1013,7 @@ const InventorySettings = () => {
     const [loadError, setLoadError] = useState('');
     const productsRequestId = useRef(0);
     const reloadCurrentProducts = useRef(null);
+    const cancelProductsRequest = useCallback(() => { productsRequestId.current++; }, []);
 
     const fetchProducts = useCallback(async (refresh = false) => {
         const requestId = ++productsRequestId.current;
@@ -1066,8 +1067,8 @@ const InventorySettings = () => {
 
     useEffect(() => {
         fetchProducts();
-        return () => { productsRequestId.current++; };
-    }, [fetchProducts]);
+        return cancelProductsRequest;
+    }, [fetchProducts, cancelProductsRequest]);
     useEffect(() => { fetchCategories(); fetchAddons(); }, []);
 
     const handleDelete = async () => {
