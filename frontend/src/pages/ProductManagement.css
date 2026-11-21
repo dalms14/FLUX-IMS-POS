@@ -104,3 +104,36 @@
   .product-management-page.products-inventory-content { overflow: visible !important; }
   .product-management-page .products-inventory-layout { overflow: visible; }
 }
+.product-editor-actions { flex-shrink: 0; padding: 16px 28px; border-top: 1px solid #eee6de; background: #fff; }
+.product-ingredient-field { display: contents; }
+.product-ingredient-field > span { display: none; }
+.product-editor-body { overscroll-behavior: contain; }
+@media (max-width: 600px) {
+  .product-editor-dialog { width: 100% !important; max-width: 100% !important; height: calc(100dvh - 24px); max-height: calc(100dvh - 24px) !important; overflow: hidden !important; }
+  .product-editor-heading { padding: 16px !important; gap: 12px; }
+  .product-editor-heading button { min-width: 44px; min-height: 44px; }
+  .product-editor-body { padding: 16px !important; }
+  .product-editor-actions { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
+  .product-editor-actions button { min-height: 44px; }
+  .product-editor-fields { grid-template-columns: minmax(0, 1fr) !important; }
+  .product-editor-fields > * { min-width: 0; }
+  .product-variant-group-heading { grid-template-columns: minmax(0, 1fr) 44px !important; }
+  .product-variant-group-heading input { grid-column: 1 / -1; }
+  .product-variant-group-heading button { min-height: 44px; }
+  .product-variant-group-heading button:last-child { width: 44px !important; }
+  .product-variant-columns { display: none !important; }
+  .product-variant-row { grid-template-columns: minmax(0, 1fr) 44px !important; }
+  .product-variant-row > p::before { content: 'Option '; }
+  .product-variant-row > input { grid-column: 1 / -1; grid-row: 2; }
+  .product-variant-row > button { grid-column: 2; grid-row: 1; min-width: 44px; min-height: 44px; }
+  .product-variant-price { grid-column: 1 / -1; margin-top: 18px; }
+  .product-variant-price::before { content: 'Price add-on'; position: absolute; top: -18px; font-size: 12px; color: #6f6258; }
+  .product-ingredient-heading { grid-template-columns: minmax(0, 1fr) 44px !important; }
+  .product-ingredient-heading > p:not(:first-child) { display: none; }
+  .product-ingredient-heading button { width: 44px !important; height: 44px !important; }
+  .product-ingredient-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px !important; align-items: end !important; }
+  .product-ingredient-row > div { grid-column: 1 / -1; }
+  .product-ingredient-field { display: grid; gap: 6px; min-width: 0; font-size: 11px; color: #6f6258; }
+  .product-ingredient-field > span { display: block; }
+  .product-ingredient-row button { min-width: 44px; min-height: 44px; }
+}

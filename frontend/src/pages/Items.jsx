@@ -1,5 +1,5 @@
 import ValidatedForm from '../components/ValidatedForm';
-// Items.jsx
+
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { FiAlertTriangle, FiChevronDown, FiChevronUp, FiImage, FiPlus } from 'react-icons/fi';
@@ -221,7 +221,7 @@ const loadCashierSession = () => {
 };
 
 const buildProductStockStatus = (recipe) => {
-  // An option can replace or omit a base ingredient. Check its exact stock at checkout.
+
   const overridden = new Set((recipe?.optionRules || []).filter(rule => rule.mode === 'replace').flatMap(rule => rule.ingredients || []).map(row => String(row.inventoryId?._id || row.inventoryId)));
   const ingredients = (recipe?.ingredients || []).filter(row => !overridden.has(String(row.inventoryId?._id || row.inventoryId)));
   if (ingredients.length === 0) return { level: 'ok', label: '', details: [] };
@@ -274,7 +274,7 @@ const vibrateCannotOrder = () => {
   }
 };
 
-// Add loading animation style
+
 const styles = document.createElement('style');
 styles.textContent = `
   @keyframes spin {
@@ -567,7 +567,7 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onClose}>
+    <div className="app-dialog-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={onClose}>
       <div className="mobile-modal-card" style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '32px', width: '450px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }} onClick={e => e.stopPropagation()}>
         <h3 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 6px' }}>{product.name}</h3>
         {product.description && <p style={{ fontSize: '13px', color: '#999', margin: '0 0 24px', lineHeight: '1.6' }}>{product.description}</p>}
@@ -623,7 +623,7 @@ const ProductModal = ({ product, onConfirm, onClose }) => {
 };
 
 
-// ── Main Items Page ──
+
 const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   
@@ -638,7 +638,7 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
   const maxModalHeight = isMobile ? '80vh' : '75vh';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+    <div className="app-dialog-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
       <div className="mobile-modal-card cashier-dialog" style={{
         backgroundColor: '#fff', 
         borderRadius: '12px',
@@ -649,14 +649,14 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
         boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
         maxWidth: '100%',
       }}>
-        {/* Header */}
+        {            }
         <div style={{ padding: '28px 28px 20px', borderBottom: '1px solid #E0D5CB', flexShrink: 0 }}>
           <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 12px', color: '#1a1a1a', letterSpacing: '0.5px' }}>
             Select Discount Type
           </h3>
           <div style={{ height: '1px', backgroundColor: '#E0D5CB', width: '100%', marginBottom: '16px' }} />
           
-          {/* Search input - only show if there are many discounts */}
+          {                                                          }
           {discounts.length > 4 && (
             <input
               type="text"
@@ -677,7 +677,7 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
           )}
         </div>
 
-        {/* Discount list - scrollable */}
+        {                                }
         <div style={{
           flex: 1,
           overflowY: 'auto',
@@ -766,7 +766,7 @@ const DiscountTypeModal = ({ discounts, onSelect, onCancel }) => {
           )}
         </div>
 
-        {/* Footer - Cancel button */}
+        {                            }
         <div style={{
           padding: '16px 28px 28px',
           borderTop: '1px solid #E0D5CB',
@@ -933,7 +933,7 @@ const ReceiptModal = ({ cart, subtotal, discount, vatRemoved = 0, total, custome
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
+    <div className="app-dialog-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3000 }}>
       <div className="mobile-modal-card" style={{ backgroundColor: '#fff', borderRadius: '20px', padding: '32px', width: '420px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
         <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px dashed #eee', paddingBottom: '16px' }}>
           <h2 style={{ fontSize: '20px', fontWeight: '900', margin: '0 0 4px', letterSpacing: '1px' }}>FLUX - TRANSACTION SUMMARY</h2>
@@ -1181,7 +1181,7 @@ const Items = () => {
     };
   }, []);
 
-  // Fetch products only (derive categories from products)
+
   useEffect(() => {
     let alive = true;
     const fetchProducts = async () => {
@@ -1195,7 +1195,7 @@ const Items = () => {
         if (!alive) return;
         setProducts(enrichedProducts);
         setCart(prev => {
-          // Reconcile a restored cart, but preserve an order already being entered.
+
           if (prev !== savedCashierSession.cart) return prev;
           return prev.map(cartItem => {
             const latestProduct = enrichedProducts.find(product => (
@@ -1295,7 +1295,7 @@ const Items = () => {
 
   const refreshProductInBackground = (product) => {
     const previous = productRefreshes.current.get(product._id);
-    // Rapid clicks share a refresh; do not build a queue of stock requests.
+
     if (previous && (previous.pending || Date.now() - previous.updatedAt < 15000)) return;
     const controller = new AbortController();
     const entry = { controller, pending: true, updatedAt: 0 };
@@ -1310,7 +1310,7 @@ const Items = () => {
         const recipe = recipeRes.data?.recipe;
         const latestProduct = { ...product, ...details.data, recipe, stockStatus: buildProductStockStatus(recipe) };
         updatePosProductCatalog(product, latestProduct);
-        // Refresh future selections without changing an order already being entered.
+
         setProducts(prev => prev.map(p => p._id === product._id ? latestProduct : p));
         entry.updatedAt = Date.now();
       } catch (err) {
@@ -1417,7 +1417,7 @@ const Items = () => {
     const eligibleQuantity = Math.min(discountEligibility[item.cartKey] || 0, item.quantity);
     return acc + getCartItemUnitPrice(item) * eligibleQuantity;
   }, 0);
-  const tax = 0; // VAT already included in product prices
+  const tax = 0;
   const discountBase = isScopedDiscount ? eligibleDiscountSubtotal : subtotal;
   const { discount, vatRemoved, percentageDiscount } = calculateDiscount(discountBase, discountApplied ? activeDiscount : null);
   const total = Math.round((subtotal - discount) * 100) / 100;
@@ -1639,9 +1639,9 @@ const Items = () => {
       )}
       <Sidebar />
 
-      {/* Main Content */}
+      {                  }
       <div className="items-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px' }}>
-        {/* Category Tabs */}
+        {                   }
         <div style={{ marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', marginBottom: '10px' }}>
             <button
@@ -1707,7 +1707,7 @@ const Items = () => {
           )}
         </div>
 
-        {/* Items Header + Search */}
+        {                           }
         <div className="items-header-search" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <p style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a1a', margin: 0 }}>Items</p>
           <div className="pos-items-tools">
@@ -1721,7 +1721,7 @@ const Items = () => {
           <button type="button" onClick={() => setPriceBudget('')}>Clear price filter</button>
         </div>}
 
-        {/* Product Grid */}
+        {                  }
         {catalogError && <p role="alert">{catalogError} <button type="button" onClick={refreshCatalog}>Retry</button></p>}
         <div className="items-product-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '14px', overflowY: 'auto', flex: 1, paddingBottom: '16px', alignContent: 'start' }}>
           {loading ? (
@@ -1734,7 +1734,7 @@ const Items = () => {
         </div>
       </div>
 
-      {/* Order Summary */}
+      {                   }
       <button
         type="button"
         className="items-mobile-cart-button"
@@ -1772,7 +1772,7 @@ const Items = () => {
           )}
         </div>
 
-        {/* Customer Tabs */}
+        {                   }
         <div style={{ display: 'flex', borderBottom: '1px solid #eee' }}>
           {[['customer', 'Customer'], ['elite', 'Elite Member']].map(([type, label]) => (
             <button key={type} onClick={() => handleCustomerTypeChange(type)}
@@ -1782,7 +1782,7 @@ const Items = () => {
           ))}
         </div>
 
-        {/* Cart Items */}
+        {                }
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
           {cart.length === 0
             ? <p style={{ textAlign: 'center', color: '#8A7A6B', fontSize: '13px', marginTop: '32px' }}>No items added yet.</p>
@@ -1813,7 +1813,7 @@ const Items = () => {
           }
         </div>
 
-        {/* Totals */}
+        {            }
         <div style={{ borderTop: '1px solid #eee', padding: '14px', backgroundColor: '#FAF7F4' }}>
           {[['Subtotal:', `₱${subtotal.toLocaleString()}`],
           ...(isScopedDiscount && discountApplied ? [[`${scopedDiscountName} eligible:`, `₱${eligibleDiscountSubtotal.toLocaleString()}`]] : []),

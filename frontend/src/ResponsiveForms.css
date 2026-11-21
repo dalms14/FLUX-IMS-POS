@@ -1,5 +1,5 @@
-/* Safari date/time controls have an intrinsic width. Allow them and their
-   grid cells to shrink instead of overlapping the next field. */
+
+
 .mobile-page-content {
   min-width: 0;
   box-sizing: border-box;
@@ -17,8 +17,9 @@
   min-width: 0;
   max-width: 100%;
   min-height: 42px;
-  -webkit-appearance: none;
-  appearance: none;
+  -webkit-appearance: auto;
+  appearance: auto;
+  color-scheme: light;
 }
 
 :is(.mobile-app-shell, .purchase-order-modal, .delivery-arrival-modal) input::-webkit-date-and-time-value {
@@ -70,13 +71,25 @@
 }
 
 @media (max-width: 768px) {
+  .app-dialog-overlay {
+    box-sizing: border-box;
+    padding: 12px;
+  }
+  .app-dialog-overlay > div {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 24px) !important;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .reports-filter-grid { grid-template-columns: minmax(0, 1fr) !important; }
   .purchase-order-modal .delivery-receive-row,
   .delivery-arrival-modal .delivery-receive-row,
   .purchase-order-item-row { grid-template-columns: minmax(0, 1fr) !important; }
 }
 
-/* Prevent focus zoom on touch-screen Safari while keeping desktop sizing. */
+
 @media (hover: none) and (pointer: coarse) {
   :is(.mobile-app-shell, .purchase-order-modal, .delivery-arrival-modal) :is(input, select, textarea) {
     font-size: 16px !important;

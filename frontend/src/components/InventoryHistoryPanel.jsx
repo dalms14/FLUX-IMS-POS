@@ -27,8 +27,8 @@ export default function InventoryHistoryPanel({ rows, onRefresh, refreshing = fa
   const [type, setType] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
-  // Older API responses contain an action label but no category/direction.
-  // Normalize once so filters, counters and table labels use the same values.
+
+
   const movements = useMemo(() => rows.map((row, index) => {
     const movementType = labels[row.movementType] ? row.movementType : legacyTypes[String(row.action || '').trim().replace(/\s+/g, ' ').toLowerCase()] || '';
     return { ...row, _id: row._id || `legacy-${index}`, movementType,
@@ -71,13 +71,13 @@ export default function InventoryHistoryPanel({ rows, onRefresh, refreshing = fa
           <tbody>
             {!shown.length && <tr><td colSpan={7} className="inventory-history-empty">{rows.length ? 'No movements match these filters.' : 'No inventory movements recorded yet.'}</td></tr>}
             {shown.map(row => <tr key={row._id}>
-              <td>{formatDate(row.date)}</td>
-              <td><strong>{row.item || '-'}</strong></td>
-              <td><span className={`inventory-history-tag ${row.direction === 'in' ? 'is-in' : ''}`}>{(labels[row.movementType] || row.action || 'Movement').toUpperCase()}</span></td>
-              <td className="inventory-history-quantity">{row.direction === 'in' ? '+' : row.direction === 'out' ? '−' : ''}{row.quantity}</td>
-              <td>{row.reference || '-'}</td>
-              <td>{row.by || 'System'}</td>
-              <td>{row.reason || '-'}</td>
+              <td data-label="Date">{formatDate(row.date)}</td>
+              <td data-label="Ingredient"><strong>{row.item || '-'}</strong></td>
+              <td data-label="Movement"><span className={`inventory-history-tag ${row.direction === 'in' ? 'is-in' : ''}`}>{(labels[row.movementType] || row.action || 'Movement').toUpperCase()}</span></td>
+              <td data-label="Quantity" className="inventory-history-quantity">{row.direction === 'in' ? '+' : row.direction === 'out' ? '−' : ''}{row.quantity}</td>
+              <td data-label="Reference">{row.reference || '-'}</td>
+              <td data-label="By">{row.by || 'System'}</td>
+              <td data-label="Reason">{row.reason || '-'}</td>
             </tr>)}
           </tbody>
         </table>

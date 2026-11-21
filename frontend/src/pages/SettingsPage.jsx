@@ -33,7 +33,7 @@ const AVAILABLE_ADDONS = [
 
 const productTableGrid = 'minmax(230px, 2.3fr) minmax(120px, 1.2fr) minmax(80px, .8fr) minmax(80px, .8fr) 92px 92px';
 
-// ── Add/Edit Product Modal ──
+
 const normalizeAddons = (addons = []) =>
     addons
         .filter(addon => addon?.name)
@@ -495,20 +495,20 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
     };
 
     return (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-            <div ref={productFormRef} onInputCapture={() => clearInvalidField(productFormRef.current)} onChangeCapture={() => clearInvalidField(productFormRef.current)} style={{ backgroundColor: '#fff', borderRadius: '16px', width: '696px', maxWidth: 'calc(100vw - 32px)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
-                <div style={{ flexShrink: 0, backgroundColor: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px', borderBottom: '1px solid #EEE6DE' }}>
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#1a1a1a' }}>
+        <div className="app-dialog-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+            <div className="product-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="product-editor-title" ref={productFormRef} onInputCapture={() => clearInvalidField(productFormRef.current)} onChangeCapture={() => clearInvalidField(productFormRef.current)} style={{ backgroundColor: '#fff', borderRadius: '16px', width: '696px', maxWidth: 'calc(100vw - 32px)', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
+                <div className="product-editor-heading" style={{ flexShrink: 0, backgroundColor: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '28px', borderBottom: '1px solid #EEE6DE' }}>
+                    <h3 id="product-editor-title" style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#1a1a1a' }}>
                         {product ? 'Edit Product' : 'Add New Product'}
                     </h3>
                     <button type="button" aria-label="Close product editor" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#aaa' }}>✕</button>
                 </div>
 
-                <div style={{ minHeight: 0, overflowY: 'auto', padding: '24px 28px 28px' }}>
+                <div className="product-editor-body" style={{ minHeight: 0, overflowY: 'auto', padding: '24px 28px 28px' }}>
                 <ProductImageInput value={form.image} onChange={image => setForm(current => ({ ...current, image }))} onBusyChange={setImageLoading} disabled={saving} />
 
-                {/* Form Fields */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                {                 }
+                <div className="product-editor-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                     <div style={{ gridColumn: '1/-1' }}>
                         <label style={labelStyle}>Product Name *</label>
                         <input name="name" aria-label="Product name" required style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Chicken Alaking" />
@@ -560,7 +560,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                         <div style={{ display: 'grid', gap: '12px' }}>
                             {form.variantGroups.map((group, groupIndex) => (
                                 <div key={`variant-group-${groupIndex}`} style={{ border: '1px solid #E8DDD0', borderRadius: '10px', overflow: 'hidden', backgroundColor: '#fff' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '10px', padding: '10px 12px', backgroundColor: '#F5F0EB', alignItems: 'center' }}>
+                                    <div className="product-variant-group-heading" style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '10px', padding: '10px 12px', backgroundColor: '#F5F0EB', alignItems: 'center' }}>
                                         <input
                                             style={{ ...inputStyle, fontWeight: '800', color: '#8B5E3C', backgroundColor: '#fff' }}
                                             value={group.name}
@@ -583,21 +583,22 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                             x
                                         </button>
                                     </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '48px minmax(0, 1fr) 132px 40px', gap: '10px', padding: '9px 12px', backgroundColor: '#FBF8F5', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
+                                    <div className="product-variant-columns" style={{ display: 'grid', gridTemplateColumns: '48px minmax(0, 1fr) 132px 40px', gap: '10px', padding: '9px 12px', backgroundColor: '#FBF8F5', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
                                         {['No.', 'Option Name', 'Price Add-on', ''].map(header => (
                                             <p key={header || 'action'} style={{ margin: 0, fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
                                         ))}
                                     </div>
                                     {group.options.map((variant, optionIndex) => (
-                                        <div key={`variant-${groupIndex}-${optionIndex}`} style={{ display: 'grid', gridTemplateColumns: '48px minmax(0, 1fr) 132px 40px', gap: '10px', padding: '10px 12px', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
+                                        <div className="product-variant-row" key={`variant-${groupIndex}-${optionIndex}`} style={{ display: 'grid', gridTemplateColumns: '48px minmax(0, 1fr) 132px 40px', gap: '10px', padding: '10px 12px', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
                                             <p style={{ margin: 0, fontSize: '12px', color: '#8A7A6B', fontWeight: '800' }}>{optionIndex + 1}</p>
                                             <input
                                                 style={inputStyle}
+                                                aria-label={`Option ${optionIndex + 1} name`}
                                                 value={variant}
                                                 onChange={e => updateVariant(groupIndex, optionIndex, e.target.value)}
                                                 placeholder={groupIndex === 0 ? 'e.g. Garlic Parmesan' : 'e.g. Breast'}
                                             />
-                                            <div style={{ position: 'relative' }}>
+                                            <div className="product-variant-price" style={{ position: 'relative' }}>
                                                 <span style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#8B5E3C', fontSize: '12px', fontWeight: '800', pointerEvents: 'none' }}>+₱</span>
                                                 <input
                                                     style={{ ...inputStyle, paddingLeft: '32px' }}
@@ -722,7 +723,7 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                 </div>
 
                                 <div data-base-recipe style={{ border: '1px solid #E8DDD0', borderRadius: '10px', overflow: 'hidden' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 34px', gap: '10px', padding: '9px 12px', backgroundColor: '#F5F0EB', alignItems: 'center' }}>
+                                    <div className="product-ingredient-heading" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 34px', gap: '10px', padding: '9px 12px', backgroundColor: '#F5F0EB', alignItems: 'center' }}>
                                         {['Ingredient', 'Per Sale', 'Platter x'].map(header => (
                                             <p key={header} style={{ margin: 0, fontSize: '10px', color: '#8B5E3C', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{header}</p>
                                         ))}
@@ -744,27 +745,27 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                                         </div>
                                     ) : (
                                         selectedIngredients.map(ingredient => (
-                                            <div key={ingredient.inventoryId} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 34px', gap: '10px', padding: '10px 12px', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
+                                            <div className="product-ingredient-row" key={ingredient.inventoryId} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 34px', gap: '10px', padding: '10px 12px', alignItems: 'center', borderTop: '1px solid #F0E8E0' }}>
                                                 <div>
                                                     <p style={{ margin: 0, fontSize: '12px', fontWeight: '800', color: '#1a1a1a' }}>{ingredient.name}</p>
                                                     <p style={{ margin: '2px 0 0', fontSize: '10px', color: '#999' }}>Unit: {ingredient.unit}</p>
                                                 </div>
-                                                <input
+                                                <label className="product-ingredient-field"><span>Per sale</span><input
                                                     type="number"
-                                                    required data-validation-label={`${ingredient.name} amount`} min="0.001" max="1000000"
+                                                    required aria-label={`${ingredient.name} amount`} data-validation-label={`${ingredient.name} amount`} min="0.001" max="1000000"
                                                     step="0.001"
                                                     value={ingredient.amountPerServing}
                                                     onChange={e => updateRecipeIngredient(ingredient.inventoryId, 'amountPerServing', e.target.value)}
                                                     style={inputStyle}
-                                                />
-                                                <input
+                                                /></label>
+                                                <label className="product-ingredient-field"><span>Platter multiplier</span><input
                                                     type="number"
-                                                    required data-validation-label={`${ingredient.name} platter multiplier`} min="0.001" max="1000"
+                                                    required aria-label={`${ingredient.name} platter multiplier`} data-validation-label={`${ingredient.name} platter multiplier`} min="0.001" max="1000"
                                                     step="0.001"
                                                     value={ingredient.platterMultiplier}
                                                     onChange={e => updateRecipeIngredient(ingredient.inventoryId, 'platterMultiplier', e.target.value)}
                                                     style={inputStyle}
-                                                />
+                                                /></label>
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleIngredient({ _id: ingredient.inventoryId })}
@@ -792,8 +793,8 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                     </div>
                 </div>
 
-                {/* Buttons */}
-                <div style={{ display: 'flex', gap: '10px' }}>
+                </div>
+                <div className="product-editor-actions" style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={onClose} style={{ flex: 1, padding: '12px', backgroundColor: '#f5f5f5', color: '#555', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
                         Cancel
                     </button>
@@ -802,12 +803,11 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
                         {saving ? 'Saving...' : product ? 'Save Changes' : 'Add Product'}
                     </button>
                 </div>
-                </div>
             </div>
             {showIngredientPicker && (
                 <div
                     onClick={() => setShowIngredientPicker(false)}
-                    style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '18px' }}
+                    style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2100, padding: '18px' }}
                 >
                     <div
                         onClick={event => event.stopPropagation()}
@@ -865,9 +865,9 @@ const ProductFormModal = ({ product, categories, availableAddons = [], onSave, o
     );
 };
 
-// ── Delete Confirmation Modal ──
+
 const DeleteModal = ({ product, onConfirm, onClose }) => (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+    <div className="app-dialog-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '360px', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
             <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <FiArchive size={28} />
@@ -884,9 +884,9 @@ const DeleteModal = ({ product, onConfirm, onClose }) => (
     </div>
 );
 
-// ── Inventory Settings Section ──
+
 const AddonArchiveModal = ({ addon, onConfirm, onClose }) => (
-    <div role="dialog" aria-modal="true" aria-label="Archive Add-on" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+    <div className="app-dialog-overlay" role="dialog" aria-modal="true" aria-label="Archive Add-on" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '360px', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
             <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <FiArchive size={28} />
@@ -904,7 +904,7 @@ const AddonArchiveModal = ({ addon, onConfirm, onClose }) => (
 );
 
 const DiscountArchiveModal = ({ discount, onConfirm, onClose }) => (
-    <div role="dialog" aria-modal="true" aria-label="Archive Discount" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+    <div className="app-dialog-overlay" role="dialog" aria-modal="true" aria-label="Archive Discount" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
         <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '360px', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
             <div style={{ width: '52px', height: '52px', margin: '0 auto 14px', borderRadius: '14px', backgroundColor: '#FFF5F5', color: '#C53030', border: '1px solid #FED7D7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <FiArchive size={28} />
@@ -960,7 +960,7 @@ const CategoryFormModal = ({ onSave, onClose }) => {
     };
 
     return (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div className="app-dialog-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
             <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', width: '380px', boxShadow: '0 24px 64px rgba(0,0,0,0.2)', fontFamily: 'Segoe UI, sans-serif' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: '#1a1a1a' }}>Add Category</h3>
@@ -1099,7 +1099,7 @@ const InventorySettings = () => {
 
     return (
         <div className="products-inventory-layout">
-            {/* Toolbar */}
+            {             }
             <div className="products-toolbar" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
                 <button
                     aria-label="+ Add Product"
@@ -1131,18 +1131,18 @@ const InventorySettings = () => {
                 </p>
             </div>
 
-            {/* Table */}
+            {           }
             {loadError && <p role="alert">{loadError} <button type="button" onClick={refreshProducts}>Retry</button></p>}
             <div className="products-table-card data-scroll-box" role="region" aria-label={showArchive ? 'Archived products' : 'Products'} tabIndex={0} style={{ backgroundColor: '#fff', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', border: '1px solid #E0D5CB', maxWidth: '100%' }}>
                 <div className="data-scroll-box-grid product-records" style={{ minWidth: '820px' }}>
-                    {/* Header */}
+                    {            }
                     <div style={{ display: 'grid', gridTemplateColumns: productTableGrid, padding: '12px 20px', backgroundColor: '#1A1208', gap: '12px' }}>
                         {['Product Name', 'Category', 'Solo', 'Platter', ...(showArchive ? ['Archived', 'Restore'] : ['Edit', 'Archive'])].map(h => (
                             <p key={h} style={{ fontSize: '11px', fontWeight: '700', color: '#C4894A', textTransform: 'uppercase', letterSpacing: '0.8px', margin: 0 }}>{h}</p>
                         ))}
                     </div>
 
-                    {/* Rows */}
+                    {          }
                     {loading ? (
                         <div style={{ padding: '40px', textAlign: 'center', color: '#bbb' }}>Loading products...</div>
                     ) : filtered.length === 0 ? (
@@ -1151,7 +1151,7 @@ const InventorySettings = () => {
                         filtered.map((product, i) => (
                             <div className="product-record" key={product._id} style={{ display: 'grid', gridTemplateColumns: productTableGrid, padding: '12px 20px', gap: '12px', backgroundColor: i % 2 === 0 ? '#fff' : '#FAFAF8', borderBottom: '1px solid #f0f0f0', alignItems: 'center' }}>
                             <div className="product-identity">
-                            {/* Image */}
+                            {           }
                             <div className="product-thumbnail" style={{ width: '44px', height: '44px', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#F0E8E0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {product.image
                                     ? <img src={product.image} alt={product.name} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1193,7 +1193,7 @@ const InventorySettings = () => {
                 </div>
             </div>
 
-            {/* Modals */}
+            {            }
             <AppNotice notice={notice} onDismiss={dismissNotice} />
             {showAddModal && (
                 <ProductFormModal
@@ -1231,8 +1231,8 @@ const InventorySettings = () => {
     );
 };
 
-// ── Main Settings Page ──
-// -- User Account Settings Section --
+
+
 const AddonSettings = () => {
     const [addons, setAddons] = useState([]);
     const [form, setForm] = useState({ name: '', price: '' });
@@ -2090,7 +2090,7 @@ export const UserAccountSettings = () => {
     );
 };
 
-// -- Change Password Settings Section --
+
 const ChangePasswordSettings = () => {
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const [form, setForm] = useState({
@@ -2426,7 +2426,7 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
                     <p>{activeSection === 'inventory' ? 'Everything on your menu, in one place.' : activeSection === 'addons' ? 'The little extras that make every order their own.' : 'Manage your offers and how they apply at checkout.'}</p></div>
                 </header>}
 
-                {/* Left Menu */}
+                {               }
                 <div className={mode === 'products' ? 'catalog-tabs' : undefined} role={mode === 'products' ? 'navigation' : undefined} aria-label={mode === 'products' ? 'Product management' : undefined} style={{ width: '220px', flexShrink: 0, backgroundColor: '#F0E8E0', borderRadius: '16px', padding: '24px 16px', height: 'fit-content' }}>
                     {visibleMenuItems.map(item => (
                         <button
@@ -2449,7 +2449,7 @@ const SettingsPage = ({ initialSection, mode = 'settings' }) => {
                     ))}
                 </div>
 
-                {/* Right Content */}
+                {                   }
                 <div className="settings-section-content" style={{ flex: 1 }}>
                     {mode !== 'products' && <h2 style={{ fontSize: '18px', fontWeight: '900', color: '#1a1a1a', margin: '0 0 20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         {visibleMenuItems.find(m => m.key === activeSection)?.label}

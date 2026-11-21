@@ -50,7 +50,7 @@ function RecipeEntry({ rule, index, update, remove, inventory, choices }) {
         {!choices.some(choice => keyOf(choice) === keyOf(condition)) && condition.option && <option value={keyOf(condition)}>Unavailable: {condition.option}</option>}
         {choices.map(choice => <option key={keyOf(choice)} value={keyOf(choice)}>{optionLabel(choice)}</option>)}
     </select>;
-    return <div style={{ border: '1px solid #e4d8ce', borderRadius: 8, padding: 16, marginBottom: 12, fontSize: 13 }}>
+    return <div className="recipe-option-card" style={{ border: '1px solid #e4d8ce', borderRadius: 8, padding: 16, marginBottom: 12, fontSize: 13 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <strong>1. When this is selected</strong>
             <button type="button" style={{ ...buttonStyle, padding: '4px 8px' }} onClick={remove}>Remove</button>
@@ -84,7 +84,7 @@ function RecipeEntry({ rule, index, update, remove, inventory, choices }) {
         {rule.ingredients.length > 0 && <>
             <strong>3. Enter {rule.mode === 'add' ? 'the extra' : 'the new'} amount per solo serving</strong>
             <p style={{ margin: '5px 0 10px', color: '#777', fontSize: 12 }}>{rule.mode === 'add' ? 'This is added to the usual recipe.' : 'This replaces the usual amount for each ingredient below. Use 0 to leave it out.'}</p>
-            {rule.ingredients.map((row, ri) => <div key={row.inventoryId} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+            {rule.ingredients.map((row, ri) => <div className="recipe-option-ingredient" key={row.inventoryId} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                 <span style={{ flex: 1 }}>{row.name}</span>
                 <input required aria-label={`${row.name} rule amount`} style={{ ...inputStyle, width: 95 }} type="number" min={rule.mode === 'replace' ? 0 : 0.001} max="1000000" step="0.001" value={row.amountPerServing} onChange={e => changeAmount(ri, 'amountPerServing', e.target.value)} />
                 <span style={{ width: 24 }}>{row.unit}</span>
@@ -94,7 +94,7 @@ function RecipeEntry({ rule, index, update, remove, inventory, choices }) {
         <details style={{ marginTop: 14 }}>
             <summary style={{ color: '#805737', cursor: 'pointer', fontSize: 12 }}>More options</summary>
             <p style={{ color: '#777', fontSize: 12 }}>For combinations, all selected options must match.</p>
-            {rule.conditions.slice(1).map((condition, offset) => <div key={offset} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            {rule.conditions.slice(1).map((condition, offset) => <div className="recipe-option-condition" key={offset} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                 {selectOption(condition, offset + 1)}
                 <button type="button" style={buttonStyle} onClick={() => update({ conditions: rule.conditions.filter((_, i) => i !== offset + 1) })}>Remove</button>
             </div>)}

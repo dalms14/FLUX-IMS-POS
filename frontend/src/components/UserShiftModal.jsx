@@ -51,6 +51,7 @@ export default function UserShiftModal({ user, onClose, onSaved }) {
     }}>
       <ValidatedForm onSubmit={submit}>
         <div className="user-shift-heading"><div><h2 id="user-shift-title">Edit shift</h2><p>{user.name || user.email}</p></div><button type="button" aria-label="Close shift settings" onClick={close} disabled={saving}>Close</button></div>
+        <div className="user-shift-body">
         <p id="user-shift-description" className="user-shift-notice">{isShiftExempt(user) ? 'Admins can sign in anytime.' : 'Limit sign-in to shift hours, including early access.'}</p>
         <fieldset disabled={saving} className="user-shift-days"><legend>Workdays</legend>
           {SHIFT_DAYS.map(([day, label], index) => <label key={day}><input ref={index === 0 ? dayInput : undefined} type="checkbox" checked={schedule.workdays.includes(day)} onChange={() => change('workdays', schedule.workdays.includes(day) ? schedule.workdays.filter(value => value !== day) : SHIFT_DAYS.map(([value]) => value).filter(value => value === day || schedule.workdays.includes(value)))} />{label}</label>)}
@@ -59,13 +60,14 @@ export default function UserShiftModal({ user, onClose, onSaved }) {
           <label>Shift start<input ref={startInput} type="time" value={schedule.startTime} disabled={saving} onChange={event => change('startTime', event.target.value)} /></label>
           <label>Shift end<input ref={endInput} type="time" value={schedule.endTime} disabled={saving} onChange={event => change('endTime', event.target.value)} /></label>
         </div>
-        <p className="user-shift-help">Philippine time. Select the days the shift starts.{overnight ? ' Ends the next day.' : ''}</p>
+        <p className="user-shift-help">Philippine time. Tap a time field to choose hours and minutes. Select the days the shift starts.{overnight ? ' Ends the next day.' : ''}</p>
         <label className="user-shift-toggle"><input type="checkbox" checked={schedule.restrictLogin} disabled={saving || isShiftExempt(user)} onChange={event => change('restrictLogin', event.target.checked)} />Restrict login to shift</label>
         {!isShiftExempt(user) && <p className="user-shift-notice">When enabled, active sessions show a 5-minute countdown at shift end, then sign out automatically. All times use Philippine time.</p>}
         {!isShiftExempt(user) && <p className="user-shift-help">Existing sessions stay active after the shift.</p>}
         <label className="user-shift-allowance">Early login (0–120 minutes)<input type="number" min="0" max="120" step="1" required value={schedule.earlyLoginMinutes} disabled={saving} onChange={event => change('earlyLoginMinutes', event.target.value === '' ? '' : Number(event.target.value))} /></label>
         <div className="user-shift-preview"><strong>Preview</strong><p>{shiftSummary(schedule)}</p></div>
         {error && <p className="user-shift-error" role="alert">{error}</p>}
+        </div>
         <div className="user-shift-actions"><button type="button" disabled={saving} onClick={() => { setSchedule(defaultShiftSchedule()); setError(''); }}>Clear schedule</button><div><button type="button" disabled={saving} onClick={close}>Cancel</button><button className="user-shift-primary" disabled={saving}>{saving ? 'Saving…' : 'Save shift'}</button></div></div>
       </ValidatedForm>
     </section>

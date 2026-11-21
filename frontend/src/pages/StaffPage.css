@@ -194,3 +194,22 @@
   .staff-user-actions .staff-action { font-size: 11px; padding: 0 8px; gap: 5px; }
   .staff-user-actions .staff-action-delete { padding: 0; }
 }
+.user-shift-dialog { max-height: calc(100dvh - 36px); overflow: hidden; }
+.user-shift-dialog > form { display: flex; flex-direction: column; max-height: calc(100dvh - 84px); min-height: 0; }
+.user-shift-heading, .user-shift-actions { flex-shrink: 0; }
+.user-shift-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 3px; }
+.user-shift-heading { padding-bottom: 12px; }
+.user-shift-actions { padding-top: 12px; border-top: 1px solid #eee6de; margin-top: 12px; }
+.user-shift-times input { min-height: 44px; color: #33251d; background: #fff; color-scheme: light; }
+@media (max-width: 480px) {
+  .user-shift-overlay { padding: 12px; }
+  .user-shift-dialog { max-height: calc(100dvh - 24px); padding: 16px; }
+  .user-shift-dialog > form { max-height: calc(100dvh - 56px); }
+  .user-shift-dialog button { min-height: 44px; }
+  .user-shift-times { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .user-shift-days { gap: 12px; }
+  .user-shift-days label { min-height: 32px; flex: 1 0 40%; }
+  .user-shift-actions { gap: 8px; }
+  .user-shift-actions > div { flex: 1 1 100%; }
+  .user-shift-actions > div > button { flex: 1; }
+}

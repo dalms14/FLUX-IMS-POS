@@ -17,3 +17,12 @@
 .recipe-ingredient-unit { flex-shrink: 0; font-size: 11px; color: #805737; background: #f5f0eb; border-radius: 4px; padding: 3px 7px; }
 .recipe-ingredient-empty { padding: 16px 12px; margin: 0; color: #827367; text-align: center; font-size: 12px; }
 .product-invalid-field { outline: 2px solid #b34332 !important; outline-offset: 2px; border-color: #b34332 !important; background-color: #fff8f5 !important; scroll-margin: 60px; }
+@media (max-width: 600px) {
+  .recipe-option-card { padding: 12px !important; }
+  .recipe-option-card button, .recipe-option-card select { min-height: 44px; }
+  .recipe-option-ingredient { display: grid !important; grid-template-columns: minmax(0, 1fr) 24px 44px; }
+  .recipe-option-ingredient > span:first-child { grid-column: 1 / -1; overflow-wrap: anywhere; }
+  .recipe-option-ingredient input { width: 100% !important; min-height: 44px; }
+  .recipe-option-condition { flex-wrap: wrap; }
+  .recipe-option-condition select { flex: 1 1 100%; }
+}
