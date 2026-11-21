@@ -5,8 +5,14 @@
   display: none;
 }
 
-/* POS is primarily used on iPad landscape. Keep navigation available as a
-   compact rail so the menu and cashier panels retain useful working width. */
+@media (pointer: coarse), (any-pointer: coarse) {
+  .gcash-camera-capture {
+    display: block;
+  }
+}
+
+
+
 @media (min-width: 769px) and (max-width: 1180px) {
   .flux-sidebar-desktop.is-collapsed {
     width: 64px !important;
@@ -39,9 +45,9 @@
     width: 280px !important;
   }
 
-  /* Tablet data pages can have an expanded navigation rail and a settings
-     sub-menu. Keep the document inside the viewport; wide tables scroll in
-     their own card rather than expanding the entire page. */
+
+
+
   .mobile-page-content {
     min-width: 0 !important;
     max-width: 100% !important;
@@ -107,8 +113,8 @@
   }
 }
 
-/* iPad Safari uses a desktop-width viewport. These controls need two
-   comfortable columns before the phone breakpoint is reached. */
+
+
 @media (min-width: 769px) and (max-width: 1400px) {
   .transaction-filter-grid,
   .sales-filter-grid {
@@ -120,8 +126,8 @@
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  /* Purchase-order and report tables are wider than an iPad content area.
-     Keep their columns intact and let the card itself receive horizontal swipes. */
+
+
   .mobile-page-content section[style*="overflow: hidden"] {
     overflow-x: auto !important;
     overflow-y: hidden !important;
@@ -146,7 +152,7 @@
   }
 }
 
-/* The iPad browser can reveal the parent behind a short History list. */
+
 .history-page-content {
   background: #F5F0EB !important;
 }
@@ -500,15 +506,15 @@
     width: 100% !important;
   }
 
-  /* Reports: keep each report category readable rather than squeezing two
-     desktop tables beside each other on a phone. */
+
+
   .reports-two-column,
   .reports-login-filters {
     grid-template-columns: 1fr !important;
   }
 
-  /* Purchase-order forms and delivery receipts use one clear field per row
-     on a phone. Desktop and tablet layouts remain unchanged. */
+
+
   .purchase-order-modal {
     width: calc(100% - 20px) !important;
     max-height: calc(100vh - 20px) !important;
@@ -528,8 +534,8 @@
     grid-template-columns: 1fr !important;
   }
 
-  /* Wide report, inventory, and purchase-order tables stay usable through
-     horizontal swipe instead of being cut off by their cards. */
+
+
   .mobile-page-content section[style*="overflow: hidden"] {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;

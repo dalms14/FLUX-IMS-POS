@@ -71,7 +71,7 @@ test('rapid Add clicks update the cart immediately while a shared background ref
   expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart[0]).toMatchObject({ quantity: 5, price: 100 });
   expect(axios.get).toHaveBeenCalledTimes(2);
   await act(async () => completeDetails({ data: { ...product, soloPrice: 120 } }));
-  // A late refresh must neither discard clicks nor silently reprice the cart.
+
   expect(JSON.parse(localStorage.getItem('fluxCashierSession')).cart[0]).toMatchObject({ quantity: 5, price: 100 });
   axios.post.mockRejectedValue({ response: { data: { code: 'CHECKOUT_CHANGED', message: 'Product prices or discounts have changed. Refresh the POS and review the order before paying.' } } });
   fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
@@ -239,6 +239,28 @@ test('GCash accepts digits only, including pasted input, and blocks a short refe
   fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
   await screen.findByText('Enter 10 to 13 digits for the GCash reference number.');
   expect(axios.post).not.toHaveBeenCalled();
+});
+
+test.each(['(pointer: coarse)', '(any-pointer: coarse)'])('a wide tablet matching %s requires GCash camera proof before checkout', async touchQuery => {
+  const previousMatchMedia = window.matchMedia;
+  window.matchMedia = jest.fn(query => ({
+    matches: query.includes(touchQuery),
+    media: query,
+    addEventListener: jest.fn(), removeEventListener: jest.fn(),
+  }));
+  try {
+    render(<Items />);
+    await screen.findByText('No products found.');
+    fireEvent.click(screen.getByRole('button', { name: 'Proceed to Checkout' }));
+    fireEvent.click(screen.getByRole('button', { name: 'GCash' }));
+    expect(screen.getByLabelText('Use Camera')).toHaveAttribute('capture', 'environment');
+    fireEvent.change(screen.getByPlaceholderText('e.g. 1234567890'), { target: { value: '1234567890123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }));
+    expect(await screen.findByText('Please capture the GCash payment proof.')).toBeInTheDocument();
+    expect(axios.post).not.toHaveBeenCalled();
+  } finally {
+    window.matchMedia = previousMatchMedia;
+  }
 });
 
 test('two PWD diners automatically discount only the top two units and preserve the allocation at checkout', async () => {

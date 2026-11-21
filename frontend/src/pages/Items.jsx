@@ -890,7 +890,7 @@ const ReceiptModal = ({ cart, subtotal, discount, vatRemoved = 0, total, custome
       }
       const needsMobileProof = typeof window !== 'undefined'
         && window.matchMedia
-        && window.matchMedia('(max-width: 768px)').matches;
+        && window.matchMedia('(max-width: 768px), (pointer: coarse), (any-pointer: coarse)').matches;
       if (needsMobileProof && !gcashProofImage) {
         setError('Please capture the GCash payment proof.');
         return;
