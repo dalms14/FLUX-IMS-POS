@@ -26,7 +26,7 @@ export default function SalesForecast() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; controller.abort(); };
   }, [source, refresh]);
-  // Never show the previous source's figures while a different source loads.
+
   const current = data?.source === source ? data : null;
   const ready = !loading && current?.status === 'ready';
   const demo = source === 'demo';
@@ -44,10 +44,10 @@ export default function SalesForecast() {
         <button className="forecast-refresh" type="button" aria-label="Reload sales forecast" disabled={loading} onClick={() => setRefresh(value => value + 1)}><FiRefreshCw /></button>
       </div>
     </div>
-    <div className={`forecast-notice ${demo ? 'forecast-demo' : ''}`}>
-      <strong>{demo ? 'ML DEMONSTRATION' : 'REAL SALES'}</strong>
-      <span>{demo ? 'Machine-learning demonstration using sample data, not Eli Coffee sales. Your test transactions are not used. Performance on real client sales has not been established.' : 'Uses completed client sales from the verified start date. Pre-handover test transactions are excluded.'}</span>
-    </div>
+    {!demo && <div className="forecast-notice">
+      <strong>REAL SALES</strong>
+      <span>Uses completed client sales from the verified start date. Pre-handover test transactions are excluded.</span>
+    </div>}
     <div aria-live="polite">
       {loading && <p className="forecast-empty">Preparing the sales outlook...</p>}
       {error && <div className="forecast-empty" role="alert"><p>{error}</p><button type="button" onClick={() => setRefresh(value => value + 1)}>Try again</button></div>}
@@ -59,8 +59,8 @@ export default function SalesForecast() {
     </div>
     {ready && <>
       <div className="forecast-metrics">
-        <div><span>Tomorrow{demo ? ' (sample)' : ''}</span><strong>{money(current.tomorrow)}</strong><small>{dateLabel(current.forecast[1].date)}</small></div>
-        <div><span>Coming 7 days{demo ? ' (sample)' : ''}</span><strong>{money(current.total)}</strong><small>Including today</small></div>
+        <div><span>Tomorrow</span><strong>{money(current.tomorrow)}</strong><small>{dateLabel(current.forecast[1].date)}</small></div>
+        <div><span>Coming 7 days</span><strong>{money(current.total)}</strong><small>Including today</small></div>
       </div>
       <div className="forecast-days" role="list" aria-label="Daily sales estimates">
         {current.forecast.map(row => <div className="forecast-day" role="listitem" key={row.date}>

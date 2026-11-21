@@ -14,7 +14,7 @@ const result = {
 };
 beforeEach(() => jest.resetAllMocks());
 
-test('shows ingredient units, usable stock and shortages, with explicit demo labeling', async () => {
+test('shows ingredient units, usable stock and shortages with a plain section heading', async () => {
   axios.get.mockResolvedValue({ data: result });
   render(<IngredientDemandForecast source="demo" refresh={0} />);
   const region = await screen.findByRole('region', { name: 'Seven-day ingredient demand estimates' });
@@ -25,7 +25,7 @@ test('shows ingredient units, usable stock and shortages, with explicit demo lab
   expect(milk).toHaveTextContent('Restock');
   expect(milk).toHaveTextContent('Some stock expires before use');
   expect(screen.getByText('Covered')).toBeInTheDocument();
-  expect(screen.getByRole('heading')).toHaveTextContent('Ingredient Demand (sample)');
+  expect(screen.getByRole('heading')).toHaveTextContent(/^Ingredient Demand$/);
   expect(axios.get.mock.calls[0][0]).toBe('http://localhost:5000/api/sales-forecast/ingredient-demand?source=demo');
 });
 

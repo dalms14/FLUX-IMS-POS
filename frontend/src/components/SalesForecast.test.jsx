@@ -27,13 +27,16 @@ test('replaces forecast comparisons with ingredient demand while keeping daily s
   expect(screen.queryByText(/Average difference:/)).not.toBeInTheDocument();
 });
 
-test('clearly labels sample forecasts and provides an accessible daily breakdown', async () => {
+test('keeps the demo source selector and daily estimates without the extra banner or sample suffixes', async () => {
   axios.get.mockResolvedValue({ data: sample });
   render(<SalesForecast />);
   expect(await screen.findByRole('list', { name: 'Daily sales estimates' })).toBeInTheDocument();
-  expect(screen.getByText('ML DEMONSTRATION')).toBeInTheDocument();
-  expect(screen.getByText(/not Eli Coffee sales/)).toBeInTheDocument();
-  expect(screen.getByText('Tomorrow (sample)')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Demo data' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.queryByText('ML DEMONSTRATION')).not.toBeInTheDocument();
+  expect(screen.queryByText(/not Eli Coffee sales/)).not.toBeInTheDocument();
+  expect(screen.getByText('Tomorrow')).toBeInTheDocument();
+  expect(screen.getByText('Coming 7 days')).toBeInTheDocument();
+  expect(screen.queryByText(/\(sample\)/)).not.toBeInTheDocument();
   expect(screen.getAllByRole('listitem')).toHaveLength(7);
   expect(screen.queryByText(/Historical prediction error/)).not.toBeInTheDocument();
   expect(axios.get.mock.calls[0][0]).toBe('http://localhost:5000/api/sales-forecast?source=demo');
@@ -46,7 +49,7 @@ test('real mode shows readiness without relabeling sample figures as client fore
   render(<SalesForecast />);
   await screen.findByRole('list', { name: 'Daily sales estimates' });
   fireEvent.click(screen.getByRole('button', { name: 'Real sales' }));
-  expect(screen.queryByText('Tomorrow (sample)')).not.toBeInTheDocument();
+  expect(screen.queryByText('Tomorrow')).not.toBeInTheDocument();
   expect(await screen.findByText('Real sales forecasting is not enabled yet.')).toBeInTheDocument();
   expect(screen.queryByRole('img')).not.toBeInTheDocument();
   expect(axios.get.mock.calls[1][0]).toContain('source=real');

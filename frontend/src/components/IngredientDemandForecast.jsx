@@ -23,9 +23,8 @@ export default function IngredientDemandForecast({ source, refresh }) {
   }, [source, refresh, retry]);
   const current = result?.source === source ? result : null;
   const ready = !loading && current?.status === 'ready';
-  const demo = source === 'demo';
   return <section className="forecast-ingredients" aria-labelledby="ingredient-demand-heading" aria-busy={loading}>
-    <h3 id="ingredient-demand-heading">Ingredient Demand{demo ? ' (sample)' : ''}</h3>
+    <h3 id="ingredient-demand-heading">Ingredient Demand</h3>
     <div aria-live="polite">
       {loading && <p>Estimating ingredient needs...</p>}
       {error && <div role="alert"><p>{error}</p><button type="button" onClick={() => setRetry(value => value + 1)}>Retry ingredient estimates</button></div>}
