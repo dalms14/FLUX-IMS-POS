@@ -5,7 +5,7 @@
   background: #f5f0eb;
 }
 
-/* The header and filters keep their own space; only the table scrolls. */
+
 @media (min-width: 769px) {
   .transaction-page-content {
     display: flex;
@@ -41,7 +41,7 @@
   box-shadow: 0 2px 0 #1a1a1a;
 }
 
-/* Leave room for rows when filters wrap on a tablet or short display. */
+
 @media (max-width: 1400px), (max-height: 650px) {
   .transaction-filter-panel {
     max-height: 40vh;
@@ -50,7 +50,7 @@
     scrollbar-width: thin;
   }
 
-  /* Dropdowns must escape the scrollable filter panel. */
+
   .transaction-filter-panel .transaction-payment-menu {
     position: fixed;
     top: auto;
@@ -331,5 +331,12 @@
   .transaction-payment-chevron {
     animation: none;
     transition: none;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1400px) and (hover: none) and (pointer: coarse) {
+  .transaction-filter-panel {
+    max-height: 52vh;
+    max-height: 52dvh;
   }
 }
