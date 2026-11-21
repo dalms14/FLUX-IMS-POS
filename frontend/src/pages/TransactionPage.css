@@ -340,3 +340,22 @@
     max-height: 52dvh;
   }
 }
+
+@media (min-width: 769px) and (max-width: 1400px) and (pointer: coarse),
+       (min-width: 769px) and (max-width: 1400px) and (any-pointer: coarse) {
+  .transaction-page-content {
+    display: block;
+    overflow-y: auto !important;
+  }
+
+  .transaction-page-content .transaction-table-region {
+    display: block;
+  }
+
+  .transaction-page-content .transaction-table-region > .transaction-table-card {
+    height: 65vh;
+    height: 65dvh;
+    min-height: 360px;
+    max-height: none;
+  }
+}
